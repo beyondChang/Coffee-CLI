@@ -99,3 +99,6 @@ binaries/
 
 # Local agent/tool plan scratch (e.g. .zcode/plans — session-scoped, not for the repo)
 /.zcode/
+
+# Local agent workspace (workbuddy session memory and notes; machine-specific)
+/.workbuddy/
