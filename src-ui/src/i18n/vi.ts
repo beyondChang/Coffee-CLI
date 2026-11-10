@@ -315,6 +315,7 @@ export const vi = {
   'filetab.close_left': 'Đóng bên trái',
   'filetab.close_current': 'Đóng tab này',
   'filetab.close_all': 'Đóng tất cả',
+  'filetab.open_folder': 'Mở thư mục',
   'panel.close_left': 'Đóng bảng bên trái',
   'panel.close_right': 'Đóng bảng bên phải',
   'launchpad.open_folder': 'Mở thư mục',

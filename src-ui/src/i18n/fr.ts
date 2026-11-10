@@ -313,6 +313,7 @@ export const fr = {
   'filetab.close_left': 'Fermer à gauche',
   'filetab.close_current': 'Fermer cet onglet',
   'filetab.close_all': 'Tout fermer',
+  'filetab.open_folder': 'Ouvrir le dossier',
   'panel.close_left': 'Fermer le panneau gauche',
   'panel.close_right': 'Fermer le panneau droit',
   'launchpad.open_folder': 'Ouvrir un dossier',

@@ -313,6 +313,7 @@ export const ko = {
   'filetab.close_left': '왼쪽 닫기',
   'filetab.close_current': '현재 탭 닫기',
   'filetab.close_all': '모두 닫기',
+  'filetab.open_folder': '폴더 열기',
   'panel.close_left': '왼쪽 패널 닫기',
   'panel.close_right': '오른쪽 패널 닫기',
   'launchpad.open_folder': '폴더 열기',

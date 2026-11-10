@@ -313,6 +313,7 @@ export const ru = {
   'filetab.close_left': 'Закрыть слева',
   'filetab.close_current': 'Закрыть эту вкладку',
   'filetab.close_all': 'Закрыть все',
+  'filetab.open_folder': 'Открыть папку',
   'panel.close_left': 'Закрыть левую панель',
   'panel.close_right': 'Закрыть правую панель',
   'launchpad.open_folder': 'Открыть папку',

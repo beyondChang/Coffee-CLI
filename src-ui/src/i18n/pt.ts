@@ -313,6 +313,7 @@ export const pt = {
   'filetab.close_left': 'Fechar à esquerda',
   'filetab.close_current': 'Fechar este separador',
   'filetab.close_all': 'Fechar tudo',
+  'filetab.open_folder': 'Abrir pasta',
   'panel.close_left': 'Fechar painel esquerdo',
   'panel.close_right': 'Fechar painel direito',
   'launchpad.open_folder': 'Abrir pasta',

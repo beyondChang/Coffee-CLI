@@ -7,6 +7,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useT } from '../../i18n/useT';
+import { commands } from '../../tauri';
 
 export interface FileTabMenuState {
   path: string;
@@ -41,7 +42,7 @@ export function FileTabContextMenu({ menu, canCloseLeft, canCloseRight, onCloseC
   }, [onClose]);
 
   const MENU_WIDTH = 180;
-  const MENU_HEIGHT = 168;
+  const MENU_HEIGHT = 210;
   const style: React.CSSProperties = {
     position: 'fixed',
     ...(menu.y + MENU_HEIGHT > window.innerHeight ? { bottom: Math.max(0, window.innerHeight - menu.y) } : { top: menu.y }),
@@ -59,6 +60,10 @@ export function FileTabContextMenu({ menu, canCloseLeft, canCloseRight, onCloseC
       {item(t('filetab.close_current'), true, onCloseCurrent)}
       <div className="ctx-menu-divider" />
       {item(t('filetab.close_all'), true, onCloseAll)}
+      <div className="ctx-menu-divider" />
+      {item(t('filetab.open_folder'), true, () => {
+        void commands.showInFolder(menu.path).catch(error => console.warn('[Tabs] open folder failed:', error));
+      })}
     </div>,
     document.body,
   );

@@ -313,6 +313,7 @@ export const zhTW = {
   'filetab.close_left': '關閉左側',
   'filetab.close_current': '關閉目前',
   'filetab.close_all': '全部關閉',
+  'filetab.open_folder': '開啟目錄',
   'panel.close_left': '關閉左側面板',
   'panel.close_right': '關閉右側面板',
   'launchpad.open_folder': '開啟資料夾',

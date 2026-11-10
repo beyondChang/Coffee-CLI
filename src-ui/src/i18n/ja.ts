@@ -313,6 +313,7 @@ export const ja = {
   'filetab.close_left': '左側を閉じる',
   'filetab.close_current': 'このタブを閉じる',
   'filetab.close_all': 'すべて閉じる',
+  'filetab.open_folder': 'フォルダーを開く',
   'panel.close_left': '左パネルを閉じる',
   'panel.close_right': '右パネルを閉じる',
   'launchpad.open_folder': 'フォルダを開く',

@@ -313,6 +313,7 @@ export const es = {
   'filetab.close_left': 'Cerrar a la izquierda',
   'filetab.close_current': 'Cerrar esta pestaña',
   'filetab.close_all': 'Cerrar todo',
+  'filetab.open_folder': 'Abrir carpeta',
   'panel.close_left': 'Cerrar panel izquierdo',
   'panel.close_right': 'Cerrar panel derecho',
   'launchpad.open_folder': 'Abrir carpeta',

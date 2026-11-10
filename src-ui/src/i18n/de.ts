@@ -313,6 +313,7 @@ export const de = {
   'filetab.close_left': 'Links schließen',
   'filetab.close_current': 'Diesen Tab schließen',
   'filetab.close_all': 'Alle schließen',
+  'filetab.open_folder': 'Ordner öffnen',
   'panel.close_left': 'Linkes Panel schließen',
   'panel.close_right': 'Rechtes Panel schließen',
   'launchpad.open_folder': 'Ordner öffnen',

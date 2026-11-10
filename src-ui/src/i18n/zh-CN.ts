@@ -313,6 +313,7 @@ export const zhCN = {
   'filetab.close_left': '关闭左侧',
   'filetab.close_current': '关闭当前',
   'filetab.close_all': '全部关闭',
+  'filetab.open_folder': '打开目录',
   'panel.close_left': '关闭左侧面板',
   'panel.close_right': '关闭右侧面板',
   'launchpad.open_folder': '打开文件夹',
