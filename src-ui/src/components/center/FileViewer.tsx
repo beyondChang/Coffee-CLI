@@ -41,7 +41,10 @@ function ImageViewer({ path }: { path: string }) {
   const [url, setUrl] = useState('');
   const [failed, setFailed] = useState(false);
   const [zoom, setZoom] = useState({ scale: 1, x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ id: number; startX: number; startY: number; ox: number; oy: number } | null>(null);
+  const resetZoom = () => setZoom({ scale: 1, x: 0, y: 0 });
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +79,30 @@ function ImageViewer({ path }: { path: string }) {
   if (failed) return <div className="file-viewer-status" role="alert">{t('file.error')}</div>;
   return (
     <div className="file-viewer is-image">
-      <div className={`file-viewer-image-stage${zoom.scale !== 1 ? ' is-zoomed' : ''}`} ref={stageRef}>
+      <div
+        className={`file-viewer-image-stage${zoom.scale !== 1 ? ' is-zoomed' : ''}${dragging ? ' is-dragging' : ''}`}
+        ref={stageRef}
+        onDoubleClick={resetZoom}
+        onPointerDown={event => {
+          // Panning only makes sense once the image is larger than the stage.
+          if (zoom.scale === 1) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          drag.current = { id: event.pointerId, startX: event.clientX, startY: event.clientY, ox: zoom.x, oy: zoom.y };
+          setDragging(true);
+        }}
+        onPointerMove={event => {
+          const state = drag.current;
+          if (!state || state.id !== event.pointerId) return;
+          setZoom(prev => ({ ...prev, x: state.ox + (event.clientX - state.startX), y: state.oy + (event.clientY - state.startY) }));
+        }}
+        onPointerUp={event => {
+          if (drag.current?.id !== event.pointerId) return;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          drag.current = null;
+          setDragging(false);
+        }}
+        onPointerCancel={() => { drag.current = null; setDragging(false); }}
+      >
         {url && (
           <img
             className="file-viewer-image"
