@@ -756,10 +756,6 @@ export function Explorer() {
       <button type="button" className="explorer-new-session explorer-usage" aria-pressed={!!state.automationsOpen} onClick={() => dispatch({ type: 'SET_AUTOMATIONS_OPEN', open: true })}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M5 3 2 6" /><path d="m22 6-3-3" /></svg><span>{t('automation.title')}</span>
       </button>
-      {/* Fixed header for the history list: HistoryBoard portals its search +
-          layout rows here so they can never scroll or overlap the sessions. */}
-      <div className="explorer-head-slot" id="explorer-head-slot" />
-
       {/* Session list content */}
       <div className="panel-content explorer-content">
         {/* HistoryBoard returns a fragment and was originally hosted inside

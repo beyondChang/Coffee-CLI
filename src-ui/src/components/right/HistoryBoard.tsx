@@ -273,10 +273,6 @@ export function HistoryBoard() {
   useEffect(() => { try { localStorage.setItem('cc-history-tool', toolFilter); } catch { /* Storage unavailable. */ } }, [toolFilter]);
   // null means "nothing opened yet" — every project starts collapsed, and the
   // first toggle materialises the set from that baseline.
-  // Explorer renders an empty header slot above the scrolling list; the search
-  // and layout rows portal into it so they stay put without sticky positioning.
-  const [headSlot, setHeadSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => { setHeadSlot(document.getElementById('explorer-head-slot')); }, []);
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string> | null>(null);
   const [projectMenu, setProjectMenu] = useState<{ x: number; y: number; group: ProjectGroup } | null>(null);
   // How many sessions each project shows beyond its preview, so one busy folder cannot push the others away.
@@ -772,9 +768,9 @@ export function HistoryBoard() {
 
   return (
     <>
-      {/* Search + layout live in Explorer's fixed header slot, so the list
-          below scrolls under nothing. */}
-      {headSlot ? createPortal(<div className="history-head">
+      {/* Search + layout sit above the list, which is the only part that
+          scrolls (see .explorer-content in Explorer.css). */}
+      <div className="history-head">
       <button type="button" className="history-search-trigger" onClick={openSearch}>
         {/* Lucide search; license in /icons/LICENSE-lucide.txt. */}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
@@ -793,7 +789,7 @@ export function HistoryBoard() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M7 12h10M10 18h4" /></svg>
         </button>
       </div>
-      </div>, headSlot) : null}
+      </div>
       {layoutMenu && createPortal(
         <div className="ctx-menu history-layout-menu" role="menu" ref={layoutMenuRef} style={{ position: 'fixed', top: layoutMenu.top, right: layoutMenu.right }}>
           {/* The session list opens its apps beside the row: all apps, or one app's sessions. */}

@@ -227,26 +227,22 @@
     overflow: hidden;
 }
 .explorer-scroll[data-tab="history"] > * { flex-shrink: 0; }
-.explorer-head-slot {
-    flex-shrink: 0;
-    padding: 0 8px;
-}
-.explorer-head-slot:empty { display: none; }
-.explorer-head-slot {
-    flex-shrink: 0;
-    padding: 0 8px;
-}
-.explorer-head-slot:empty { display: none; }
 .explorer-scroll[data-tab="history"] > .explorer-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+.explorer-scroll[data-tab="history"] .explorer-history-host {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+/* The session list — not the header above it — is what scrolls. */
+.explorer-scroll[data-tab="history"] .history-session-list {
     flex: 1 1 auto;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
-}
-.explorer-scroll[data-tab="history"] .explorer-history-host,
-.explorer-scroll[data-tab="history"] .history-session-list {
-    flex: none;
-    overflow: visible;
 }
 
 .tree-dir, .tree-file {

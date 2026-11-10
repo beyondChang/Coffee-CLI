@@ -2152,9 +2152,11 @@ body.resizing-panels .pane-resizer {
 :root { --chrome-shade: none; }
 html[data-mode="dark"] { --chrome-shade: linear-gradient(rgb(0 0 0 / 0.10), rgb(0 0 0 / 0.10)); }
 
-.titlebar,
-.panel-left,
-.panel-right {
+/* Specificity beats the plain .panel-left / .panel-right rules further down,
+   which reset the background shorthand. */
+html .titlebar,
+html .panel-left,
+html .panel-right {
     background-color: var(--bg-panel);
     background-image: var(--chrome-shade);
 }
