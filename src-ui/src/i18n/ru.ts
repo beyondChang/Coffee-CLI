@@ -83,9 +83,6 @@ export const ru = {
 
   'directory.missing': 'Каталог проекта больше не существует или не является папкой. Восстановите его или выберите другой каталог в новом сеансе.',
   'directory.unavailable': 'Каталог проекта недоступен. Проверьте диск, сетевое подключение и права доступа, затем подключитесь снова.',
-  "changelog.title": "История изменений",
-  "changelog.error": "Не удалось загрузить историю изменений. Попробуйте ещё раз.",
-  "changelog.retry": "Повторить",
   "skills.installed": "Установлено",
   "skills.click_install": "Нажмите для установки",
   "skills.discover": "Обзор",
@@ -382,8 +379,6 @@ export const ru = {
   'interaction.custom_placeholder': 'Введите свой ответ…',
   'interaction.submit': 'Отправить',
   'interaction.failed': 'Терминал не готов. Ответьте в режиме терминала.',
-  'settings.feedback': 'Баги и предложения',
-  'settings.feedback.desc': 'Нашли баг или есть предложение? Нажмите ниже, чтобы отправить проблему:',
   'settings.wallpaper.pick': 'Выбрать изображение или видео',
   'settings.wallpaper.clear': 'Убрать обои',
   'settings.wallpaper.opacity': 'Непрозрачность',

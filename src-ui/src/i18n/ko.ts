@@ -83,9 +83,6 @@ export const ko = {
 
   'directory.missing': '프로젝트 디렉터리가 없거나 폴더가 아닙니다. 원래 디렉터리를 복원하거나 새 세션에서 다른 디렉터리를 선택하세요.',
   'directory.unavailable': '프로젝트 디렉터리에 접근할 수 없습니다. 드라이브, 네트워크 연결 및 권한을 확인한 후 다시 연결하세요.',
-  "changelog.title": "업데이트 내역",
-  "changelog.error": "업데이트 내역을 불러오지 못했습니다. 다시 시도해 주세요.",
-  "changelog.retry": "다시 시도",
   "skills.installed": "설치됨",
   "skills.click_install": "클릭하여 설치",
   "skills.discover": "찾기",
@@ -382,8 +379,6 @@ export const ko = {
   'interaction.custom_placeholder': '직접 답변 입력…',
   'interaction.submit': '제출',
   'interaction.failed': '터미널이 준비되지 않았습니다. 터미널 보기에서 응답하세요.',
-  'settings.feedback': '버그 / 피드백',
-  'settings.feedback.desc': '버그를 발견했거나 제안이 있으신가요? 아래를 클릭해 문제를 제출해 주세요:',
   'settings.wallpaper.pick': '이미지 또는 동영상 선택',
   'settings.wallpaper.clear': '배경화면 제거',
   'settings.wallpaper.opacity': '불투명도',

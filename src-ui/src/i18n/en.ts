@@ -81,9 +81,6 @@ export const en = {
 
   'directory.missing': 'The project directory no longer exists or is not a folder. Restore it, or choose another directory in a new session.',
   'directory.unavailable': 'The project directory is unavailable. Check the drive, network connection and permissions, then reconnect.',
-  "changelog.title": "Changelog",
-  "changelog.error": "Could not load the changelog. Please try again.",
-  "changelog.retry": "Retry",
   "skills.installed": "Installed",
   "skills.click_install": "Click to install",
   "skills.discover": "Discover",
@@ -381,8 +378,6 @@ export const en = {
   'interaction.custom_placeholder': 'Add your own answer…',
   'interaction.submit': 'Submit',
   'interaction.failed': 'The terminal is not ready. Switch to Terminal view and answer there.',
-  'settings.feedback': 'Bug / Feedback',
-  'settings.feedback.desc': 'Found a bug or have a suggestion? Click below to submit your issue:',
   'settings.wallpaper.pick': 'Choose image or video',
   'settings.wallpaper.clear': 'Remove wallpaper',
   'settings.wallpaper.opacity': 'Opacity',

@@ -83,9 +83,6 @@ export const pt = {
 
   'directory.missing': 'O diretório do projeto já não existe ou não é uma pasta. Restaure-o ou escolha outro diretório numa nova sessão.',
   'directory.unavailable': 'O diretório do projeto está indisponível. Verifique a unidade, a ligação de rede e as permissões e volte a ligar.',
-  "changelog.title": "Novidades",
-  "changelog.error": "Não foi possível carregar as novidades. Tente novamente.",
-  "changelog.retry": "Tentar novamente",
   "skills.installed": "Instaladas",
   "skills.click_install": "Clique para instalar",
   "skills.discover": "Descobrir",
@@ -382,8 +379,6 @@ export const pt = {
   'interaction.custom_placeholder': 'Digite sua resposta…',
   'interaction.submit': 'Enviar',
   'interaction.failed': 'O terminal não está pronto. Responda na visualização Terminal.',
-  'settings.feedback': 'Bugs e sugestões',
-  'settings.feedback.desc': 'Encontrou um bug ou tem uma sugestão? Clique abaixo para enviar seu problema:',
   'settings.wallpaper.pick': 'Escolher imagem ou vídeo',
   'settings.wallpaper.clear': 'Remover papel de parede',
   'settings.wallpaper.opacity': 'Opacidade',

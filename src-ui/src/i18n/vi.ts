@@ -83,9 +83,6 @@ export const vi = {
 
   'directory.missing': 'Thư mục dự án không còn tồn tại hoặc đường dẫn không phải thư mục. Hãy khôi phục thư mục hoặc chọn thư mục khác trong phiên mới.',
   'directory.unavailable': 'Không thể truy cập thư mục dự án. Hãy kiểm tra ổ đĩa, kết nối mạng và quyền truy cập rồi kết nối lại.',
-  "changelog.title": "Nhật ký cập nhật",
-  "changelog.error": "Không thể tải nhật ký cập nhật. Vui lòng thử lại.",
-  "changelog.retry": "Thử lại",
   "skills.installed": "Đã cài",
   "skills.click_install": "Nhấn để cài đặt",
   "skills.discover": "Khám phá",
@@ -384,8 +381,6 @@ export const vi = {
   'interaction.custom_placeholder': 'Nhập câu trả lời của bạn…',
   'interaction.submit': 'Gửi',
   'interaction.failed': 'Terminal chưa sẵn sàng. Hãy trả lời trong chế độ Terminal.',
-  'settings.feedback': 'Lỗi & Góp ý',
-  'settings.feedback.desc': 'Gặp lỗi hoặc có góp ý? Nhấp vào bên dưới để gửi vấn đề của bạn:',
   'settings.wallpaper.pick': 'Chọn ảnh hoặc video',
   'settings.wallpaper.clear': 'Xóa hình nền',
   'settings.wallpaper.opacity': 'Độ mờ',

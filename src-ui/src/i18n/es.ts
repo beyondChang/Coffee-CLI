@@ -83,9 +83,6 @@ export const es = {
 
   'directory.missing': 'El directorio del proyecto ya no existe o no es una carpeta. Restáuralo o elige otro directorio en una sesión nueva.',
   'directory.unavailable': 'El directorio del proyecto no está disponible. Comprueba la unidad, la conexión de red y los permisos antes de reconectar.',
-  "changelog.title": "Novedades",
-  "changelog.error": "No se pudieron cargar las novedades. Inténtalo de nuevo.",
-  "changelog.retry": "Reintentar",
   "skills.installed": "Instaladas",
   "skills.click_install": "Haz clic para instalar",
   "skills.discover": "Descubrir",
@@ -382,8 +379,6 @@ export const es = {
   'interaction.custom_placeholder': 'Escribe tu propia respuesta…',
   'interaction.submit': 'Enviar',
   'interaction.failed': 'El terminal no está listo. Responde desde la vista Terminal.',
-  'settings.feedback': 'Errores y sugerencias',
-  'settings.feedback.desc': '¿Encontraste un error o tienes una sugerencia? Haz clic abajo para enviar tu problema:',
   'settings.wallpaper.pick': 'Elegir imagen o vídeo',
   'settings.wallpaper.clear': 'Quitar fondo',
   'settings.wallpaper.opacity': 'Opacidad',

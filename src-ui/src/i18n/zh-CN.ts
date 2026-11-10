@@ -83,9 +83,6 @@ export const zhCN = {
 
   'directory.missing': '项目目录已不存在或不是文件夹。请恢复原目录，或新建会话选择其他目录。',
   'directory.unavailable': '暂时无法访问项目目录。请检查磁盘、网络连接和权限后重连。',
-  "changelog.title": "更新日志",
-  "changelog.error": "暂时无法加载更新日志，请重试。",
-  "changelog.retry": "重试",
   "skills.installed": "已安装",
   "skills.click_install": "点击安装",
   "skills.discover": "发现",
@@ -381,8 +378,6 @@ export const zhCN = {
   'interaction.custom_placeholder': '输入你的补充说明…',
   'interaction.submit': '提交',
   'interaction.failed': '终端尚未就绪，请切换到终端界面回答。',
-  'settings.feedback': 'BUG / 建议',
-  'settings.feedback.desc': '遇到 BUG 或建议，点击下方提交你的问题：',
   'settings.wallpaper.pick': '选择图片或视频',
   'settings.wallpaper.clear': '移除壁纸',
   'settings.wallpaper.opacity': '透明度',

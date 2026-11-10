@@ -83,9 +83,6 @@ export const de = {
 
   'directory.missing': 'Das Projektverzeichnis existiert nicht mehr oder ist kein Ordner. Stelle es wieder her oder wähle in einer neuen Sitzung ein anderes Verzeichnis.',
   'directory.unavailable': 'Das Projektverzeichnis ist nicht verfügbar. Prüfe Laufwerk, Netzwerkverbindung und Berechtigungen und verbinde dich erneut.',
-  "changelog.title": "Änderungsprotokoll",
-  "changelog.error": "Das Änderungsprotokoll konnte nicht geladen werden. Bitte erneut versuchen.",
-  "changelog.retry": "Erneut versuchen",
   "skills.installed": "Installiert",
   "skills.click_install": "Zum Installieren klicken",
   "skills.discover": "Entdecken",
@@ -382,8 +379,6 @@ export const de = {
   'interaction.custom_placeholder': 'Eigene Antwort eingeben…',
   'interaction.submit': 'Senden',
   'interaction.failed': 'Das Terminal ist nicht bereit. Antworte in der Terminalansicht.',
-  'settings.feedback': 'Fehler & Feedback',
-  'settings.feedback.desc': 'Einen Fehler gefunden oder einen Vorschlag? Klicke unten, um dein Problem zu melden:',
   'settings.wallpaper.pick': 'Bild oder Video wählen',
   'settings.wallpaper.clear': 'Hintergrund entfernen',
   'settings.wallpaper.opacity': 'Deckkraft',

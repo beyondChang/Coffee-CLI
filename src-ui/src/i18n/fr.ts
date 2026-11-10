@@ -83,9 +83,6 @@ export const fr = {
 
   'directory.missing': 'Le répertoire du projet est introuvable ou ce chemin ne désigne pas un dossier. Restaurez-le ou choisissez un autre répertoire dans une nouvelle session.',
   'directory.unavailable': 'Le répertoire du projet est inaccessible. Vérifiez le disque, la connexion réseau et les autorisations, puis reconnectez-vous.',
-  "changelog.title": "Nouveautés",
-  "changelog.error": "Impossible de charger les nouveautés. Veuillez réessayer.",
-  "changelog.retry": "Réessayer",
   "skills.installed": "Installés",
   "skills.click_install": "Cliquer pour installer",
   "skills.discover": "Découvrir",
@@ -382,8 +379,6 @@ export const fr = {
   'interaction.custom_placeholder': 'Saisissez votre réponse…',
   'interaction.submit': 'Envoyer',
   'interaction.failed': 'Le terminal n’est pas prêt. Répondez dans la vue Terminal.',
-  'settings.feedback': 'Bugs et suggestions',
-  'settings.feedback.desc': 'Vous avez trouvé un bug ou avez une suggestion ? Cliquez ci-dessous pour soumettre votre problème :',
   'settings.wallpaper.pick': 'Choisir une image ou une vidéo',
   'settings.wallpaper.clear': "Supprimer le fond d'écran",
   'settings.wallpaper.opacity': 'Opacité',

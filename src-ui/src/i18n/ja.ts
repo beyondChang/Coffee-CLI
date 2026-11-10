@@ -83,9 +83,6 @@ export const ja = {
 
   'directory.missing': 'プロジェクトのディレクトリが存在しないか、フォルダーではありません。元の場所を復元するか、新しいセッションで別のディレクトリを選択してください。',
   'directory.unavailable': 'プロジェクトのディレクトリにアクセスできません。ドライブ、ネットワーク接続、権限を確認して再接続してください。',
-  "changelog.title": "更新履歴",
-  "changelog.error": "更新履歴を読み込めませんでした。再試行してください。",
-  "changelog.retry": "再試行",
   "skills.installed": "インストール済み",
   "skills.click_install": "クリックしてインストール",
   "skills.discover": "探す",
@@ -382,8 +379,6 @@ export const ja = {
   'interaction.custom_placeholder': '回答を入力…',
   'interaction.submit': '送信',
   'interaction.failed': 'ターミナルの準備ができていません。ターミナル表示で回答してください。',
-  'settings.feedback': 'バグ・フィードバック',
-  'settings.feedback.desc': 'バグを見つけた、またはご提案がある場合は、下のリンクから内容を送信してください：',
   'settings.wallpaper.pick': '画像または動画を選択',
   'settings.wallpaper.clear': '壁紙を削除',
   'settings.wallpaper.opacity': '不透明度',

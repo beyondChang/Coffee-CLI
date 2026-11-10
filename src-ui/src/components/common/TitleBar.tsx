@@ -15,7 +15,6 @@ import { useAppState, useAppDispatch, schemeLabels } from '../../store/app-state
 import { IS_MACOS } from '../../lib/platform';
 import { useT } from '../../i18n/useT';
 import { isConversationSession } from '../../lib/chat-tools';
-import { Changelog } from './Changelog';
 import './TitleBar.css';
 
 export function TitleBar() {
@@ -116,7 +115,6 @@ export function TitleBar() {
           "crossed-lines" look the user flagged. Active signal still travels
           via .is-active background only. */}
       <div className="titlebar-layout-toggles" data-toggle-display={state.titlebarToggleDisplay}>
-        <Changelog />
         {/* Left panel · Gambit · right panel — the three hinted chrome toggles,
             adjacent with Gambit in the MIDDLE so the row mirrors the screen
             (left panel on the left, right on the right) and the default Alt+QWE

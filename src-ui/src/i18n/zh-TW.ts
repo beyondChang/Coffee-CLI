@@ -83,9 +83,6 @@ export const zhTW = {
 
   'directory.missing': '專案目錄已不存在或不是資料夾。請還原原目錄，或新增工作階段選擇其他目錄。',
   'directory.unavailable': '暫時無法存取專案目錄。請檢查磁碟、網路連線和權限後重新連線。',
-  "changelog.title": "更新日誌",
-  "changelog.error": "暫時無法載入更新日誌，請重試。",
-  "changelog.retry": "重試",
   "skills.installed": "已安裝",
   "skills.click_install": "點擊安裝",
   "skills.discover": "探索",
@@ -381,8 +378,6 @@ export const zhTW = {
   'interaction.custom_placeholder': '輸入你的補充說明…',
   'interaction.submit': '提交',
   'interaction.failed': '終端尚未就緒，請切換到終端介面回答。',
-  'settings.feedback': 'BUG / 建議',
-  'settings.feedback.desc': '遇到 BUG 或建議，點擊下方提交你的問題：',
   'settings.wallpaper.pick': '選擇圖片或影片',
   'settings.wallpaper.clear': '移除桌布',
   'settings.wallpaper.opacity': '透明度',
