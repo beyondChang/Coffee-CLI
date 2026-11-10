@@ -18,10 +18,19 @@ import {
   type AudioPlayerRequest,
 } from '../../lib/audio-player';
 import { usePlayerT } from '../../i18n/player';
+import { useUiScale } from '../../lib/ui-scale';
 import './MusicPlayer.css';
 
 type RepeatMode = 'off' | 'all' | 'one';
 type MediaError = '' | 'play' | 'format';
+
+/** Native window HEIGHT bounds in LOGICAL px. The webview measures in CSS px,
+ *  so every value is divided/multiplied by the ui-scale zoom crossing IPC.
+ *  Width is left alone (the user may drag it wider than the 420px default). */
+const MAX_WINDOW_HEIGHT = 640;
+const MIN_WINDOW_HEIGHT = 360;
+/** Rounding slack so a 1px transparent seam never shows below #root. */
+const WINDOW_EDGE = 1;
 
 const fileName = (path: string) => path.replace(/\\/g, '/').split('/').pop() || path;
 const dirName = (path: string) => {
@@ -61,7 +70,7 @@ function Icon({ name }: { name: 'play' | 'pause' | 'prev' | 'next' | 'shuffle' |
   }
 }
 
-export function MusicPlayer() {
+export function MusicPlayer({ scaleReady }: { scaleReady: Promise<void> }) {
   const t = usePlayerT();
 
   const [request, setRequest] = useState<AudioPlayerRequest | null>(() => readAudioRequest());
@@ -79,6 +88,10 @@ export function MusicPlayer() {
   const [shuffle, setShuffle] = useState(false);
   const [mediaError, setMediaError] = useState<MediaError>('');
   const audioRef = useRef<HTMLAudioElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const revealed = useRef(false);
+  const uiScale = useUiScale();
 
   const dir = request?.dir ?? '';
 
@@ -147,6 +160,112 @@ export function MusicPlayer() {
     const fallback: DirEntryInfo = { name: fileName(currentPath), path: currentPath, is_dir: false, size: 0 };
     return [...tracks, fallback].sort(byName);
   }, [tracks, currentPath]);
+
+  /** Fit the native window to the content: a short playlist produces a short
+   *  window, a long one stops at MAX_WINDOW_HEIGHT and scrolls. CSS px →
+   *  logical px needs the WebView zoom (setZoom in ui-scale.ts).
+   *  `applyWindowSize: false` is for a user-driven resize — keep the height
+   *  they chose and only re-fit the playlist so it fills or scrolls. */
+  const syncHeight = useCallback(async (applyWindowSize = true): Promise<boolean> => {
+    const root = rootRef.current;
+    const list = listRef.current;
+    if (!root || !list) return false;
+
+    // Drop the constraints to read unclamped sizes. This is synchronous
+    // layout work in one task, so a 100-row playlist never paints a 3000px
+    // tall window even for a single frame.
+    root.style.minHeight = '0px';
+    list.style.maxHeight = 'none';
+    const rootNatural = root.getBoundingClientRect().height;
+    const listNatural = list.getBoundingClientRect().height;
+    root.style.minHeight = '';
+    if (rootNatural < 120) { list.style.maxHeight = ''; return false; }
+
+    const zoom = uiScale.percent / 100 || 1;
+    const chrome = Math.max(0, rootNatural - listNatural);
+    const minCss = MIN_WINDOW_HEIGHT / zoom;
+    const maxCss = MAX_WINDOW_HEIGHT / zoom;
+    const windowCss = applyWindowSize
+      ? Math.min(maxCss, Math.max(minCss, chrome + listNatural + WINDOW_EDGE))
+      : window.innerHeight;
+
+    list.style.maxHeight = `${Math.max(0, Math.round(windowCss - chrome - WINDOW_EDGE))}px`;
+
+    if (applyWindowSize && isTauri) {
+      const targetLogical = Math.round(windowCss * zoom);
+      const currentLogical = Math.round(window.innerHeight * zoom);
+      if (Math.abs(currentLogical - targetLogical) > 1) {
+        try {
+          const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
+          // Preserve a width the user may have dragged out; only height is ours.
+          const width = Math.round(window.innerWidth * zoom);
+          await getCurrentWindow().setSize(new LogicalSize(width, targetLogical));
+        } catch { /* preview / missing permission: keep the current size */ }
+      }
+    }
+    return true;
+  }, [uiScale.percent]);
+
+  /** The window starts hidden (visible: false) so the measured height is the
+   *  first thing the user sees instead of a visible jump. */
+  const reveal = useCallback(async () => {
+    if (!isTauri || revealed.current) return;
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().show();
+      revealed.current = true;
+    } catch { /* the fallback timer retries */ }
+  }, []);
+
+  // syncHeight depends on uiScale.percent, so every effect below re-runs when
+  // the zoom changes and the native height is recomputed with the new ratio.
+
+  // First paint: wait for the zoom to land, then two frames for layout (the
+  // same pattern main.tsx uses before show_main_window), then reveal.
+  useEffect(() => {
+    let cancelled = false;
+    const settle = async () => {
+      await scaleReady.catch(() => {});
+      if (cancelled) return;
+      // A frame for layout (main.tsx does the same before show_main_window),
+      // then retry the measurement if the webview still reports no size.
+      for (let attempt = 0; attempt < 5 && !cancelled; attempt++) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        if (cancelled) return;
+        if (attempt > 0 && await syncHeight(true)) break;
+      }
+      if (!cancelled) void reveal();
+    };
+    void settle();
+    return () => { cancelled = true; };
+  }, [scaleReady, syncHeight, reveal]);
+
+  // Safety net: never leave the window invisible if a frame was dropped.
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void reveal(); }, 800);
+    return () => window.clearTimeout(timer);
+  }, [reveal]);
+
+  // Playlist rows and the error banner change the natural height.
+  useEffect(() => {
+    void syncHeight(true);
+  }, [list, mediaError, listError, syncHeight]);
+
+  // A user-driven resize must not be undone: refit the playlist only.
+  useEffect(() => {
+    const onResize = () => { void syncHeight(false); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [syncHeight]);
+
+  // Bundled fonts activate lazily and can change row height after first paint.
+  useEffect(() => {
+    let cancelled = false;
+    if (document.fonts) {
+      void document.fonts.ready.then(() => { if (!cancelled) void syncHeight(true); });
+    }
+    return () => { cancelled = true; };
+  }, [syncHeight]);
 
   // assetProtocol scope is `**` in tauri.conf.json, so WebView can stream the
   // local file directly — no read-onto-JS-heap or temp copy needed.
@@ -272,7 +391,7 @@ export function MusicPlayer() {
   const volumeStyle = { '--mp-fill': `${(muted ? 0 : volume) * 100}%` } as CSSProperties;
 
   return (
-    <div className="mp-root">
+    <div className="mp-root" ref={rootRef}>
       <div className="mp-titlebar">
         <div className="mp-drag" onMouseDown={onDragStart}>
           <span className="mp-brand-icon"><Icon name="music" /></span>
@@ -337,7 +456,7 @@ export function MusicPlayer() {
           <button type="button" className="mp-btn mp-btn-small mp-refresh" aria-label={t('player.refresh')} title={t('player.refresh')} onClick={() => setReloadToken(value => value + 1)}><Icon name="refresh" /></button>
         </div>
 
-        <div className="mp-list">
+        <div className="mp-list" ref={listRef}>
           {listError ? (
             <div className="mp-list-empty">{t('player.error.dir')}</div>
           ) : list.length === 0 ? (

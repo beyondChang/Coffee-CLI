@@ -97,14 +97,18 @@ export async function openAudioPlayer(path: string, dir: string): Promise<void> 
       url: 'player.html',
       title: 'Coffee Music',
       width: 420,
-      height: 620,
+      // The player sizes itself from its playlist after boot (small window for
+      // a short list, capped at MAX_WINDOW_HEIGHT with a scrolling list for a
+      // long one). Start hidden at the minimum so there is no visible jump.
+      height: 360,
       minWidth: 340,
-      minHeight: 480,
+      minHeight: 300,
+      maxHeight: 640,
       resizable: true,
       decorations: false,
       transparent: true,
       center: true,
-      visible: true,
+      visible: false,
     });
     // Two rapid clicks can race the async create; the second one fails on the
     // duplicate label, but the first window still reads the newest request

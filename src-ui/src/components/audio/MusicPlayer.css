@@ -2,9 +2,24 @@
    Uses the same theme variables as global.css so the window follows whatever
    palette / light-dark mode / shape the main window has selected. */
 
-.mp-root {
-    flex: 1;
+/* The window height follows the CONTENT, not the other way round. global.css
+   fixes html/body/#root to 100% for the IDE shell; here they must shrink-wrap
+   so the webview can measure a natural height and resize the native window.
+   100vh on .mp-root still fills the window when the user drags it taller. */
+html.is-player,
+html.is-player body {
+    height: auto;
     min-height: 0;
+}
+html.is-player body { display: block; }
+html.is-player #root {
+    height: auto;
+    min-height: 0;
+    display: block;
+}
+
+.mp-root {
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     color: var(--text-1);
@@ -64,8 +79,7 @@
 
 /* ── Body ─────────────────────────────────────────────────────────────── */
 .mp-body {
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     padding: 0 18px;
@@ -247,8 +261,10 @@
 .mp-refresh { margin-left: auto; }
 
 .mp-list {
-    flex: 1;
-    min-height: 0;
+    /* JS sets an inline max-height from the measured chrome height so the
+       window grows with the playlist until MAX_WINDOW_HEIGHT, then scrolls. */
+    flex: 0 0 auto;
+    max-height: 320px;
     overflow-y: auto;
     overflow-x: hidden;
     padding-bottom: 12px;
