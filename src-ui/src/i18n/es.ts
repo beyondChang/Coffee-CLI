@@ -634,7 +634,7 @@ Borra esta nota cuando quieras y empieza tu primera tarea.`,
   'agent.sidebar.telegram_connected': 'Telegram conectado',
   'agent.sidebar.disconnected': 'No hay canales de mensajería conectados',
   'agent.sidebar.open_settings': '{status}; abrir ajustes de mensajes',
-  'agent.sidebar.open_agent': 'Abrir Coffee Agent',
+  'agent.sidebar.super_assistant': 'Súper asistente',
 
   'claude.launch.choose_directory': 'Elegir carpeta',
   'claude.launch.conversation_short': 'Escritorio',

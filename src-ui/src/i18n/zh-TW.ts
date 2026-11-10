@@ -638,7 +638,7 @@ export const zhTW = {
   'agent.sidebar.telegram_connected': 'Telegram 已連線',
   'agent.sidebar.disconnected': '尚未連線訊息渠道',
   'agent.sidebar.open_settings': '{status}，開啟訊息設定',
-  'agent.sidebar.open_agent': '開啟 Coffee Agent',
+  'agent.sidebar.super_assistant': '超級助手',
   'claude.launch.choose_directory': '選擇目錄',
   'claude.launch.conversation_short': '桌面',
   'claude.launch.terminal_short': '終端',

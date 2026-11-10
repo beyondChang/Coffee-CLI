@@ -638,7 +638,7 @@ Xóa tờ ghi chú này khi bạn sẵn sàng và bắt đầu tác vụ đầu 
   'agent.sidebar.telegram_connected': 'Telegram đã kết nối',
   'agent.sidebar.disconnected': 'Chưa kết nối kênh nhắn tin',
   'agent.sidebar.open_settings': '{status}; mở cài đặt tin nhắn',
-  'agent.sidebar.open_agent': 'Mở Coffee Agent',
+  'agent.sidebar.super_assistant': 'Siêu trợ lý',
   'claude.launch.choose_directory': 'Chọn thư mục',
   'claude.launch.conversation_short': 'Desktop',
   'claude.launch.terminal_short': 'Terminal',

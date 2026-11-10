@@ -613,11 +613,9 @@ export function ChannelConnectionSummary({ update }: { update?: ReactNode } = {}
   const label = weixin || telegram
     ? t(weixin && telegram ? 'agent.sidebar.both_connected' : weixin ? 'agent.sidebar.weixin_connected' : 'agent.sidebar.telegram_connected')
     : `${defaultChannel} · ${t('agent.channels.status.disconnected')}`;
-  // The Agent conversation, channel status, any app update, then settings at the far right of the bottom row.
+  // Channel status, any app update, then settings at the far right of the bottom row.
+  // The conversation entry itself lives in the left navigation as "Super Assistant".
   return <div className="agent-channel-summary">
-    <button type="button" className="agent-sidebar-button" aria-label={t('agent.sidebar.open_agent')} aria-pressed={state.agentPageActive === 'agent'} onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'agent' })}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 14H6l-4 3V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" /><path d="M10 8h10a2 2 0 0 1 2 2v12l-4-3h-8a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /></svg>
-    </button>
     <button type="button" className="agent-channel-summary-label" aria-label={t('agent.sidebar.open_settings', { status: label })} onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'config' })}>{label}</button>
     {update}
     <button type="button" className="agent-sidebar-button agent-sidebar-settings" aria-label={t('settings.title')} aria-pressed={state.settingsOpen} onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}>

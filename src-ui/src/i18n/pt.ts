@@ -634,7 +634,7 @@ Apague esta nota quando quiser e comece a sua primeira tarefa.`,
   'agent.sidebar.telegram_connected': 'Telegram conectado',
   'agent.sidebar.disconnected': 'Nenhum canal de mensagens conectado',
   'agent.sidebar.open_settings': '{status}; abrir configurações de mensagens',
-  'agent.sidebar.open_agent': 'Abrir Coffee Agent',
+  'agent.sidebar.super_assistant': 'Superassistente',
 
   'claude.launch.choose_directory': 'Escolher pasta',
   'claude.launch.conversation_short': 'Desktop',

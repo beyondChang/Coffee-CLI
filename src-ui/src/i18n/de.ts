@@ -634,7 +634,7 @@ Lösch diesen Zettel, wann du willst, und starte deine erste Aufgabe.`,
   'agent.sidebar.telegram_connected': 'Telegram verbunden',
   'agent.sidebar.disconnected': 'Keine Nachrichtenkanäle verbunden',
   'agent.sidebar.open_settings': '{status}; Nachrichteneinstellungen öffnen',
-  'agent.sidebar.open_agent': 'Coffee Agent öffnen',
+  'agent.sidebar.super_assistant': 'Super-Assistent',
 
   'claude.launch.choose_directory': 'Ordner wählen',
   'claude.launch.conversation_short': 'Desktop',

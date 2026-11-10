@@ -637,7 +637,7 @@ export const ko = {
   'agent.sidebar.telegram_connected': 'Telegram 연결됨',
   'agent.sidebar.disconnected': '연결된 메시지 채널 없음',
   'agent.sidebar.open_settings': '{status}, 메시지 설정 열기',
-  'agent.sidebar.open_agent': 'Coffee Agent 열기',
+  'agent.sidebar.super_assistant': '슈퍼 어시스턴트',
   'claude.launch.choose_directory': '폴더 선택',
   'claude.launch.conversation_short': '데스크톱',
   'claude.launch.terminal_short': '터미널',

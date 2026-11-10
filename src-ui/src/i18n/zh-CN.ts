@@ -639,7 +639,7 @@ export const zhCN = {
   'agent.sidebar.telegram_connected': 'Telegram 已连接',
   'agent.sidebar.disconnected': '尚未连接消息渠道',
   'agent.sidebar.open_settings': '{status}，打开消息设置',
-  'agent.sidebar.open_agent': '打开 Coffee Agent',
+  'agent.sidebar.super_assistant': '超级助手',
 
   'claude.launch.choose_directory': '选择目录',
   'claude.launch.conversation_short': '桌面',

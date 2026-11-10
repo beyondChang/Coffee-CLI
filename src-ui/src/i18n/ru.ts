@@ -634,7 +634,7 @@ export const ru = {
   'agent.sidebar.telegram_connected': 'Telegram подключён',
   'agent.sidebar.disconnected': 'Нет подключённых каналов сообщений',
   'agent.sidebar.open_settings': '{status}; открыть настройки сообщений',
-  'agent.sidebar.open_agent': 'Открыть Coffee Agent',
+  'agent.sidebar.super_assistant': 'Суперпомощник',
 
   'claude.launch.choose_directory': 'Выбрать папку',
   'claude.launch.conversation_short': 'Приложение',
