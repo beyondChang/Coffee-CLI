@@ -293,7 +293,7 @@ export const ko = {
   'task.greeting.morning': '좋은 아침, 오늘 계획은?',
   'task.greeting.afternoon': '안녕하세요, 남은 할 일이 있나요?',
   'task.greeting.evening': '좋은 저녁, 뭔가 시작해볼까요?',
-  'task.tab.tasks': '작업 목록',
+  'task.tab.tasks': '작업',
   'task.tab.changes': '변경 기록',
   'task.tab.files': '파일',
   'file.loading': '불러오는 중…',

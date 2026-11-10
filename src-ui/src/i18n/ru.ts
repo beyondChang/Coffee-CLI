@@ -293,7 +293,7 @@ export const ru = {
   'task.greeting.morning': 'Доброе утро, какой план?',
   'task.greeting.afternoon': 'Добрый день, что-то осталось?',
   'task.greeting.evening': 'Добрый вечер. Что-нибудь масштабное?',
-  'task.tab.tasks': 'Список задач',
+  'task.tab.tasks': 'Задачи',
   'task.tab.changes': 'История изменений',
   'task.tab.files': 'Файлы',
   'file.loading': 'Загрузка…',

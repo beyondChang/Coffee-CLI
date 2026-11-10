@@ -293,7 +293,7 @@ export const fr = {
   'task.greeting.morning': 'Bonjour, quel est le programme ?',
   'task.greeting.afternoon': 'Bon après-midi, encore des choses à faire ?',
   'task.greeting.evening': 'Bonsoir. Un projet ambitieux ?',
-  'task.tab.tasks': 'Liste des tâches',
+  'task.tab.tasks': 'Tâches',
   'task.tab.changes': 'Historique',
   'task.tab.files': 'Fichiers',
   'file.loading': 'Chargement…',

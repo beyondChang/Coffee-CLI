@@ -293,7 +293,7 @@ export const zhTW = {
   'task.greeting.morning': '早安，今天想做些什麼？',
   'task.greeting.afternoon': '午安，還有什麼要做的？',
   'task.greeting.evening': '晚安，想來點大事嗎？',
-  'task.tab.tasks': '任務列表',
+  'task.tab.tasks': '任務',
   'task.tab.changes': '修改記錄',
   'task.tab.files': '檔案',
   'file.loading': '載入中…',

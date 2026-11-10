@@ -295,7 +295,7 @@ export const vi = {
   'task.greeting.morning': 'Chào buổi sáng, kế hoạch hôm nay là gì?',
   'task.greeting.afternoon': 'Chào buổi chiều, còn việc gì cần làm không?',
   'task.greeting.evening': 'Chào buổi tối. Có kế hoạch gì lớn không?',
-  'task.tab.tasks': 'Danh sách',
+  'task.tab.tasks': 'Nhiệm vụ',
   'task.tab.changes': 'Lịch sử',
   'task.tab.files': 'Tệp',
   'file.loading': 'Đang tải…',

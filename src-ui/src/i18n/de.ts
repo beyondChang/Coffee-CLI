@@ -293,7 +293,7 @@ export const de = {
   'task.greeting.morning': 'Guten Morgen, was steht an?',
   'task.greeting.afternoon': 'Guten Tag, noch etwas zu tun?',
   'task.greeting.evening': 'Guten Abend. Etwas Großes geplant?',
-  'task.tab.tasks': 'Aufgabenliste',
+  'task.tab.tasks': 'Aufgaben',
   'task.tab.changes': 'Änderungsverlauf',
   'task.tab.files': 'Dateien',
   'file.loading': 'Wird geladen…',

@@ -293,7 +293,7 @@ export const zhCN = {
   'task.greeting.morning': '早，今天想做点什么',
   'task.greeting.afternoon': '下午好，还有什么要做的？',
   'task.greeting.evening': '晚上好，想干点什么大事？',
-  'task.tab.tasks': '任务列表',
+  'task.tab.tasks': '任务',
   'task.tab.changes': '修改记录',
   'task.tab.files': '文件',
   'file.loading': '加载中…',

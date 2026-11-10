@@ -76,7 +76,7 @@ const SECTION_LABEL_KEYS: Record<TaskStatus, 'task.section.working' | 'task.sect
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function TaskBoard({ onCountChange }: { onCountChange: (count: number) => void }) {
+export function TaskBoard({ onCountChange }: { onCountChange?: (count: number) => void } = {}) {
   const t = useT();
   const { state, dispatch } = useAppState();
   // Right-click cut/copy/paste/select menu, shared by the to-do list's title
@@ -84,7 +84,7 @@ export function TaskBoard({ onCountChange }: { onCountChange: (count: number) =>
   const { menu: ctxMenuEl, openMenu: openCtxMenu } = useTextContextMenu();
   const viewMode = state.taskViewMode;
   const [tasks, setTasks] = useState<TaskItem[]>([]);
-  useEffect(() => { onCountChange(tasks.length); }, [tasks.length, onCountChange]);
+  useEffect(() => { onCountChange?.(tasks.length); }, [tasks.length, onCountChange]);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
