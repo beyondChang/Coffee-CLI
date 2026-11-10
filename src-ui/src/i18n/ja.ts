@@ -551,6 +551,7 @@ export const ja = {
   'agent.error.busy': 'スーパーアシスタントは別のリクエストを処理中です。完了を待つか、現在のリクエストをキャンセルしてください。',
   'agent.model.title': 'テキストモデル設定',
   'agent.voice.title': '音声モデル設定',
+  'agent.voice.unisound_hint': 'Unisound の URL を検出しました: 録音をアップロードして u2-asr のタスクを作成し、結果を取得します（録音は最大 3 分）。モデル ID を空欄にすると u2-asr を使用します。',
   'agent.model.provider': 'サービスの種類',
   'agent.model.provider_openai': 'OpenAI / 互換サービス',
   'agent.model.provider_anthropic': 'Anthropic / 互換サービス',

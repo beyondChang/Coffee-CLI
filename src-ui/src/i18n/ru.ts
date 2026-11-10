@@ -548,6 +548,7 @@ export const ru = {
   'agent.error.busy': 'Суперпомощник уже обрабатывает запрос. Подождите или сначала отмените его.',
   'agent.model.title': 'Настройка текстовой модели',
   'agent.voice.title': 'Настройка голосовой модели',
+  'agent.voice.unisound_hint': 'Обнаружен адрес Unisound: запись загружается, создаётся задача u2-asr и опрашивается результат (записи до 3 минут). Оставьте ID модели пустым, чтобы использовать u2-asr.',
   'agent.model.provider': 'Тип сервиса',
   'agent.model.provider_openai': 'OpenAI / совместимый сервис',
   'agent.model.provider_anthropic': 'Anthropic / совместимый сервис',

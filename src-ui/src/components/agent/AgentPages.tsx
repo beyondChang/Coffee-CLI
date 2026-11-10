@@ -280,6 +280,12 @@ interface ModelSettings {
 }
 const DEFAULT_URL = { openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com' };
 
+/** Unisound (u2-asr) hosts use the async task workflow instead of OpenAI's /audio/transcriptions. */
+function isUnisoundUrl(url: string): boolean {
+  try { const host = new URL(url.trim()).hostname.toLowerCase(); return host === 'unisound.com' || host.endsWith('.unisound.com'); }
+  catch { return false; }
+}
+
 type ModelKind = 'text' | 'voice';
 const MODEL_ENDPOINTS: Record<ModelKind, { get: string; save: string; title: I18nKey }> = {
   text: { get: 'agent_get_model', save: 'agent_save_model', title: 'agent.model.title' },
@@ -329,6 +335,7 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
           }} /></label>
           <AgentPasteInput label={t('agent.model.url')} type="url" value={config.baseUrl} placeholder={DEFAULT_URL[config.provider]} onValue={setBaseUrl} openMenu={openMenu} />
           <AgentPasteInput label={t('agent.model.id')} value={config.model} maxLength={200} placeholder={t('agent.model.id_placeholder')} onValue={setModel} openMenu={openMenu} />
+          {kind === 'voice' && isUnisoundUrl(config.baseUrl) && <p className="agent-field-hint" role="status">{t('agent.voice.unisound_hint')}</p>}
           <AgentPasteInput label={t('agent.model.api_key')} secret value={config.apiKey} autoComplete="off" placeholder={t('agent.model.api_key_placeholder')} onValue={setKey} openMenu={openMenu} />
           <div className="agent-form-footer"><button type="submit" className="agent-button primary">{saving ? t('agent.model.saving') : t('agent.model.save')}</button><span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span></div>
         </fieldset>

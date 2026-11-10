@@ -552,6 +552,7 @@ export const zhTW = {
   'agent.error.busy': '超級助手正在處理另一個請求，請稍候或先取消目前請求。',
   'agent.model.title': '文字模型設定',
   'agent.voice.title': '語音模型設定',
+  'agent.voice.unisound_hint': '偵測到雲知聲位址：助手會上傳錄音、建立 u2-asr 轉寫任務並輪詢結果（單次錄音最長 3 分鐘）。模型 ID 留空即使用 u2-asr。',
   'agent.model.provider': '服務類型',
   'agent.model.provider_openai': 'OpenAI / 相容服務',
   'agent.model.provider_anthropic': 'Anthropic / 相容服務',

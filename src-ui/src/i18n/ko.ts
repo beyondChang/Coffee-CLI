@@ -551,6 +551,7 @@ export const ko = {
   'agent.error.busy': '슈퍼 어시스턴트가 이미 요청을 처리하고 있습니다. 기다리거나 현재 요청을 먼저 취소해 주세요.',
   'agent.model.title': '텍스트 모델 설정',
   'agent.voice.title': '음성 모델 설정',
+  'agent.voice.unisound_hint': 'Unisound URL이 감지되었습니다: 녹음을 업로드하고 u2-asr 작업을 만든 뒤 결과를 가져옵니다(녹음 최대 3분). 모델 ID를 비워 두면 u2-asr을 사용합니다.',
   'agent.model.provider': '서비스 유형',
   'agent.model.provider_openai': 'OpenAI / 호환 서비스',
   'agent.model.provider_anthropic': 'Anthropic / 호환 서비스',

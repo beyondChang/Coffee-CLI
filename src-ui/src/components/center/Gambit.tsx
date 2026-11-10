@@ -553,9 +553,11 @@ function GambitImpl({
   //                the text into the input box (the user sends it themselves).
   const heardVoiceRef = useRef(false);
   const silentMsRef = useRef(0);        // consecutive silence accumulated
+  const recordedMsRef = useRef(0);      // elapsed recording time since start
   const lastTickRef = useRef(0);
   const AUTO_CLOSE_SILENT_MS = 3000;
   const AUTO_FINISH_SILENT_MS = 1000;
+  const MAX_CLIP_SECONDS = 180;
   // Hooks the waveform loop calls when the silence timers fire. Assigned below
   // once cancelVoice/finishVoice exist (they need the refs above, so a ref
   // avoids a circular useCallback dependency).
@@ -609,6 +611,7 @@ function GambitImpl({
       if (levels.length !== WAVEFORM_BARS) levels.length = WAVEFORM_BARS;
       heardVoiceRef.current = false;
       silentMsRef.current = 0;
+      recordedMsRef.current = 0;
       lastTickRef.current = performance.now();
       const tick = () => {
         const node = analyserRef.current;
@@ -634,6 +637,14 @@ function GambitImpl({
         // silence and fire the auto-close / auto-finish timers.
         const dt = now - lastTickRef.current;
         lastTickRef.current = now;
+        recordedMsRef.current += dt;
+        // Long-audio limit of the async adapter: unisound itself allows 5 h,
+        // but polling only waits MAX_CLIP_SECONDS (180 s). Finish and transcribe
+        // at that point rather than recording audio that will time out.
+        if (recordingActiveRef.current && heardVoiceRef.current && recordedMsRef.current >= MAX_CLIP_SECONDS * 1000) {
+          voiceHooksRef.current.onAutoFinish();
+          return;
+        }
         if (level >= 0.06) {
           heardVoiceRef.current = true;
           silentMsRef.current = 0;

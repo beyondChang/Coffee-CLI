@@ -553,6 +553,7 @@ export const zhCN = {
   'agent.error.busy': '超级助手正在处理请求，请等待完成或先取消。',
   'agent.model.title': '文本模型配置',
   'agent.voice.title': '语音模型配置',
+  'agent.voice.unisound_hint': '检测到云知声地址：助手会上传录音、创建 u2-asr 转写任务并轮询结果（单次录音最长 3 分钟）。模型 ID 留空即使用 u2-asr。',
   'agent.model.provider': '服务类型',
   'agent.model.provider_openai': 'OpenAI / 兼容服务',
   'agent.model.provider_anthropic': 'Anthropic / 兼容服务',

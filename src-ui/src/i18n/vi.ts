@@ -552,6 +552,7 @@ Xóa tờ ghi chú này khi bạn sẵn sàng và bắt đầu tác vụ đầu 
   'agent.error.busy': 'Siêu trợ lý đang xử lý một yêu cầu. Hãy chờ hoặc hủy yêu cầu hiện tại trước.',
   'agent.model.title': 'Cấu hình mô hình văn bản',
   'agent.voice.title': 'Cấu hình mô hình giọng nói',
+  'agent.voice.unisound_hint': 'Phát hiện URL Unisound: bản ghi được tải lên, tạo tác vụ u2-asr và lấy kết quả (bản ghi tối đa 3 phút). Để trống ID mô hình để dùng u2-asr.',
   'agent.model.provider': 'Loại dịch vụ',
   'agent.model.provider_openai': 'OpenAI / dịch vụ tương thích',
   'agent.model.provider_anthropic': 'Anthropic / dịch vụ tương thích',

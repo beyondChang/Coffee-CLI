@@ -164,6 +164,218 @@ pub fn agent_save_voice_model(app: AppHandle, config: SaveVoiceModel) -> Result<
     save_json(&path, &next)
 }
 
+/// Unisound MaaS: an asynchronous, task-based ASR service (model `u2-asr`)
+/// that is not OpenAI compatible. Uploading and task creation live under
+/// different paths, so the service URL alone is the base:
+/// `/v1/files/upload`, `/v1/audio/asr/tasks` and `/v1/audio/asr/tasks/{id}`.
+const U2_ASR_HOST: &str = "unisound.com";
+
+fn is_u2_asr_host(base_url: &str) -> bool {
+    reqwest::Url::parse(base_url.trim_end_matches('/'))
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_ascii_lowercase))
+        .is_some_and(|host| host == U2_ASR_HOST || host.ends_with(&format!(".{U2_ASR_HOST}")))
+}
+
+/// Unisound's upload path sits on the service root, not under a version
+/// prefix. Users naturally paste the documented base
+/// `https://maas-api.unisound.com/v1`; been appended as-is it becomes
+/// `/v1/v1/files/upload`, which the service answers with a 404. Strip a
+/// trailing `/v1` once so both forms reach the same endpoints.
+fn u2_service_root(base_url: &str) -> Option<&str> {
+    let base = base_url.trim().trim_end_matches('/');
+    Some(base.strip_suffix("/v1").unwrap_or(base))
+}
+
+/// Speech MIME type whose content unisound's `format` field accepts. The
+/// recording is already 16 kHz mono WAV, so only the suffix is needed.
+fn u2_audio_format(mime: &str) -> Option<&'static str> {
+    match mime.split(';').next().unwrap_or("").trim() {
+        "audio/wav" | "audio/x-wav" => Some("wav"),
+        "audio/mp3" | "audio/mpeg" => Some("mp3"),
+        "audio/mp4" | "audio/m4a" | "audio/x-m4a" => Some("m4a"),
+        "audio/ogg" => Some("ogg"),
+        "audio/amr" => Some("amr"),
+        "audio/opus" => Some("opus"),
+        _ => None,
+    }
+}
+
+// 16 kHz, mono, 16-bit PCM: 32 000 bytes per second of audio, plus a 44-byte
+// header. Anything bigger would never finish inside the polling budget.
+const U2_MAX_WAV_BYTES: usize = 32_000 * 180;
+
+/// Unisound answers 200 even for failures; `base_resp.status_code` 0 means
+/// success. Any other code is reported with the raw body.
+fn u2_check(value: &serde_json::Value, step: &str) -> Result<(), String> {
+    let status = value
+        .get("base_resp")
+        .and_then(|resp| resp.get("status_code"))
+        .and_then(|code| code.as_i64());
+    if status == Some(0) {
+        return Ok(());
+    }
+    let message = value
+        .get("base_resp")
+        .and_then(|resp| resp.get("status_msg"))
+        .and_then(|msg| msg.as_str())
+        .unwrap_or("unknown error");
+    Err(format!("u2-asr {step} failed ({status:?}): {message}"))
+}
+
+async fn u2_json(response: reqwest::Response, step: &str) -> Result<serde_json::Value, String> {
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("u2-asr {step} returned HTTP {}", status.as_u16()));
+    }
+    let raw = response
+        .bytes()
+        .await
+        .map_err(|_| format!("Could not read the u2-asr {step} response"))?;
+    serde_json::from_slice(&raw).map_err(|_| {
+        format!(
+            "u2-asr {step} returned invalid JSON: {}",
+            String::from_utf8_lossy(&raw[..raw.len().min(200)])
+        )
+    })
+}
+
+/// The task `status` read-out is not monotonic: the service is served by
+/// several back ends, so a poll can regress from `Success` to `Waiting`.
+/// Only terminal states count; every other state (Waiting, Processing, …)
+/// means keep polling.
+fn u2_task_state(task: &serde_json::Value) -> Result<(bool, bool), String> {
+    let status = task
+        .get("status")
+        .and_then(|status| status.as_str())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    match status.as_str() {
+        "success" | "succeeded" | "completed" | "done" | "finished" => Ok((true, false)),
+        "failed" | "error" | "cancelled" | "canceled" => Ok((true, true)),
+        _ => Ok((false, false)),
+    }
+}
+
+fn u2_transcript(task: &serde_json::Value) -> String {
+    task.get("results")
+        .and_then(|results| results.as_array())
+        .map(|results| {
+            results
+                .iter()
+                .filter_map(|item| item.get("text").and_then(|text| text.as_str()))
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .unwrap_or_default()
+}
+
+/// Run the unisound asynchronous workflow: upload → create task → poll.
+/// Every step is bounded by the per-request `timeout`.
+async fn u2_transcribe(
+    client: &reqwest::Client,
+    base_url: &str,
+    key: &str,
+    model: String,
+    bytes: Vec<u8>,
+    mime: String,
+    audio_format: &'static str,
+) -> Result<String, String> {
+    let base = u2_service_root(base_url).ok_or("Invalid u2-asr service URL")?;
+    let authorize = |request: reqwest::RequestBuilder| {
+        if key.is_empty() {
+            request
+        } else {
+            request.bearer_auth(key)
+        }
+    };
+
+    let form = reqwest::multipart::Form::new()
+        .text("purpose", "a2t_async_input")
+        .part(
+            "file",
+            reqwest::multipart::Part::bytes(bytes)
+                .file_name(format!("recording.{audio_format}"))
+                .mime_str(&mime)
+                .map_err(|_| "Unsupported audio MIME type")?,
+        );
+    let upload = authorize(client.post(format!("{base}/v1/files/upload")).multipart(form))
+        .send()
+        .await
+        .map_err(|_| "Could not reach the voice model service")?;
+    let upload = u2_json(upload, "upload").await?;
+    u2_check(&upload, "upload")?;
+    let file_id = upload
+        .get("file")
+        .and_then(|file| file.get("file_id"))
+        .and_then(|id| id.as_i64())
+        .ok_or("u2-asr upload response has no file_id")?;
+
+    let task_url = format!("{base}/v1/audio/asr/tasks");
+    let create = authorize(
+        client
+            .post(&task_url)
+            .json(&serde_json::json!({
+                "file_id": file_id,
+                "model": model,
+                "format": audio_format,
+                "sample_rate": 16000,
+                "enable_itn": true,
+                "channel": 1,
+                "enable_speaker": false,
+                "word_info": false,
+            })),
+    )
+    .send()
+    .await
+    .map_err(|_| "Could not reach the voice model service")?;
+    let create = u2_json(create, "task creation").await?;
+    u2_check(&create, "task creation")?;
+    let task_id = create
+        .get("task_id")
+        .and_then(|id| id.as_str())
+        .filter(|id| !id.is_empty())
+        .ok_or("u2-asr task creation response has no task_id")?
+        .to_owned();
+
+    let poll_url = format!("{task_url}/{task_id}");
+    let deadline = tokio::time::Instant::now() + U2_POLL_BUDGET;
+    let mut interval = tokio::time::interval(Duration::from_millis(500));
+    let last = loop {
+        interval.tick().await;
+        let response = authorize(client.get(&poll_url))
+            .send()
+            .await
+            .map_err(|_| "Could not reach the voice model service")?;
+        let task = u2_json(response, "task status").await?;
+        u2_check(&task, "task status")?;
+        let (terminal, failed) = u2_task_state(&task)?;
+        if failed {
+            return Err(format!(
+                "u2-asr transcription failed: {}",
+                &task.to_string().chars().take(200).collect::<String>()
+            ));
+        }
+        if terminal {
+            break task;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return Err("u2-asr transcription timed out".into());
+        }
+    };
+    let text = u2_transcript(&last);
+    if text.is_empty() {
+        return Err("u2-asr returned an empty transcription".into());
+    }
+    Ok(text)
+}
+
+/// Stop looking for the finished task after this long. The 5-hour API limit
+/// keeps real jobs well inside it.
+const U2_POLL_BUDGET: Duration = Duration::from_secs(180);
+
 /// Endpoint for audio transcription. Mirrors the text model's URL rules.
 fn transcribe_endpoint(base_url: &str) -> String {
     let base = base_url.trim_end_matches('/');
@@ -233,6 +445,24 @@ pub async fn agent_transcribe(
     // Derive a plausible file name from the MIME type. Whisper-compatible
     // endpoints branch on the extension in multipart form data.
     let mime = mime_type.unwrap_or_else(|| "audio/webm".into());
+
+    if is_u2_asr_host(&config.base_url) {
+        // Unisound: asynchronous tasks under fixed paths; no multipart
+        // transcription endpoint exists there, hence the dedicated branch.
+        let audio_format = u2_audio_format(&mime)
+            .ok_or_else(|| format!("u2-asr does not accept {mime} audio"))?;
+        if bytes.len() > U2_MAX_WAV_BYTES {
+            return Err("Audio recording is too long for u2-asr".into());
+        }
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|_| "Could not create transcription client")?;
+        let model = if config.model.is_empty() { "u2-asr".into() } else { config.model.clone() };
+        return u2_transcribe(&client, &config.base_url, &key, model, bytes, mime, audio_format).await;
+    }
+
     let file_name = format!("recording.{}", file_extension(&mime));
 
     let url = transcribe_endpoint(&config.base_url);
@@ -399,6 +629,94 @@ mod tests {
             transcribe_endpoint("http://localhost:11434/v1/audio/transcriptions"),
             "http://localhost:11434/v1/audio/transcriptions"
         );
+    }
+
+    #[test]
+    fn unisound_urls_use_the_async_asr_workflow_instead() {
+        // The service the user reported: OpenAI-style transcription 404s here.
+        for url in [
+            "https://maas-api.unisound.com",
+            "https://maas-api.unisound.com/v1",
+            "https://maas-api.unisound.com/v1/",
+            "https://MAAS-API.Unisound.com/v1",
+            "https://unisound.com",
+        ] {
+            assert!(is_u2_asr_host(url), "{url}");
+        }
+        for url in [
+            "https://api.openai.com/v1",
+            "https://notunisound.com/v1",
+            "https://unisound.com.example.com/v1",
+            "http://localhost:11434/v1",
+        ] {
+            assert!(!is_u2_asr_host(url), "{url}");
+        }
+        // Every unisound URL above is routed away from transcribe_endpoint, so
+        // the OpenAI multipart path (100301 "path error" there) is never hit.
+    }
+
+    #[test]
+    fn unisound_service_root_drops_a_single_v1_prefix() {
+        // Regression: the documented base /v1 used to yield /v1/v1/files/upload (404).
+        assert_eq!(u2_service_root("https://maas-api.unisound.com/v1"), Some("https://maas-api.unisound.com"));
+        assert_eq!(u2_service_root("https://maas-api.unisound.com/v1/"), Some("https://maas-api.unisound.com"));
+        assert_eq!(u2_service_root("https://maas-api.unisound.com"), Some("https://maas-api.unisound.com"));
+        assert_eq!(u2_service_root("https://maas-api.unisound.com/"), Some("https://maas-api.unisound.com"));
+        assert_eq!(
+            format!("{}/v1/audio/asr/tasks", u2_service_root("https://maas-api.unisound.com/v1").unwrap()),
+            "https://maas-api.unisound.com/v1/audio/asr/tasks"
+        );
+    }
+
+    #[test]
+    fn unisound_accepts_only_its_declared_audio_formats() {
+        assert_eq!(u2_audio_format("audio/wav"), Some("wav"));
+        assert_eq!(u2_audio_format("audio/wav;codecs=1"), Some("wav"));
+        assert_eq!(u2_audio_format("audio/mpeg"), Some("mp3"));
+        assert_eq!(u2_audio_format("audio/m4a"), Some("m4a"));
+        assert_eq!(u2_audio_format("audio/ogg"), Some("ogg"));
+        assert_eq!(u2_audio_format("audio/amr"), Some("amr"));
+        assert_eq!(u2_audio_format("audio/opus"), Some("opus"));
+        // WebM is the recorder's native container and unisound rejects it.
+        assert_eq!(u2_audio_format("audio/webm"), None);
+        assert_eq!(u2_audio_format("audio/flac"), None);
+    }
+
+    #[test]
+    fn unisound_task_state_is_not_monotonic() {
+        let state = |value: Value| u2_task_state(&json!({ "status": value }));
+        // A poll that went back to Waiting after Success must keep polling.
+        assert_eq!(state(json!("Waiting")), Ok((false, false)));
+        assert_eq!(state(json!("Processing")), Ok((false, false)));
+        assert_eq!(state(json!("Success")), Ok((true, false)));
+        assert_eq!(state(json!("Succeeded")), Ok((true, false)));
+        assert_eq!(state(json!("Failed")), Ok((true, true)));
+        assert_eq!(state(json!("CANCELLED")), Ok((true, true)));
+        assert_eq!(state(Value::Null), Ok((false, false)));
+    }
+
+    #[test]
+    fn unisound_status_codes_are_checked() {
+        assert!(u2_check(&json!({"base_resp": {"status_code": 0}}), "upload").is_ok());
+        let error = u2_check(
+            &json!({"base_resp": {"status_code": 100101, "status_msg": "auth error"}}),
+            "upload",
+        )
+        .unwrap_err();
+        assert!(error.contains("100101") && error.contains("auth error"), "{error}");
+        assert!(u2_check(&json!({}), "upload").is_err());
+    }
+
+    #[test]
+    fn unisound_segments_are_joined_in_order() {
+        let task = json!({"results": [
+            {"text": "你好，"},
+            {"text": "  "},
+            {"text": "这是一段语音识别测试 hello world."}
+        ]});
+        assert_eq!(u2_transcript(&task), "你好， 这是一段语音识别测试 hello world.");
+        assert_eq!(u2_transcript(&json!({"results": []})), "");
+        assert_eq!(u2_transcript(&json!({})), "");
     }
 
     #[test]
