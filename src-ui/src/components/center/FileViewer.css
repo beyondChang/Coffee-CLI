@@ -12,6 +12,46 @@
   line-height: 1.65;
 }
 
+/* Audio files are handed to the standalone player window, never decoded as
+   text. This card is the fallback for OPEN_FILE calls that bypass the tree. */
+.file-viewer-audio {
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-nav, var(--font));
+}
+.file-viewer-audio-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 340px;
+  padding: 28px 24px;
+  text-align: center;
+  color: var(--accent);
+}
+.file-viewer-audio-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-1);
+  font-size: 14px;
+  font-weight: 600;
+}
+.file-viewer-audio-hint { color: var(--text-3); font-size: 12px; }
+.file-viewer-audio-btn {
+  margin-top: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--shape-radius-btn, 6px);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font: 500 var(--type-body, 13px) / 1 var(--font-nav, var(--font));
+  cursor: pointer;
+}
+.file-viewer-audio-btn:hover { border-color: var(--accent); }
+.file-viewer-audio-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+
 /* ── Markdown 预览 / 编辑 bar ───────────────────────────────────────────── */
 .file-viewer-bar {
   display: flex;

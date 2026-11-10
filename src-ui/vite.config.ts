@@ -89,6 +89,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        // Standalone audio-player webview (opened from the file tree). Without
+        // this entry the production dist/ would have no player.html to load.
+        player: resolve(__dirname, 'player.html'),
       },
     },
   },

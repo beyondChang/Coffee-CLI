@@ -9,6 +9,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { commands } from '../../tauri';
 import { useT } from '../../i18n/useT';
+import { usePlayerT } from '../../i18n/player';
+import { isAudioFile, openAudioPlayer } from '../../lib/audio-player';
 import { getShikiTheme, tokenizeFile, type LineTokens } from '../../lib/shiki';
 import { MarkdownContent } from './MarkdownContent';
 import './FileViewer.css';
@@ -116,7 +118,41 @@ function ImageViewer({ path }: { path: string }) {
 }
 
 export function FileViewer({ path }: { path: string }) {
-  return isImage(path) ? <ImageViewer path={path} /> : <TextViewer path={path} />;
+  if (isImage(path)) return <ImageViewer path={path} />;
+  if (isAudioFile(path)) return <AudioPlaceholder path={path} />;
+  return <TextViewer path={path} />;
+}
+
+/** Fallback for the non-tree entry points (markdown links, chat file paths).
+ *  The tree intercepts audio clicks before opening a tab, but those callers
+ *  still dispatch OPEN_FILE directly — never hand a binary blob to the text
+ *  viewer. Instead show a small card and hand off to the player window. */
+function AudioPlaceholder({ path }: { path: string }) {
+  const t = usePlayerT();
+  const opened = useRef(false);
+  const dir = path.replace(/[\\/][^\\/]+$/, '');
+  const name = path.replace(/\\/g, '/').split('/').pop() || path;
+
+  useEffect(() => {
+    if (opened.current) return;
+    opened.current = true;
+    void openAudioPlayer(path, dir);
+  }, [path, dir]);
+
+  return (
+    <div className="file-viewer file-viewer-audio">
+      <div className="file-viewer-audio-card">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+        </svg>
+        <div className="file-viewer-audio-name" title={path}>{name}</div>
+        <div className="file-viewer-audio-hint">{t('player.playing_in_window')}</div>
+        <button type="button" className="file-viewer-audio-btn" onClick={() => void openAudioPlayer(path, dir)}>
+          {t('player.open_player')}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function TextViewer({ path }: { path: string }) {

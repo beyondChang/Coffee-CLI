@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Coffee CLI — Audio Player." />
+    <title>Coffee Music</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Keep the theme bootstrap in sync with index.html: both windows share
+         one origin (and therefore one localStorage), so the player must read
+         the same keys before first paint or it flashes the default palette. -->
+    <script>
+      (function() {
+        var theme = 'oat';
+        var mode = 'dark';
+        var shape = 'basalt';
+        try { theme = localStorage.getItem('cc-theme') || 'oat'; } catch(e) {}
+        var retired = {
+          cappuccino: 'obsidian', crimson: 'slate', sunset: 'dark',
+          emerald: 'moss', cobalt: 'indigo', fuchsia: 'teal',
+        };
+        if (retired[theme]) theme = retired[theme];
+        try {
+          mode = localStorage.getItem('cc-mode') || '';
+          if (mode !== 'light' && mode !== 'dark' && mode !== 'system') {
+            mode = theme === 'light' ? 'light' : 'dark';
+          }
+        } catch(e) {}
+        if (mode === 'system') {
+          mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        try { shape = localStorage.getItem('cc-shape') || 'basalt'; } catch(e) {}
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-mode', mode);
+        if (shape === 'frost') {
+          document.documentElement.setAttribute('data-frost', shape);
+          shape = 'glass';
+        }
+        if (shape === 'characters' || shape === 'basalt') {
+          document.documentElement.setAttribute('data-background', shape);
+          shape = 'carbon';
+        }
+        document.documentElement.setAttribute('data-shape', shape);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/player.tsx"></script>
+  </body>
+</html>

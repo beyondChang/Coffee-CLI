@@ -10,6 +10,7 @@ import { isMaskTintTheme } from '../../lib/personalization';
 import { bindAutoHideScrollbar } from '../../lib/auto-hide-scrollbar';
 import { clipboardWrite } from '../../lib/clipboard';
 import { beginExplorerDrag } from '../../lib/explorer-drag';
+import { isAudioFile, openAudioPlayer } from '../../lib/audio-player';
 import { consumePendingRename, onPendingRename, requestRename } from '../../lib/pending-rename';
 import { getFileIconSrc } from '../../lib/file-icons';
 import { useFileStats, useDirtyDirs } from '../../lib/git-status';
@@ -565,6 +566,12 @@ export function BrowserFileNode({ entry, parentDirPath, onCtxMenu }: {
       className={`tree-file ${renaming ? 'renaming' : ''}`}
       onClick={() => {
         if (renaming) return;
+        // Audio opens a dedicated player window with the whole directory as
+        // its playlist instead of a text tab full of binary garbage.
+        if (isAudioFile(entry.name)) {
+          void openAudioPlayer(entry.path, parentDirPath);
+          return;
+        }
         dispatch({ type: 'OPEN_FILE', file: { path: entry.path, name: entry.name, folderPath: parentDirPath } });
       }}
       onContextMenu={handleCtxMenu}
