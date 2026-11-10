@@ -433,11 +433,18 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
   padding: 32px;
 }
 
+/* Sits at the top of the page, out of flow, so the cards stay centred in the
+   pane. Tune --launchpad-hero-top to move it closer to / further from the
+   titlebar without moving anything else. */
 .launchpad-hero {
+  position: absolute;
+  top: var(--launchpad-hero-top, 64px);
+  left: 0;
+  right: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
-  margin: 0 0 40px;
+  margin: 0;
+  pointer-events: none;
 }
 
 /* Calligraphic on purpose: Kaiti / STKaiti ship with Windows and macOS, so the

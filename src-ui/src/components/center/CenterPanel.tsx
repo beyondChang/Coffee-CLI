@@ -1515,12 +1515,12 @@ export function CenterPanel() {
               </div>
             )}
                 <div className="launchpad-page">
+                  {/* Pinned to the top of the page so the card grid can stay
+                      dead-centre; only the offset above needs tuning. */}
+                  <div className="launchpad-hero">
+                    <p className="launchpad-hero-tagline">{t('launchpad.tagline')}</p>
+                  </div>
                   <div className="launchpad-inner">
-                    {/* One-line tagline above the chooser, so an empty tab
-                        still feels designed. */}
-                    <div className="launchpad-hero">
-                      <p className="launchpad-hero-tagline">{t('launchpad.tagline')}</p>
-                    </div>
                     {(() => {
                       const pinnedAgents = AGENT_CATALOG.filter(a => pinnedItems.includes(`agent:${a.key}`));
 
