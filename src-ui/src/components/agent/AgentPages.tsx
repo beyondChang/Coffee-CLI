@@ -267,8 +267,16 @@ interface ModelSettings {
 }
 const DEFAULT_URL = { openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com' };
 
-function AgentModelSection({ helpButton }: { helpButton?: ReactNode }) {
+type ModelKind = 'text' | 'voice';
+const MODEL_ENDPOINTS: Record<ModelKind, { get: string; save: string; title: I18nKey }> = {
+  text: { get: 'agent_get_model', save: 'agent_save_model', title: 'agent.model.title' },
+  voice: { get: 'agent_get_voice_model', save: 'agent_save_voice_model', title: 'agent.voice.title' },
+};
+
+/** One model form; text and voice each read and save their own independent settings. */
+function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?: ReactNode }) {
   const t = useT();
+  const endpoints = MODEL_ENDPOINTS[kind];
   const [config, setConfig] = useState<ModelSettings>({ provider: 'openai', baseUrl: DEFAULT_URL.openai, model: '', apiKey: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -277,11 +285,11 @@ function AgentModelSection({ helpButton }: { helpButton?: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    invoke<ModelSettings>('agent_get_model').then(value => {
+    invoke<ModelSettings>(endpoints.get).then(value => {
       if (active) setConfig(value);
     }).catch(failure => { if (active) setError(String(failure)); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [endpoints.get]);
 
   const { menu, openMenu } = useTextContextMenu();
   const setBaseUrl = (baseUrl: string) => { setConfig(current => ({ ...current, baseUrl })); setFeedback(''); };
@@ -292,15 +300,15 @@ function AgentModelSection({ helpButton }: { helpButton?: ReactNode }) {
     event.preventDefault();
     setSaving(true); setError(''); setFeedback('');
     try {
-      await invoke('agent_save_model', { config: { provider: config.provider, baseUrl: config.baseUrl.trim(), model: config.model.trim(), apiKey: config.apiKey.trim() } });
-      const next = await invoke<ModelSettings>('agent_get_model');
+      await invoke(endpoints.save, { config: { provider: config.provider, baseUrl: config.baseUrl.trim(), model: config.model.trim(), apiKey: config.apiKey.trim() } });
+      const next = await invoke<ModelSettings>(endpoints.get);
       setConfig(next); setFeedback('agent.model.saved');
     } catch (failure) { setError(String(failure)); }
     finally { setSaving(false); }
   };
 
   return <section className="agent-settings-section">
-      <div className="agent-model-heading"><h2>{t('agent.model.title')}</h2>{helpButton}</div>
+      <div className="agent-model-heading"><h2>{t(endpoints.title)}</h2>{helpButton}</div>
       <form className="agent-model-form" onSubmit={save}>
         <fieldset disabled={loading || saving}>
           <label className="agent-field"><span>{t('agent.model.provider')}</span><AgentSelect label={t('agent.model.provider')} value={config.provider} options={[{ value: 'openai', label: t('agent.model.provider_openai') }, { value: 'anthropic', label: t('agent.model.provider_anthropic') }]} onChange={provider => {
@@ -602,7 +610,7 @@ function AgentHelpModal({ onClose }: { onClose: () => void }) {
   </dialog>, document.body);
 }
 
-/** Super Assistant's model, work modes and channels: the "Super Assistant" section of the settings page. */
+/** Text and voice model configuration, work modes and channels: the "Super Assistant" section of the settings page. */
 export function AgentSettings() {
   const t = useT();
   const { state } = useAppState();
@@ -610,7 +618,7 @@ export function AgentSettings() {
   // The intro paragraph is gone; keep the instructions reachable via a compact
   // button beside the model heading instead of a block of body text up top.
   const helpButton = <button type="button" className="agent-settings-help-button" title={t('agent.settings.help')} aria-label={t('agent.settings.help')} onClick={() => setHelpOpen(true)}>?</button>;
-  return <><div className="agent-settings-scroll"><div className="agent-settings-content"><AgentModelSection helpButton={helpButton} /><AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
+  return <><div className="agent-settings-scroll"><div className="agent-settings-content"><AgentModelSection kind="text" helpButton={helpButton} /><AgentModelSection kind="voice" /><AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
 }
 
 /** A Super Assistant tab: the conversation. Its configuration moved into the settings page. */
