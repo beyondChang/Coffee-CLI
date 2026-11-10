@@ -2144,13 +2144,17 @@ body.resizing-panels .pane-resizer {
     overflow: hidden;
 }
 
-/* Chrome sits one step darker than the palette's panel tone in dark mode, so
-   the titlebar + sidebars vs the centre column is obvious at a glance.
-   Light palettes already separate the two, so they keep their values. */
-html[data-mode="dark"] .titlebar,
-html[data-mode="dark"] .panel-left,
-html[data-mode="dark"] .panel-right {
-    background-color: color-mix(in srgb, var(--bg-panel) 90%, #000000 10%);
+/* Chrome = titlebar + both side panels. In dark mode it sits one step darker
+   than the palette's panel tone so the centre column reads as its own surface;
+   light palettes already separate the two. Exposed as a variable because other
+   surfaces (the sticky session-search row) must match it exactly. */
+:root { --bg-chrome: var(--bg-panel); }
+html[data-mode="dark"] { --bg-chrome: color-mix(in srgb, var(--bg-panel) 90%, #000000 10%); }
+
+.titlebar,
+.panel-left,
+.panel-right {
+    background-color: var(--bg-chrome);
 }
 
 .panel-content {

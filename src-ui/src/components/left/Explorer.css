@@ -222,12 +222,17 @@
     flex-direction: column;
     min-height: 0;
 }
+/* The action rows above the list stay put; only the session list scrolls. */
 .explorer-scroll[data-tab="history"] {
+    overflow: hidden;
+}
+.explorer-scroll[data-tab="history"] > * { flex-shrink: 0; }
+.explorer-scroll[data-tab="history"] > .explorer-content {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
 }
-.explorer-scroll[data-tab="history"] > * { flex-shrink: 0; }
-.explorer-scroll[data-tab="history"] > .explorer-content,
 .explorer-scroll[data-tab="history"] .explorer-history-host,
 .explorer-scroll[data-tab="history"] .history-session-list {
     flex: none;
