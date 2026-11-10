@@ -112,8 +112,10 @@ export function TitleBar() {
             replaced the old left-panel theme/language popovers. It joins the
             configured titlebar display mode, except "hidden" intentionally
             degrades to icon-only so Settings always remains reachable. */}
-        {/* Settings lives at the left sidebar's bottom; here only while that sidebar is hidden, so it stays reachable. */}
-        {state.leftPanelHidden && <button
+        {/* Settings is always reachable from the titlebar, whether or not the
+            left sidebar (which also carries a gear) is visible. The "hidden"
+            display mode degrades it to an icon instead of removing it. */}
+        <button
           className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted titlebar-btn--settings${state.settingsOpen ? ' is-active' : ''}`}
           onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
           aria-label={t('settings.title')}
@@ -124,7 +126,7 @@ export function TitleBar() {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
           <span className="titlebar-hotkey-hint titlebar-settings-label">{t('settings.title')}</span>
-        </button>}
+        </button>
       </div>
 
       {/* Custom min/max/close — Windows/Linux only. On macOS the OS draws the
