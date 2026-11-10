@@ -34,9 +34,13 @@
 .history-project-row:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .history-search-trigger, .history-layout-menu-btn { display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: -3px 0; padding: 3px; border: 0; border-radius: var(--shape-radius-btn, var(--radius-sm)); background: transparent; color: var(--text-2); cursor: pointer; transition: background 0.2s; }
 .history-layout-menu-btn { margin-right: -4px; }
-.history-search-trigger:hover, .history-layout-menu-btn:hover, .history-layout-menu-btn.open { background: var(--bg-hover); color: var(--text-1); }
+.history-search-trigger:hover, .history-layout-menu-btn:hover, .history-layout-menu-btn.open { background: var(--bg-hover); }
 .history-search-trigger:focus-visible, .history-layout-menu-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .history-search-trigger > svg, .history-layout-menu-btn > svg { display: block; }
+/* Search and the layout filter are one icon pair: both buttons and their strokes
+   keep the same color in every state, so neither icon reads as a lighter shade. */
+.history-head-actions > button { color: var(--text-2); }
+.history-head-actions > button > svg { color: inherit; opacity: 1; stroke: currentColor; }
 /* As wide as its longest label in the current language, not the shared menus' 200px floor. */
 .ctx-menu.history-layout-menu { min-width: 0; width: max-content; }
 .history-layout-menu .ctx-menu-item > span { flex: 1; }
