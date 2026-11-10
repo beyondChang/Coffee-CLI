@@ -44,3 +44,11 @@
 @media (prefers-reduced-motion: reduce) {
   .right-panel-reveal { transition: none; }
 }
+
+/* Hovering the handle hides the content scroll rail instantly (the rail's own
+   220ms fade would otherwise leave it hanging next to the button). */
+body.cc-scrollbar-muted .cc-scrollbar-slider {
+  opacity: 0 !important;
+  transition: none !important;
+}
+body.cc-scrollbar-muted .cc-scrollbar { pointer-events: none !important; }
