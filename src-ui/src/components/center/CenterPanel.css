@@ -437,15 +437,7 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 22px;
-  margin: 0 0 56px;
-}
-
-.launchpad-hero-icon {
-  width: 118px;
-  height: 118px;
-  border-radius: 30px;
-  box-shadow: 0 14px 40px rgb(0 0 0 / 0.34);
+  margin: 0 0 40px;
 }
 
 /* Calligraphic on purpose: Kaiti / STKaiti ship with Windows and macOS, so the
@@ -453,9 +445,9 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
 .launchpad-hero-tagline {
   margin: 0;
   font-family: 'STKaiti', 'KaiTi', '楷体', 'Lora', var(--font, serif);
-  font-size: 76px;
+  font-size: 46px;
   font-weight: 500;
-  line-height: 1.1;
+  line-height: 1.15;
   letter-spacing: 0.05em;
   color: var(--text-1);
   white-space: nowrap;
