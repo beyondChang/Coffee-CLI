@@ -191,3 +191,12 @@
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
   image-rendering: -webkit-optimize-contrast;
 }
+
+/* ── HTML preview ──────────────────────────────────────────────────────── */
+.file-viewer-html {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #ffffff;
+}

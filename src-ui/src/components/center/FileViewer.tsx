@@ -27,12 +27,15 @@ interface Loaded { path: string; text: string | null; failed: boolean }
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 const isMarkdown = (path: string) => /\.(md|markdown|mdx)$/i.test(path);
+const isHtml = (path: string) => /\.(html?|xhtml)$/i.test(path);
+/** Files that get the 预览 / 编辑 switch — rendered markup, editable text. */
+const hasPreview = (path: string) => isMarkdown(path) || isHtml(path);
 const isImage = (path: string) => /\.(png|jpe?g|gif|webp|bmp|svg|ico|avif)$/i.test(path);
 
-/** Images have no text to tokenize, so they get their own surface. */
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 8;
 
+/** Images have no text to tokenize, so they get their own surface. */
 function ImageViewer({ path }: { path: string }) {
   const t = useT();
   const [url, setUrl] = useState('');
@@ -106,7 +109,8 @@ function TextViewer({ path }: { path: string }) {
   const pending = useRef<{ path: string; text: string; disk: string } | null>(null);
   const history = useRef<{ path: string; entries: string[]; index: number; stamp: number }>({ path, entries: [], index: -1, stamp: 0 });
   const current = loaded && loaded.path === path ? loaded : null;
-  const editing = isMarkdown(path) && mode.path === path && mode.value === 'edit';
+  const previewable = hasPreview(path);
+  const editing = previewable && mode.path === path && mode.value === 'edit';
   const text = buffer && buffer.path === path ? buffer.text : current?.text ?? '';
 
   useEffect(() => {
@@ -187,11 +191,12 @@ function TextViewer({ path }: { path: string }) {
   if (current.failed || current.text === null) return <div className="file-viewer-status" role="alert">{t('file.error')}</div>;
 
   const markdown = isMarkdown(path);
+  const html = isHtml(path);
   const status = saveState === 'saving' ? t('file.saving') : saveState === 'saved' ? t('file.saved') : saveState === 'error' ? t('file.save_failed') : '';
 
   return (
     <div className={`file-viewer${editing ? ' is-editing' : ''}`}>
-      {markdown && (
+      {previewable && (
         <div className="file-viewer-bar">
           <span className={`file-viewer-save${saveState === 'error' ? ' is-error' : ''}`} role="status" title={saveState === 'error' ? saveError : undefined}>{status}</span>
           <span className="file-viewer-switch" role="group" aria-label={t('file.preview')}>
@@ -219,6 +224,10 @@ function TextViewer({ path }: { path: string }) {
         <div className="file-viewer-markdown" role="document" aria-label={path}>
           <MarkdownContent content={text} />
         </div>
+      ) : html ? (
+        // Local HTML only: scripts stay disabled (empty sandbox), so a preview
+        // can never reach into the app, while inline styles still render.
+        <iframe className="file-viewer-html" sandbox="" srcDoc={text} title={path} />
       ) : (
         <CodeView path={path} text={text} tokens={tokenized?.path === path ? tokenized.lines : null} />
       )}
