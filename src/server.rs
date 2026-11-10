@@ -635,6 +635,16 @@ fn require_unused_destination(path: &std::path::Path) -> Result<(), String> {
     }
 }
 
+/// Write UTF-8 text back to an existing file. Backs the in-place editor for
+/// text files opened in the centre pane; the path must already exist, so a
+/// typo can never create a stray file.
+#[tauri::command]
+fn fs_write_text(path: String, content: String) -> Result<(), String> {
+    let p = validate_fs_path(&path)?;
+    if !p.is_file() { return Err("Not a file".into()); }
+    std::fs::write(&p, content.as_bytes()).map_err(|e| format!("Save failed: {e}"))
+}
+
 /// Delete a file or directory permanently (no recycle bin).
 #[tauri::command]
 fn fs_delete(path: String) -> Result<(), String> {
@@ -1818,6 +1828,7 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             read_clipboard_image,
             list_directory,
             read_text_file,
+            fs_write_text,
             show_in_folder,
             fs_delete,
             fs_rename,

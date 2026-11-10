@@ -345,6 +345,7 @@ export const commands = {
     invoke<string | null>('read_text_file', { path }),
 
   // File system operations
+  fsWriteText: (path: string, content: string) => invoke<void>('fs_write_text', { path, content }),
   fsDelete: (path: string) => invoke<void>('fs_delete', { path }),
   fsRename: (path: string, newName: string) => invoke<void>('fs_rename', { path, newName }),
   fsPaste: (action: string, srcPath: string, targetDir: string) =>
