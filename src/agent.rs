@@ -45,8 +45,8 @@ struct ModelConfig {
     model: String,
     #[serde(default = "default_english_delegation")]
     english_delegation: bool,
-    /// Plain text and optional: local services often need no key.
-    #[serde(default)]
+    /// Never serialised: the key lives in the credential store, not model.json.
+    #[serde(skip)]
     api_key: String,
     #[serde(skip)]
     work_modes: crate::agent_modes::WorkModes,
@@ -160,7 +160,59 @@ pub(crate) fn data_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 fn read_model(app: &AppHandle) -> Result<ModelConfig, String> {
-    read_model_file(&data_dir(app)?.join("model.json"))
+    let path = data_dir(app)?.join("model.json");
+    migrate_legacy_model_key(&path)?;
+    let mut config = read_model_file(&path)?;
+    config.api_key = crate::credentials::load_secret(
+        crate::credentials::AGENT_MODEL_SERVICE,
+        crate::credentials::AGENT_MODEL_ACCOUNT,
+    )
+    .map_err(|error| error.to_string())?
+    .unwrap_or_default();
+    Ok(config)
+}
+
+/// Older builds wrote the API key as plain text in model.json. Move it into
+/// the credential store and strip the field from the settings file.
+fn migrate_legacy_model_key(path: &Path) -> Result<(), String> {
+    let raw = match fs::read_to_string(path) {
+        Ok(raw) => raw,
+        Err(_) => return Ok(()),
+    };
+    if !raw.contains("apiKey") {
+        return Ok(());
+    }
+    let value: Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(_) => return Ok(()),
+    };
+    let plain = match value.get("apiKey").and_then(Value::as_str) {
+        Some(plain) => plain.to_string(),
+        None => return Ok(()),
+    };
+    if !plain.is_empty() {
+        match crate::credentials::load_secret(
+            crate::credentials::AGENT_MODEL_SERVICE,
+            crate::credentials::AGENT_MODEL_ACCOUNT,
+        ) {
+            Ok(Some(_)) => {}
+            Ok(None) => {
+                // An unavailable OS store must not make the assistant unusable.
+                // Leave the legacy file alone and retry on the next launch.
+                if crate::credentials::save_secret(
+                    crate::credentials::AGENT_MODEL_SERVICE,
+                    crate::credentials::AGENT_MODEL_ACCOUNT,
+                    &plain,
+                )
+                .is_err()
+                {
+                    return Ok(());
+                }
+            }
+            Err(_) => return Ok(()),
+        }
+    }
+    save_json(path, &read_model_file(path)?)
 }
 
 fn read_model_file(path: &Path) -> Result<ModelConfig, String> {
@@ -272,7 +324,9 @@ pub fn agent_get_english_delegation(app: AppHandle) -> Result<bool, String> {
 
 #[tauri::command]
 pub fn agent_set_english_delegation(app: AppHandle, enabled: bool) -> Result<(), String> {
-    save_english_delegation(&data_dir(&app)?.join("model.json"), enabled)
+    let path = data_dir(&app)?.join("model.json");
+    migrate_legacy_model_key(&path)?;
+    save_english_delegation(&path, enabled)
 }
 
 fn save_english_delegation(path: &Path, enabled: bool) -> Result<(), String> {
@@ -289,9 +343,16 @@ pub fn agent_save_model(app: AppHandle, config: SaveModel) -> Result<(), String>
     let _lock = STORAGE_LOCK
         .lock()
         .map_err(|_| "Agent storage is unavailable")?;
+    let path = data_dir(&app)?.join("model.json");
     let next = config.model_config(&read_model(&app)?);
     validate_model_settings(&next)?;
-    save_json(&data_dir(&app)?.join("model.json"), &next)
+    crate::credentials::save_secret(
+        crate::credentials::AGENT_MODEL_SERVICE,
+        crate::credentials::AGENT_MODEL_ACCOUNT,
+        &next.api_key,
+    )
+    .map_err(|error| error.to_string())?;
+    save_json(&path, &next)
 }
 
 pub(crate) fn validate_conversation_id(id: &str) -> Result<(), String> {
@@ -1946,7 +2007,7 @@ mod tests {
         assert_eq!(stored["model"], "second");
         let reloaded: ModelConfig = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert!(!reloaded.english_delegation);
-        assert_eq!(stored["apiKey"], "");
+        assert!(stored.get("apiKey").is_none(), "API keys must never be written to model.json");
         assert!(!path.with_extension("json.tmp").exists());
         fs::remove_file(path).unwrap();
         fs::remove_dir(directory).unwrap();
@@ -2009,8 +2070,8 @@ mod tests {
             for field in ["provider", "baseUrl", "model"] {
                 assert_eq!(stored[field], original[field]);
             }
-            assert_eq!(stored["apiKey"], "");
-            assert_eq!(stored.as_object().unwrap().len(), 5);
+            assert!(stored.get("apiKey").is_none(), "API keys must never be written to model.json");
+            assert_eq!(stored.as_object().unwrap().len(), 4);
             assert_eq!(read_model_file(&path).unwrap().english_delegation, enabled);
             assert!(!path.with_extension("json.tmp").exists());
         }
@@ -2234,30 +2295,43 @@ mod tests {
     }
 
     #[test]
-    fn api_key_is_plain_optional_text_in_the_settings_file() {
+    fn api_key_is_never_written_to_the_settings_file() {
         let directory =
             std::env::temp_dir().join(format!("coffee-agent-test-{}", uuid::Uuid::new_v4()));
         let path = directory.join("model.json");
         let save = |value: Value| serde_json::from_value::<SaveModel>(value).unwrap();
         let first = save(json!({"provider":"openai","baseUrl":"http://localhost:11434/v1","model":"llama","apiKey":"  sk-plain \n"}))
             .model_config(&read_model_file(&path).unwrap());
+        assert_eq!(first.api_key, "sk-plain");
         save_json(&path, &first).unwrap();
-        let stored: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(stored["apiKey"], "sk-plain");
+        let raw = fs::read_to_string(&path).unwrap();
+        let stored: Value = serde_json::from_str(&raw).unwrap();
+        assert!(stored.get("apiKey").is_none(), "API keys must never be written to model.json");
+        assert!(!raw.contains("sk-plain"));
+        // The key lives in the credential store; reloading the settings file
+        // alone must never resurrect it.
         let reloaded = read_model_file(&path).unwrap();
-        assert_eq!(reloaded.api_key, "sk-plain");
-        // Omitting the key keeps it only for the same service; an empty key is valid.
-        let renamed = save(json!({"provider":"openai","baseUrl":"http://localhost:11434/v1/","model":"other"})).model_config(&reloaded);
+        assert_eq!(reloaded.api_key, "");
+        // Retention rules are unchanged; the previous key now comes from the
+        // credential store instead of the settings file.
+        let previous = ModelConfig {
+            provider: Provider::Openai,
+            base_url: "http://localhost:11434/v1".into(),
+            model: "llama".into(),
+            api_key: "sk-plain".into(),
+            ..ModelConfig::default()
+        };
+        let renamed = save(json!({"provider":"openai","baseUrl":"http://localhost:11434/v1/","model":"other"})).model_config(&previous);
         assert_eq!(renamed.api_key, "sk-plain");
-        let moved = save(json!({"provider":"openai","baseUrl":"https://example.com/v1","model":"llama"})).model_config(&reloaded);
+        let moved = save(json!({"provider":"openai","baseUrl":"https://example.com/v1","model":"llama"})).model_config(&previous);
         assert_eq!(moved.api_key, "");
-        let switched = save(json!({"provider":"anthropic","baseUrl":"http://localhost:11434/v1","model":"llama"})).model_config(&reloaded);
+        let switched = save(json!({"provider":"anthropic","baseUrl":"http://localhost:11434/v1","model":"llama"})).model_config(&previous);
         assert_eq!(switched.api_key, "");
-        let cleared = save(json!({"provider":"openai","baseUrl":"http://localhost:11434/v1","model":"llama","apiKey":""})).model_config(&reloaded);
+        let cleared = save(json!({"provider":"openai","baseUrl":"http://localhost:11434/v1","model":"llama","apiKey":""})).model_config(&previous);
         assert_eq!(cleared.api_key, "");
         assert!(validate_model_request(&cleared).is_ok());
-        // Settings from older versions simply start without a key.
-        let older: ModelConfig = serde_json::from_value(json!({"provider":"openai","baseUrl":"https://example.com/v1","model":"m"})).unwrap();
+        // A legacy plain-text file is ignored by the struct and never re-serialised.
+        let older: ModelConfig = serde_json::from_value(json!({"provider":"openai","baseUrl":"https://example.com/v1","model":"m","apiKey":"sk-legacy"})).unwrap();
         assert_eq!(older.api_key, "");
         fs::remove_file(path).unwrap();
         fs::remove_dir(directory).unwrap();

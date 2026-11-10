@@ -160,6 +160,22 @@ export function SettingsModal() {
     commands.notifySoundFiles().then(setSoundFiles, err => console.warn('[Settings] sound files unavailable:', err));
   }, [section, state.settingsOpen]);
 
+  // Credential storage backend (Settings ▸ General). Hooks must stay above
+  // the `if (!open) return null` early return.
+  const [credentialBackend, setCredentialBackend] = useState<'encrypted' | 'keychain'>('encrypted');
+  const [credentialError, setCredentialError] = useState('');
+  const [credentialBusy, setCredentialBusy] = useState(false);
+  useEffect(() => {
+    if (!state.settingsOpen || section !== 'general' || !isTauri) return;
+    let cancelled = false;
+    commands.getCredentialBackend()
+      .then(value => {
+        if (!cancelled && (value === 'encrypted' || value === 'keychain')) setCredentialBackend(value);
+      })
+      .catch(err => { if (!cancelled) setCredentialError(String(err)); });
+    return () => { cancelled = true; };
+  }, [state.settingsOpen, section]);
+
   const open = state.settingsOpen;
   const close = () => { finishScaleDrag(); dispatch({ type: 'SET_SETTINGS_OPEN', open: false }); };
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -275,6 +291,15 @@ export function SettingsModal() {
   const setHotkeyScheme = (value: HotkeyScheme) => {
     dispatch({ type: 'SET_HOTKEY_SCHEME', value });
     try { localStorage.setItem('cc-hotkey-scheme', value); } catch { /* Best-effort operation; failure is non-fatal. */ }
+  };
+  const setCredentialStorage = (next: 'encrypted' | 'keychain') => {
+    if (next === credentialBackend || credentialBusy) return;
+    setCredentialBusy(true);
+    setCredentialError('');
+    commands.setCredentialBackend(next)
+      .then(value => setCredentialBackend(value === 'keychain' ? 'keychain' : 'encrypted'))
+      .catch(err => setCredentialError(String(err)))
+      .finally(() => setCredentialBusy(false));
   };
 
   // Sound notification toggles — local state + localStorage only. The
@@ -644,6 +669,27 @@ export function SettingsModal() {
                       </button>
                     );
                   })}
+                </div>
+                <div className="settings-sound-list">
+                  <div className="settings-sound-row settings-choice-row">
+                    <div className="settings-sound-title">{t('settings.credentials.title')}</div>
+                    <div className="settings-choice">
+                      <SegmentedTabs
+                        compact
+                        label={t('settings.credentials.title')}
+                        value={credentialBackend}
+                        onChange={value => setCredentialStorage(value === 'keychain' ? 'keychain' : 'encrypted')}
+                        options={[
+                          { value: 'encrypted', content: t('settings.credentials.encrypted') },
+                          { value: 'keychain', content: t('settings.credentials.keychain') },
+                        ]}
+                      />
+                      <div className="settings-choice-hint">
+                        {t(credentialBackend === 'encrypted' ? 'settings.credentials.encrypted_hint' : 'settings.credentials.keychain_hint')}
+                      </div>
+                    </div>
+                  </div>
+                  {credentialError && <div className="settings-scale-error" role="alert">{credentialError}</div>}
                 </div>
               </>
             )}

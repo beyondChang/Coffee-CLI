@@ -1364,11 +1364,11 @@ fn save_tasks(data: String, app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// ─── Saved Passwords (plain text) ──────────────────────────────────────────
+// ─── Saved Passwords (encrypted credential store) ─────────────────────────
 
 const CREDENTIAL_SERVICE: &str = "coffee-cli";
 
-/// Save a remote password as plain text in ~/.coffee-cli/credentials.json.
+/// Save a remote password in the active credential backend.
 /// The key is `username@host`.
 #[tauri::command]
 fn save_password(host: String, username: String, password: String) -> Result<(), String> {
@@ -1406,6 +1406,24 @@ fn delete_password(host: String, username: String) -> Result<(), String> {
         Err(crate::credentials::Error::NoEntry) => Ok(()), // already gone, not an error
         Err(e) => Err(e.to_string()),
     }
+}
+
+/// Report the credential backend currently in use.
+#[tauri::command]
+fn credential_get_backend() -> Result<String, String> {
+    Ok(crate::credentials::current_backend()
+        .map_err(|e| e.to_string())?
+        .as_str()
+        .to_string())
+}
+
+/// Switch backends, migrating every saved secret to the new store first.
+#[tauri::command]
+fn credential_set_backend(backend: String) -> Result<String, String> {
+    let next = crate::credentials::Backend::parse(&backend)
+        .ok_or_else(|| "Unknown credential backend".to_string())?;
+    crate::credentials::switch_backend(next).map_err(|e| e.to_string())?;
+    Ok(next.as_str().to_string())
 }
 
 #[tauri::command]
@@ -1792,6 +1810,8 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::agent_modes::agent_set_work_mode,
             crate::agent_sentinel::agent_sentinel_report,
             crate::agent::agent_save_model,
+            crate::agent_voice::agent_get_voice_model,
+            crate::agent_voice::agent_save_voice_model,
             crate::agent::agent_get_english_delegation,
             crate::agent::agent_set_english_delegation,
             crate::agent::agent_get_conversation,
@@ -1858,6 +1878,8 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             save_password,
             load_password,
             delete_password,
+            credential_get_backend,
+            credential_set_backend,
             computer_name,
             open_url,
             download_and_install_update,

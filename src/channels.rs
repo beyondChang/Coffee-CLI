@@ -1,4 +1,4 @@
-//! Private phone channels. Credentials are saved as plain text; consumed messages
+//! Private phone channels. Credentials live in the encrypted vault or OS keychain; consumed messages
 //! are never replayed into the agent after an application restart.
 
 use base64::Engine;

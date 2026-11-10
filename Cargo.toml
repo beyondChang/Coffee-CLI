@@ -59,6 +59,12 @@ dirs = "5"
 # families + monospace flag). No system deps, unlike font-kit.
 ttf-parser = "0.20"
 base64 = "0.22.1"
+# Credential storage: AES-256-GCM sealed vault + OS-native keychain backend.
+# The master key for the encrypted-file backend is kept in the OS credential
+# store; the keychain backend stores each secret there directly.
+aes-gcm = "0.10"
+rand = "0.8"
+keyring = "4.2"
 # PNG encoder for clipboard-image paste (issue #96): the Tauri clipboard
 # plugin's read_image() returns raw RGBA — no original format — so we encode
 # to PNG before writing the temp file the AI CLI references by path. Reuses

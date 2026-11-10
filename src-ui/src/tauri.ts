@@ -357,13 +357,17 @@ export const commands = {
   loadTasks: () => invoke<string>('load_tasks'),
   saveTasks: (data: string) => invoke<void>('save_tasks', { data }),
 
-  // Saved remote passwords — plain text in ~/.coffee-cli/credentials.json
+  // Saved remote passwords — encrypted vault or OS credential store
   savePassword: (host: string, username: string, password: string) =>
     invoke<void>('save_password', { host, username, password }),
   loadPassword: (host: string, username: string) =>
     invoke<string | null>('load_password', { host, username }),
   deletePassword: (host: string, username: string) =>
     invoke<void>('delete_password', { host, username }),
+  // Switch the credential backend; Rust migrates every saved secret first.
+  getCredentialBackend: () => invoke<string>('credential_get_backend'),
+  setCredentialBackend: (backend: 'encrypted' | 'keychain') =>
+    invoke<string>('credential_set_backend', { backend }),
   openUrl: (url: string) =>
     invoke<void>('open_url', { url }),
   computerName: () => invoke<string>('computer_name'),
