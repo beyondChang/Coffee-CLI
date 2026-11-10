@@ -17,7 +17,7 @@
 // text can't be misdirected to the wrong terminal.
 
 import { useCallback, useEffect } from 'react';
-import { useAppState, useAppStateRef, matchHotkeyScheme } from '../../store/app-state';
+import { isLaunchpadActive, useAppState, useAppStateRef, matchHotkeyScheme } from '../../store/app-state';
 import { sendSessionPrompt } from '../../lib/send-session-prompt';
 import { isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation } from '../../lib/chat-tools';
 import { getToolIcon } from './CenterPanel';
@@ -152,6 +152,7 @@ export function ActiveGambit() {
     try { localStorage.setItem('cc-gambit-open', state.gambitOpen ? '1' : '0'); } catch { /* optional preference */ }
   }, [state.gambitOpen]);
 
+  if (isLaunchpadActive(state)) return null;
   if (!gambitOpen || !activeId || state.agentPageActive || state.fileTabActive || state.usageOpen || state.toolSettingsOpen || state.automationsOpen || state.settingsOpen) return null;
 
   return (

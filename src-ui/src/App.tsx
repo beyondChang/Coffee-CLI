@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AutomationRunner } from './components/center/AutomationRunner';
 import { SettingsModal } from './components/common/SettingsModal';
-import { useAppState } from './store/app-state';
+import { isLaunchpadActive, useAppState } from './store/app-state';
 import { retryInvoke } from './tauri';
 import { initNotifySound } from './lib/notify-sound';
 import { useOrchestration } from './lib/orchestration';
@@ -210,7 +210,9 @@ export function App() {
   const panelWidthsRef = useRef(panelWidths);
 
   const leftPanel = useSlidingPanel(state.leftPanelHidden);
-  const rightPanel = useSlidingPanel(state.rightPanelHidden);
+  // The launchpad hides the right panel outright, hotkey included.
+  const launchpad = isLaunchpadActive(state);
+  const rightPanel = useSlidingPanel(state.rightPanelHidden || launchpad);
 
   useLayoutEffect(() => applyPanelWidths(panelWidths), [panelWidths]);
 

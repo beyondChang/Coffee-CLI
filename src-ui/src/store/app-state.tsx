@@ -321,6 +321,13 @@ type Action =
   | { type: 'OPEN_AGENT_PAGE'; page: AgentPage }
   | { type: 'CLOSE_AGENT_PAGE'; page: AgentPage };
 
+/** The "new session" launchpad is a tab whose tool has not been chosen yet.
+ *  It owns the whole workspace: no side panel, no compose box. */
+export function isLaunchpadActive(state: AppState): boolean {
+  const session = state.terminals.find(tab => tab.id === state.activeTerminalId);
+  return !!session && session.tool === null;
+}
+
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
 export function getTabOrder(state: Pick<AppState, 'terminals' | 'agentPages' | 'tabOrder'>): string[] {
@@ -584,6 +591,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_DEFAULT_SHELL':
       return { ...state, defaultShell: action.shell };
     case 'TOGGLE_GAMBIT':
+      if (isLaunchpadActive(state)) return state;
       if (!state.agentPageActive && !state.fileTabActive && isConversationSession(state.terminals.find(t => t.id === state.activeTerminalId))) return state;
       return { ...state, gambitOpen: !state.gambitOpen };
     // Settings covers the whole window; it and the usage and tool settings pages are open one at a time.
@@ -619,6 +627,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, leftPanelHidden: next };
     }
     case 'TOGGLE_RIGHT_PANEL': {
+      // The launchpad is a full-bleed chooser; a sidebar over it makes no sense.
+      if (isLaunchpadActive(state)) return state;
       const next = !state.rightPanelHidden;
       try { localStorage.setItem('cc-right-hidden', next ? '1' : '0'); } catch { /* Best-effort operation; failure is non-fatal. */ }
       return { ...state, rightPanelHidden: next };

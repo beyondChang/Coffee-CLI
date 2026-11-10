@@ -6,7 +6,7 @@
 // the panel in, and the same handle flips outward to collapse it again.
 
 import { useEffect } from 'react';
-import { useAppState, useAppDispatch, schemeLabels } from '../../store/app-state';
+import { isLaunchpadActive, useAppState, useAppDispatch, schemeLabels } from '../../store/app-state';
 import { useT } from '../../i18n/useT';
 import './PanelEdgeHandle.css';
 
@@ -20,6 +20,8 @@ export function PanelEdgeHandle({ side }: { side: 'left' | 'right' }) {
   // reaches the handle so the two never flicker against each other.
   const hideScrollbar = (hide: boolean) => document.body.classList.toggle('cc-scrollbar-muted', hide);
   useEffect(() => () => document.body.classList.remove('cc-scrollbar-muted'), []);
+  // The launchpad owns the workspace, so its right-panel handle stays hidden.
+  if (side === 'right' && isLaunchpadActive(state)) return null;
 
   return (
     <button
