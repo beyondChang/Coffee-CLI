@@ -438,7 +438,7 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
    titlebar without moving anything else. */
 .launchpad-hero {
   position: absolute;
-  top: var(--launchpad-hero-top, 64px);
+  top: var(--launchpad-hero-top, 90px);
   left: 0;
   right: 0;
   display: flex;
