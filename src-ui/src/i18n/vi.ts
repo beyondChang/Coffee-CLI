@@ -553,6 +553,8 @@ Xóa tờ ghi chú này khi bạn sẵn sàng và bắt đầu tác vụ đầu 
   'agent.model.id_placeholder': 'Nhập ID mô hình',
   'agent.model.api_key': 'Khóa API',
   'agent.model.api_key_placeholder': 'Khóa API (không bắt buộc)',
+  'agent.model.api_key_show': 'Hiện khóa API',
+  'agent.model.api_key_hide': 'Ẩn khóa API',
   'agent.model.save': 'Lưu',
   'agent.model.saving': 'Đang lưu…',
   'agent.model.loading': 'Đang đọc cấu hình…',

@@ -246,16 +246,29 @@ function AgentChatPage() {
 }
 
 /** A plain text field with the shared right-click menu and a paste button inside its right edge. */
-function AgentPasteInput({ label, value, onValue, openMenu, ...input }: {
+function AgentPasteInput({ label, value, onValue, openMenu, secret = false, type = 'text', ...input }: {
   label: string; value: string; onValue: (value: string) => void;
   openMenu: ReturnType<typeof useTextContextMenu>['openMenu'];
+  /** Secrets stay masked until the user explicitly asks to read them. */
+  secret?: boolean;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const t = useT();
+  const [revealed, setRevealed] = useState(false);
   // Pasting replaces the whole value: copied URLs and keys often carry a trailing newline.
   const paste = () => void clipboardRead().then(text => { const next = text.trim(); if (next) onValue(next); });
-  return <label className="agent-field"><span>{label}</span><span className="agent-paste-input">
-    <input {...input} aria-label={label} value={value} spellCheck={false} onChange={event => onValue(event.target.value)} onContextMenu={event => openMenu(event, onValue)} />
-    <button type="button" aria-label={`${t('menu.paste')} ${label}`} onClick={paste}>{t('menu.paste')}</button>
+  const toggleLabel = t(revealed ? 'agent.model.api_key_hide' : 'agent.model.api_key_show');
+  return <label className="agent-field"><span>{label}</span><span className={`agent-paste-input${secret ? ' is-secret' : ''}`}>
+    <input {...input} type={secret && !revealed ? 'password' : type} aria-label={label} value={value} spellCheck={false} onChange={event => onValue(event.target.value)} onContextMenu={event => openMenu(event, onValue)} />
+    <span className="agent-input-actions">
+      {secret && <button type="button" className="agent-secret-toggle" aria-label={toggleLabel} aria-pressed={revealed} title={toggleLabel} onClick={() => setRevealed(current => !current)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {revealed
+            ? <><path d="m3 3 18 18" /><path d="M10.7 5.2A9.9 9.9 0 0 1 12 5c5 0 9 4.5 9 7 0 .9-.6 2-1.6 3" /><path d="M6.3 7.4C4.3 8.7 3 10.3 3 12c0 2.5 4 7 9 7 1.3 0 2.6-.3 3.7-.8" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>
+            : <><path d="M3 12c0-2.5 4-7 9-7s9 4.5 9 7-4 7-9 7-9-4.5-9-7Z" /><circle cx="12" cy="12" r="3" /></>}
+        </svg>
+      </button>}
+      <button type="button" className="agent-paste-btn" aria-label={`${t('menu.paste')} ${label}`} onClick={paste}>{t('menu.paste')}</button>
+    </span>
   </span></label>;
 }
 
@@ -316,7 +329,7 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
           }} /></label>
           <AgentPasteInput label={t('agent.model.url')} type="url" value={config.baseUrl} placeholder={DEFAULT_URL[config.provider]} onValue={setBaseUrl} openMenu={openMenu} />
           <AgentPasteInput label={t('agent.model.id')} value={config.model} maxLength={200} placeholder={t('agent.model.id_placeholder')} onValue={setModel} openMenu={openMenu} />
-          <AgentPasteInput label={t('agent.model.api_key')} value={config.apiKey} autoComplete="off" placeholder={t('agent.model.api_key_placeholder')} onValue={setKey} openMenu={openMenu} />
+          <AgentPasteInput label={t('agent.model.api_key')} secret value={config.apiKey} autoComplete="off" placeholder={t('agent.model.api_key_placeholder')} onValue={setKey} openMenu={openMenu} />
           <div className="agent-form-footer"><button type="submit" className="agent-button primary">{saving ? t('agent.model.saving') : t('agent.model.save')}</button><span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span></div>
         </fieldset>
         {error && <p className="agent-feedback error" role="alert">{formatAgentError(error, t)}</p>}

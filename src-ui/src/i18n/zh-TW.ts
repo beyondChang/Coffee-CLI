@@ -553,6 +553,8 @@ export const zhTW = {
   'agent.model.id_placeholder': '輸入模型 ID',
   'agent.model.api_key': 'API 金鑰',
   'agent.model.api_key_placeholder': 'API 金鑰（可留空）',
+  'agent.model.api_key_show': '顯示 API 金鑰',
+  'agent.model.api_key_hide': '隱藏 API 金鑰',
   'agent.model.save': '儲存',
   'agent.model.saving': '正在儲存…',
   'agent.model.loading': '正在讀取設定…',

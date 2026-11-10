@@ -554,6 +554,8 @@ export const zhCN = {
   'agent.model.id_placeholder': '输入模型 ID',
   'agent.model.api_key': 'API 密钥',
   'agent.model.api_key_placeholder': 'API 密钥（可留空）',
+  'agent.model.api_key_show': '显示 API 密钥',
+  'agent.model.api_key_hide': '隐藏 API 密钥',
   'agent.model.save': '保存',
   'agent.model.saving': '正在保存…',
   'agent.model.loading': '正在读取配置…',

@@ -552,6 +552,8 @@ export const ja = {
   'agent.model.id_placeholder': 'モデル ID を入力',
   'agent.model.api_key': 'API キー',
   'agent.model.api_key_placeholder': 'API キー（空欄可）',
+  'agent.model.api_key_show': 'API キーを表示',
+  'agent.model.api_key_hide': 'API キーを隠す',
   'agent.model.save': '保存',
   'agent.model.saving': '保存中…',
   'agent.model.loading': '設定を読み込み中…',

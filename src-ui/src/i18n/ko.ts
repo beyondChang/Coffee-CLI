@@ -552,6 +552,8 @@ export const ko = {
   'agent.model.id_placeholder': '모델 ID 입력',
   'agent.model.api_key': 'API 키',
   'agent.model.api_key_placeholder': 'API 키 (비워 둘 수 있음)',
+  'agent.model.api_key_show': 'API 키 표시',
+  'agent.model.api_key_hide': 'API 키 숨기기',
   'agent.model.save': '저장',
   'agent.model.saving': '저장 중…',
   'agent.model.loading': '설정 불러오는 중…',

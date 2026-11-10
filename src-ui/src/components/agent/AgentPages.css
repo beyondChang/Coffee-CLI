@@ -51,10 +51,17 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
 .agent-field > span { white-space: nowrap; }
 .agent-paste-input { position: relative; display: block; min-width: 0; }
 .agent-field .agent-paste-input input { padding-inline-end: 56px; }
-.agent-paste-input button { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); height: 26px; padding: 0 9px; border: 0; border-radius: calc(var(--shape-radius-btn) - 2px); color: var(--text-2); background: transparent; font: inherit; font-size: var(--type-label); cursor: pointer; transition: background 120ms, color 120ms; }
-.agent-paste-input button:hover:not(:disabled) { color: var(--text-1); background: var(--bg-hover); }
-.agent-paste-input button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.agent-paste-input button:disabled { opacity: .45; cursor: default; }
+/* The reveal toggle sits left of the paste button, so a masked field needs room for both. */
+.agent-field .agent-paste-input.is-secret input { padding-inline-end: 100px; }
+.agent-input-actions { position: absolute; inset-inline-end: 4px; top: 50%; display: flex; align-items: center; gap: 2px; transform: translateY(-50%); }
+.agent-input-actions button { height: 26px; padding: 0 9px; border: 0; border-radius: calc(var(--shape-radius-btn) - 2px); color: var(--text-2); background: transparent; font: inherit; font-size: var(--type-label); cursor: pointer; transition: background 120ms, color 120ms; }
+.agent-input-actions button:hover:not(:disabled) { color: var(--text-1); background: var(--bg-hover); }
+.agent-input-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.agent-input-actions button:disabled { opacity: .45; cursor: default; }
+.agent-input-actions .agent-secret-toggle { display: grid; place-items: center; width: 24px; padding: 0; }
+.agent-secret-toggle svg { width: 15px; height: 15px; }
+/* WebView2/Edge adds its own reveal control to password fields; ours is the one on screen. */
+.agent-field input::-ms-reveal, .agent-field input::-ms-clear { display: none; }
 .agent-field input, .agent-inline-input { width: 100%; min-width: 0; min-height: 34px; padding: 7px 10px; border: 1px solid var(--border-input); border-radius: var(--shape-radius-btn); outline: none; color: var(--text-1); background: var(--bg-input); font: inherit; font-size: var(--type-body); }
 .agent-field input:focus, .agent-inline-input:focus { border-color: var(--border-focus); background: var(--bg-input-focus); }
 .agent-field input::placeholder, .agent-inline-input::placeholder { color: var(--text-3); }

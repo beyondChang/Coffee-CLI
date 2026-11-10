@@ -549,6 +549,8 @@ export const ru = {
   'agent.model.id_placeholder': 'Введите ID модели',
   'agent.model.api_key': 'Ключ API',
   'agent.model.api_key_placeholder': 'Ключ API (необязательно)',
+  'agent.model.api_key_show': 'Показать ключ API',
+  'agent.model.api_key_hide': 'Скрыть ключ API',
   'agent.model.save': 'Сохранить',
   'agent.model.saving': 'Сохранение…',
   'agent.model.loading': 'Чтение конфигурации…',
