@@ -435,50 +435,30 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
 
 .launchpad-hero {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 14px;
   margin: 0 0 28px;
 }
 
 .launchpad-hero-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
 }
 
+/* Calligraphic on purpose: Kaiti / STKaiti ship with Windows and macOS, so the
+   tagline reads as a signature instead of UI copy. Lora covers Latin glyphs. */
 .launchpad-hero-tagline {
   margin: 0;
-  color: var(--text-3);
-  font-size: var(--type-body);
-  letter-spacing: 0.22em;
-  text-indent: 0.22em;
-  text-align: center;
-}
-
-.launchpad-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 28px;
-}
-
-.launchpad-hero-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
-}
-
-.launchpad-hero-tagline {
-  margin: 0;
-  color: var(--text-3);
-  font-size: var(--type-body);
-  letter-spacing: 0.22em;
-  text-indent: 0.22em;
-  text-align: center;
+  font-family: 'STKaiti', 'KaiTi', '楷体', 'Lora', var(--font, serif);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  color: var(--text-1);
+  white-space: nowrap;
 }
 
 .launchpad-grid {
