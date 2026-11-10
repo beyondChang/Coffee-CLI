@@ -41,8 +41,8 @@
 .history-layout-menu .ctx-menu-item > .history-layout-tool-icon { flex: 0 0 14px; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; }
 .history-layout-tool-icon > :is(svg, img, span) { width: 14px; height: 14px; }
 .ctx-menu-item .history-layout-tool-icon svg { opacity: 1; }
-.history-project-row { margin: 4px 0 2px; }
-.history-session-list > .history-project-row:not(:first-child) { margin-top: 20px; }
+.history-project-row { margin: 2px 0 1px; padding-block: 4px; }
+.history-session-list > .history-project-row:not(:first-child) { margin-top: 10px; }
 .history-project-row > svg { flex-shrink: 0; }
 .history-project-row > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-project-row[aria-expanded="true"] .history-project-chevron { transform: rotate(90deg); }
