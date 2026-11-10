@@ -38,7 +38,6 @@ interface PanelWidths {
 const PANEL_WIDTHS_STORAGE_KEY = 'cc-panel-widths';
 const PANEL_CENTER_MIN = 400;
 const PANEL_LEFT_MIN = 210;
-const PANEL_LEFT_MAX = 380;
 const PANEL_RIGHT_MIN = 200;
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -65,10 +64,10 @@ function normalizePanelWidths(
     Math.max(PANEL_LEFT_MIN, PANEL_RIGHT_MIN),
     viewportWidth - PANEL_CENTER_MIN,
   );
-  const individualLeftMaximum = Math.max(
-    PANEL_LEFT_MIN,
-    Math.min(PANEL_LEFT_MAX, singlePanelAvailable),
-  );
+  // Both sides share the same budget rule: a panel may grow until the centre
+  // workspace hits its floor (and, when both are open, until the other side
+  // hits its minimum). No per-side hard cap.
+  const individualLeftMaximum = Math.max(PANEL_LEFT_MIN, singlePanelAvailable);
   const individualRightMaximum = Math.max(PANEL_RIGHT_MIN, singlePanelAvailable);
   let left = clamp(widths.left, PANEL_LEFT_MIN, individualLeftMaximum);
   let right = clamp(widths.right, PANEL_RIGHT_MIN, individualRightMaximum);
@@ -81,7 +80,7 @@ function normalizePanelWidths(
   }
 
   const available = Math.max(PANEL_LEFT_MIN + PANEL_RIGHT_MIN, viewportWidth - PANEL_CENTER_MIN);
-  const leftMaximum = Math.max(PANEL_LEFT_MIN, Math.min(PANEL_LEFT_MAX, available - PANEL_RIGHT_MIN));
+  const leftMaximum = Math.max(PANEL_LEFT_MIN, available - PANEL_RIGHT_MIN);
   left = clamp(left, PANEL_LEFT_MIN, leftMaximum);
   const rightMaximum = Math.max(PANEL_RIGHT_MIN, available - left);
   right = clamp(right, PANEL_RIGHT_MIN, rightMaximum);
@@ -248,9 +247,7 @@ export function App() {
     );
     const otherPanelHidden = side === 'left' ? state.rightPanelHidden : state.leftPanelHidden;
     const reservedByOtherPanel = otherPanelHidden ? 0 : side === 'left' ? current.right : current.left;
-    const maximum = side === 'left'
-      ? Math.max(PANEL_LEFT_MIN, Math.min(PANEL_LEFT_MAX, available - reservedByOtherPanel))
-      : Math.max(PANEL_RIGHT_MIN, available - reservedByOtherPanel);
+    const maximum = Math.max(side === 'left' ? PANEL_LEFT_MIN : PANEL_RIGHT_MIN, available - reservedByOtherPanel);
     const next = {
       ...current,
       [side]: Math.round(clamp(requestedSize, side === 'left' ? PANEL_LEFT_MIN : PANEL_RIGHT_MIN, maximum)),
