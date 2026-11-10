@@ -518,7 +518,7 @@ export const ja = {
   'agent.error.model_required': 'Coffee Agent のモデル設定でモデル ID を入力してください。',
   'agent.page.settings': 'メッセージ設定',
   'agent.page.close_settings': 'メッセージ設定タブを閉じる',
-  'agent.page.close_agent': 'Coffee Agent タブを閉じる',
+  'agent.page.close_agent': 'スーパーアシスタント タブを閉じる',
   'agent.chat.welcome': 'メッセージチャネルを通じて Coffee CLI の作業を管理できます。',
   'agent.chat.suggestion.terminals': '開いているターミナルを教えて',
   'agent.chat.suggestion.progress': 'ターミナルを読み取り、現在の進捗を教えて',

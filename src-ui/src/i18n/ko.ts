@@ -518,7 +518,7 @@ export const ko = {
   'agent.error.model_required': 'Coffee Agent 모델 설정에서 모델 ID를 입력해 주세요.',
   'agent.page.settings': '메시지 설정',
   'agent.page.close_settings': '메시지 설정 탭 닫기',
-  'agent.page.close_agent': 'Coffee Agent 탭 닫기',
+  'agent.page.close_agent': '슈퍼 어시스턴트 탭 닫기',
   'agent.chat.welcome': '메시지 채널을 통해 Coffee CLI 작업을 관리할 수 있습니다.',
   'agent.chat.suggestion.terminals': '현재 열려 있는 터미널을 보여 줘',
   'agent.chat.suggestion.progress': '터미널을 읽고 현재 진행 상황을 알려 줘',

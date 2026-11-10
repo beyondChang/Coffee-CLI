@@ -519,7 +519,7 @@ export const zhTW = {
   'agent.error.model_required': '請在 Coffee Agent 模型設定中填寫模型 ID。',
   'agent.page.settings': '訊息設定',
   'agent.page.close_settings': '關閉訊息設定分頁',
-  'agent.page.close_agent': '關閉 Coffee Agent 分頁',
+  'agent.page.close_agent': '關閉超級助手分頁',
   'agent.chat.welcome': '透過訊息渠道，讓 Coffee Agent 幫你管理 Coffee CLI 工作。',
   'agent.chat.suggestion.terminals': '看看目前開啟了哪些終端機',
   'agent.chat.suggestion.progress': '讀取終端機畫面，告訴我目前進度',

@@ -73,7 +73,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   });
   const composer = page => page.children.find(child => child?.type === 'gambit');
   let props = composer(render()).props;
-  assert.equal(props.workspaceName, 'Coffee Agent');
+  assert.equal(props.workspaceName, 'agent.sidebar.super_assistant');
   assert.equal(await props.onSend('  inspect terminal 2  '), true);
   assert.deepEqual(sent, ['inspect terminal 2']);
   rejectSend = true;

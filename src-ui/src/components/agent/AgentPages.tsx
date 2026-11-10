@@ -79,13 +79,16 @@ function AgentSelect<Value extends string>({ value, options, onChange, label, cl
 
 function PageFrame({ page, children }: { page: AgentPage; children: ReactNode }) {
   const t = useT();
-  return <section className={`agent-page agent-page-${page}`} aria-label={page === 'agent' ? 'Coffee Agent' : t('agent.page.settings')}>
+  return <section className={`agent-page agent-page-${page}`} aria-label={page === 'agent' ? t('agent.sidebar.super_assistant') : t('agent.page.settings')}>
     {children}
   </section>;
 }
 
 function AgentChatPage() {
   const t = useT();
+  // One product name for the sidebar entry, the centre tab, the welcome
+  // heading and the composer's target label.
+  const agentName = t('agent.sidebar.super_assistant');
   const { state, dispatch } = useAppState();
   const { conversationId, messages, hasOlder, loadingOlder, running, activity, error, channels } = useAgentClient();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -213,12 +216,12 @@ function AgentChatPage() {
     }}>
       {hasOlder && <button type="button" className="agent-button quiet" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? t('agent.chat.loading') : t('agent.chat.older')}</button>}
       {messages.length === 0 ? <div className="agent-welcome">
-        <h2>Coffee Agent</h2>
+        <h2>{agentName}</h2>
         <p>{t('agent.chat.welcome')}</p>
         <div className="agent-suggestions">{[t('agent.chat.suggestion.terminals'), t('agent.chat.suggestion.progress'), t('agent.chat.suggestion.history')].map(text =>
           <button type="button" key={text} onClick={() => { setDraft(text); document.querySelector<HTMLTextAreaElement>('.gambit-textarea')?.focus(); }}>{text}<span aria-hidden="true">↗</span></button>)}</div>
       </div> : <div className="agent-message-list" ref={messageListRef}>{messages.map((message, index) =>
-        <article className={`conversation-message conversation-message--${message.role}`} data-conversation-navigation-id={String(message.id)} aria-label={message.role === 'user' ? t('agent.chat.user') : 'Coffee Agent'} key={message.id}>
+        <article className={`conversation-message conversation-message--${message.role}`} data-conversation-navigation-id={String(message.id)} aria-label={message.role === 'user' ? t('agent.chat.user') : agentName} key={message.id}>
           {!!message.tools?.length && <details className="agent-tool-summary">
             <summary>{t('agent.chat.tools', { count: message.tools.length })}{message.tools.some(tool => !tool.ok) ? ` · ${t('agent.chat.tools_failed', { count: message.tools.filter(tool => !tool.ok).length })}` : ''}</summary>
             <ol>{message.tools.map((tool, i) => <li key={i} className={tool.ok ? undefined : 'failed'}><span aria-hidden="true">{tool.ok ? '✓' : '✕'}</span><code>{tool.name}</code></li>)}</ol>
@@ -236,7 +239,7 @@ function AgentChatPage() {
       onClose={() => {}} onSend={send} running={running}
       onCancel={cancelling ? undefined : () => void cancel()}
       sendFailedHint={t('agent.chat.send_failed')}
-      workspaceName="Coffee Agent" channelBadge={weixinBadge} worktreeControl={newChat}
+      workspaceName={agentName} channelBadge={weixinBadge} worktreeControl={newChat}
       leftPanelHidden={state.leftPanelHidden} rightPanelHidden={state.rightPanelHidden}
     />}
   </PageFrame>;

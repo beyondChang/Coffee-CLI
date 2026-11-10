@@ -515,7 +515,7 @@ export const ru = {
   'agent.error.model_required': 'Введите ID модели в настройках модели Coffee Agent.',
   'agent.page.settings': 'Настройки сообщений',
   'agent.page.close_settings': 'Закрыть вкладку настроек сообщений',
-  'agent.page.close_agent': 'Закрыть вкладку Coffee Agent',
+  'agent.page.close_agent': 'Закрыть вкладку Суперпомощник',
   'agent.chat.welcome': 'Управляйте работой в Coffee CLI через подключённые каналы сообщений.',
   'agent.chat.suggestion.terminals': 'Покажи, какие терминалы открыты',
   'agent.chat.suggestion.progress': 'Прочитай терминалы и сообщи о текущем прогрессе',

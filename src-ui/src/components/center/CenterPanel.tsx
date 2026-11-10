@@ -1262,7 +1262,7 @@ export function CenterPanel() {
                 className={`chrome-tab ${agentPageActive === page && !utilityPageOpen ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
                 style={dragStyle} onClick={() => onTabClickGuarded(tabId)}
                 onPointerDown={event => onTabPointerDown(event, tabId)}>
-                <span className="tab-title">{page === 'agent' ? 'Coffee Agent' : t('agent.page.settings')}</span>
+                <span className="tab-title">{page === 'agent' ? t('agent.sidebar.super_assistant') : t('agent.page.settings')}</span>
                 <div className="tab-actions tab-actions--close-only">
                   <button type="button" className="tab-close-btn close-button" aria-label={t(page === 'agent' ? 'agent.page.close_agent' : 'agent.page.close_settings')} onClick={event => { event.stopPropagation(); dispatch({ type: 'CLOSE_AGENT_PAGE', page }); }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 6-12 12M6 6l12 12" /></svg>

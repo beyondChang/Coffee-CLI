@@ -519,7 +519,7 @@ Xóa tờ ghi chú này khi bạn sẵn sàng và bắt đầu tác vụ đầu 
   'agent.error.model_required': 'Vui lòng nhập ID mô hình trong phần cấu hình mô hình Coffee Agent.',
   'agent.page.settings': 'Cài đặt tin nhắn',
   'agent.page.close_settings': 'Đóng tab cài đặt tin nhắn',
-  'agent.page.close_agent': 'Đóng tab Coffee Agent',
+  'agent.page.close_agent': 'Đóng tab Siêu trợ lý',
   'agent.chat.welcome': 'Quản lý công việc trong Coffee CLI qua các kênh nhắn tin đã kết nối.',
   'agent.chat.suggestion.terminals': 'Cho tôi biết những terminal nào đang mở',
   'agent.chat.suggestion.progress': 'Đọc các terminal và báo cáo tiến độ hiện tại',

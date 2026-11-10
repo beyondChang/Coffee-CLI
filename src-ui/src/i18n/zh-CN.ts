@@ -520,7 +520,7 @@ export const zhCN = {
   'agent.error.model_required': '请在 Coffee Agent 模型配置中填写模型 ID。',
   'agent.page.settings': '消息设置',
   'agent.page.close_settings': '关闭消息设置 tab',
-  'agent.page.close_agent': '关闭 Coffee Agent tab',
+  'agent.page.close_agent': '关闭超级助手 tab',
   'agent.chat.welcome': '你可以通过消息渠道让它帮你管理 Coffee CLI 工作',
   'agent.chat.suggestion.terminals': '看看现在打开了哪些终端',
   'agent.chat.suggestion.progress': '读取终端画面，告诉我当前进度',
