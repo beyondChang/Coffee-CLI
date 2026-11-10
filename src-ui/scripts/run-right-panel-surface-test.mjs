@@ -35,7 +35,9 @@ assert.equal(api.isLaunchpadActive(chooser), true, 'the chooser tab owns the wor
 assert.equal(api.isLaunchpadActive({ ...chooser, agentPageActive: 'agent' }), false, 'the Coffee Agent page is not the chooser');
 assert.equal(api.isLaunchpadActive({ ...chooser, fileTabActive: true }), false, 'a file viewer is not the chooser');
 assert.equal(api.isLaunchpadActive({ ...chooser, usageOpen: true }), false, 'a utility page is not the chooser');
-assert.equal(api.isLaunchpadActive({ ...chooser, toolSettingsOpen: true }), false, 'tool settings is not the chooser');
+// Tool settings is a floating modal now, so the chooser behind it still owns
+// the workspace (and still suppresses the right panel).
+assert.equal(api.isLaunchpadActive({ ...chooser, toolSettingsOpen: true }), true, 'the tool settings modal keeps the chooser visible behind it');
 assert.equal(api.isLaunchpadActive({ ...chooser, automationsOpen: true }), false, 'automations is not the chooser');
 assert.equal(api.isLaunchpadActive({ ...chooser, terminals: [{ id: 'chooser', tool: 'claude' }] }), false, 'a real terminal is not the chooser');
 

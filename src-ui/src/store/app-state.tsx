@@ -328,8 +328,9 @@ export function isLaunchpadActive(state: AppState): boolean {
   // the untouched chooser stays the active terminal behind it. Only suppress
   // panels when the chooser is what the user is actually looking at —
   // otherwise its right-panel handle disappears and TOGGLE_RIGHT_PANEL is
-  // ignored, making the right panel unreachable on those pages.
-  if (state.agentPageActive || state.fileTabActive || state.usageOpen || state.toolSettingsOpen || state.automationsOpen) return false;
+  // ignored, making the right panel unreachable on those pages. Tool settings
+  // is a floating modal, so the chooser behind it still counts as visible.
+  if (state.agentPageActive || state.fileTabActive || state.usageOpen || state.automationsOpen) return false;
   const session = state.terminals.find(tab => tab.id === state.activeTerminalId);
   return !!session && session.tool === null;
 }

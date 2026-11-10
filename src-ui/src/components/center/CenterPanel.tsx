@@ -376,10 +376,13 @@ export function CenterPanel() {
   const fileTabActive = state.fileTabActive;
   const agentPageActive = state.agentPageActive;
   const usageOpen = state.usageOpen;
-  // Settings is a floating dialog, not a utility page — the active session
-  // stays mounted and visible behind its backdrop, so it must not blank the
-  // centre column the way usage / tool settings / automations do.
-  const utilityPageOpen = usageOpen || state.toolSettingsOpen || state.automationsOpen;
+  // Settings and tool settings are floating dialogs: the active session and
+  // the launchpad stay mounted behind their backdrop, so they must not blank
+  // the centre column the way the usage / automations pages do.
+  const utilityPageOpen = usageOpen || state.automationsOpen;
+  const toolSettingsOpen = state.toolSettingsOpen;
+  const toolSettingsDialogRef = useRef<HTMLDivElement>(null);
+  const closeToolSettings = () => dispatch({ type: 'SET_TOOL_SETTINGS_OPEN', open: false });
   const contentActive = !utilityPageOpen && !fileTabActive && !agentPageActive;
   const splitIds = splitSessionIds(state.sessionSplit);
   const splitVisible = contentActive && splitIds.length > 1 && splitIds.includes(activeTerminalId ?? '');
@@ -389,6 +392,26 @@ export function CenterPanel() {
   const [toolsInstalled, setToolsInstalled] = useState<Record<string, boolean>>({});
   // Per-tool launch override modal (gear icon → opens settings for that tool).
   const [configModalTool, setConfigModalTool] = useState<{ key: string; label: string } | null>(null);
+
+  // The tool settings dialog floats above the workspace, so the panes behind
+  // it keep their own Escape handlers. Focus the dialog (which makes those
+  // panes treat Escape as a dialog event), capture the key first, and close
+  // a per-tool config overlay before the outer dialog.
+  useEffect(() => {
+    if (!toolSettingsOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    toolSettingsDialogRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (configModalTool) setConfigModalTool(null);
+      else closeToolSettings();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); previous?.focus?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolSettingsOpen, configModalTool]);
   const [closingGroup, setClosingGroup] = useState<{ id: string; error?: string } | null>(null);
   const [fileMenu, setFileMenu] = useState<FileTabMenuState | null>(null);
   const [pinnedItems, setPinnedItems] = useState<string[]>(() => {
@@ -1468,7 +1491,16 @@ export function CenterPanel() {
 
         {usageOpen && <UsageDashboard />}
         {state.automationsOpen && <AutomationsPage />}
-        <ToolSettingsPage active={state.toolSettingsOpen} tools={AGENT_CATALOG.filter(item => pinnedItems.includes(`agent:${item.key}`)).map(item => ({ value: item.key as string, label: item.label, icon: item.icon, installed: item.key === 'terminal' || toolsInstalled[item.key ?? ''] !== false }))} count={pinnedItems.length} limit={MAX_PINS}>
+        {toolSettingsOpen && createPortal(
+          <div className="tool-settings-overlay" onMouseDown={event => { if (event.target === event.currentTarget) closeToolSettings(); }}>
+            <div className="tool-settings-modal" role="dialog" aria-modal="true" aria-label={t('tools.title')} tabIndex={-1} ref={toolSettingsDialogRef}>
+              <div className="tool-settings-modal-header">
+                <span className="tool-settings-modal-title">{t('tools.title')}</span>
+                <button type="button" className="tool-settings-modal-close" aria-label={t('settings.close')} onClick={closeToolSettings}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              </div>
+              <ToolSettingsPage active={toolSettingsOpen} tools={AGENT_CATALOG.filter(item => pinnedItems.includes(`agent:${item.key}`)).map(item => ({ value: item.key as string, label: item.label, icon: item.icon, installed: item.key === 'terminal' || toolsInstalled[item.key ?? ''] !== false }))} count={pinnedItems.length} limit={MAX_PINS}>
           {[true, false].map(enabled => {
             const items = AGENT_CATALOG.filter(item => item.type === 'ai-cli' && pinnedItems.includes(`agent:${item.key}`) === enabled);
             return items.length > 0 ? <Fragment key={String(enabled)}>
@@ -1507,7 +1539,9 @@ export function CenterPanel() {
               </div>
             </Fragment> : null;
           })}
-        </ToolSettingsPage>
+              </ToolSettingsPage>
+            </div>
+          </div>, document.body)}
         {isLaunchpadMode && activeTerminalId && contentActive && (
           <div className={`launchpad-container${hasBg && bgUrl ? ' launchpad-has-bg' : ''}`} style={{ position: 'relative' }}>
             {hasBg && bgUrl && (
@@ -1575,6 +1609,14 @@ export function CenterPanel() {
                         </div>
                       );
                     })()}
+
+                    {/* Bottom-right action: opens the tool settings dialog. */}
+                    <div className="launchpad-config-row">
+                      <button type="button" className="launchpad-config-btn" onClick={() => dispatch({ type: 'SET_TOOL_SETTINGS_OPEN', open: true })}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 17.5h7M17.5 14v7" /></svg>
+                        <span>{t('tools.title')}</span>
+                      </button>
+                    </div>
 
 
                     {/* ─── Remote Terminal Connection Form ─── */}
