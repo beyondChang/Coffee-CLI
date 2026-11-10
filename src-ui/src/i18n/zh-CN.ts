@@ -346,7 +346,7 @@ export const zhCN = {
 
   // Settings modal (titlebar gear)
   'settings.title': '设置',
-  'settings.back': "返回",
+  'settings.close': "关闭",
   'settings.general': '通用',
   'settings.uiScale': '界面缩放',
   'settings.uiScale.reset': '恢复默认',

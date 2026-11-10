@@ -346,7 +346,7 @@ export const zhTW = {
 
   // Settings modal (titlebar gear)
   'settings.title': '設定',
-  'settings.back': "返回",
+  'settings.close': "關閉",
   'settings.general': '通用',
   'settings.uiScale': '介面縮放',
   'settings.uiScale.reset': '恢復預設',

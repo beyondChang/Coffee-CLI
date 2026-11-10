@@ -346,7 +346,7 @@ export const ru = {
 
   // Settings modal (titlebar gear)
   'settings.title': 'Настройки',
-  'settings.back': "Назад",
+  'settings.close': "Закрыть",
   'settings.general': 'Общие',
   'settings.uiScale': 'Масштаб интерфейса',
   'settings.uiScale.reset': 'По умолчанию',

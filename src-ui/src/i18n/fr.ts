@@ -346,7 +346,7 @@ export const fr = {
 
   // Settings modal (titlebar gear)
   'settings.title': 'Paramètres',
-  'settings.back': "Retour",
+  'settings.close': "Fermer",
   'settings.general': 'Général',
   'settings.uiScale': 'Échelle de l’interface',
   'settings.uiScale.reset': 'Valeur par défaut',

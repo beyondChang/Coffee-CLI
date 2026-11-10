@@ -5,15 +5,17 @@ import { onWindowBackground, onWindowForeground } from './window-focus-filter';
 import { updateSessionReplyReaders } from './session-replies';
 
 export function useSessionReplyVisibility(state: AppState) {
-  const { terminals, activeTerminalId, sessionSplit, usageOpen, toolSettingsOpen, fileTabActive, agentPageActive, settingsOpen, automationsOpen } = state;
+  const { terminals, activeTerminalId, sessionSplit, usageOpen, toolSettingsOpen, fileTabActive, agentPageActive, automationsOpen } = state;
   useEffect(() => {
     const ids = splitSessionIds(sessionSplit);
-    const shown = usageOpen || toolSettingsOpen || fileTabActive || agentPageActive || settingsOpen || automationsOpen || !activeTerminalId ? []
+    // settingsOpen is deliberately absent: the settings dialog floats above
+    // the workspace, so the visible session keeps its reply readers.
+    const shown = usageOpen || toolSettingsOpen || fileTabActive || agentPageActive || automationsOpen || !activeTerminalId ? []
       : ids.length > 1 && ids.includes(activeTerminalId) ? ids : [activeTerminalId];
     const update = () => updateSessionReplyReaders(terminals, shown);
     update();
     const foreground = onWindowForeground(update), background = onWindowBackground(update);
     document.addEventListener('visibilitychange', update);
     return () => { foreground(); background(); document.removeEventListener('visibilitychange', update); };
-  }, [terminals, activeTerminalId, sessionSplit, usageOpen, toolSettingsOpen, fileTabActive, agentPageActive, settingsOpen, automationsOpen]);
+  }, [terminals, activeTerminalId, sessionSplit, usageOpen, toolSettingsOpen, fileTabActive, agentPageActive, automationsOpen]);
 }

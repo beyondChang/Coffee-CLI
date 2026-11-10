@@ -376,7 +376,10 @@ export function CenterPanel() {
   const fileTabActive = state.fileTabActive;
   const agentPageActive = state.agentPageActive;
   const usageOpen = state.usageOpen;
-  const utilityPageOpen = usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen;
+  // Settings is a floating dialog, not a utility page — the active session
+  // stays mounted and visible behind its backdrop, so it must not blank the
+  // centre column the way usage / tool settings / automations do.
+  const utilityPageOpen = usageOpen || state.toolSettingsOpen || state.automationsOpen;
   const contentActive = !utilityPageOpen && !fileTabActive && !agentPageActive;
   const splitIds = splitSessionIds(state.sessionSplit);
   const splitVisible = contentActive && splitIds.length > 1 && splitIds.includes(activeTerminalId ?? '');

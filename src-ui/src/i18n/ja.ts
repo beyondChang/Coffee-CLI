@@ -346,7 +346,7 @@ export const ja = {
 
   // Settings modal (titlebar gear)
   'settings.title': '設定',
-  'settings.back': "戻る",
+  'settings.close': "閉じる",
   'settings.general': '一般',
   'settings.uiScale': '表示倍率',
   'settings.uiScale.reset': '既定に戻す',

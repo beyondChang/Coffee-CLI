@@ -348,7 +348,7 @@ export const vi = {
 
   // Settings modal (titlebar gear)
   'settings.title': 'Cài đặt',
-  'settings.back': "Quay lại",
+  'settings.close': "Đóng",
   'settings.general': 'Chung',
   'settings.uiScale': 'Tỷ lệ giao diện',
   'settings.uiScale.reset': 'Khôi phục mặc định',

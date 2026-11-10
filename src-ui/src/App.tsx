@@ -523,9 +523,6 @@ export function App() {
             </>
           )}
 
-          {/* Settings covers the whole workspace below the titlebar, sidebars included. */}
-          <SettingsModal />
-
           {/* Center: always mounted */}
           <main className="panel panel-center">
             <CenterPanel />
@@ -551,6 +548,11 @@ export function App() {
         </div>
       </GitStatusProvider>
 
+      {/* Settings — a centered dialog above the whole window. Kept outside
+          .app-layout so no panel's stacking context or shape override (glass /
+          carbon / monogram force descendants transparent) can affect it. */}
+      <SettingsModal />
+
       {/* App-level overlay — the floating compose window. Rendered here so
           it's isolated from TierTerminal re-renders (xterm output, agent
           status events, etc.) and can be dragged freely across the whole
@@ -564,10 +566,6 @@ export function App() {
         <PanelEdgeHandle side="left" />
         <PanelEdgeHandle side="right" />
       </>}
-
-      {/* Personalization settings — centered modal opened by the titlebar
-          gear. App-level overlay (gated on state.settingsOpen) so it floats
-          above the whole workspace, like ActiveGambit. */}
 
       {/* 8 transparent resize-edge strips (window chrome). Three-platform
           unified — Windows + macOS already get edge cursors via OS shims,

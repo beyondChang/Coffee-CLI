@@ -346,7 +346,7 @@ export const ko = {
 
   // Settings modal (titlebar gear)
   'settings.title': '설정',
-  'settings.back': "뒤로",
+  'settings.close': "닫기",
   'settings.general': '일반',
   'settings.uiScale': '화면 배율',
   'settings.uiScale.reset': '기본값 복원',

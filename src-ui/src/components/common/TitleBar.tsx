@@ -70,8 +70,7 @@ export function TitleBar() {
   };
 
   return (
-    <div className={`titlebar${state.settingsOpen ? ' titlebar--settings' : ''}`} onMouseDown={onDragMouseDown} onDoubleClick={onDragDoubleClick}>
-      {/* While settings covers the window, the bar keeps only the window controls; Back is on the settings page. */}
+    <div className="titlebar" onMouseDown={onDragMouseDown} onDoubleClick={onDragDoubleClick}>
       {/* Left slot mirrors the left panel's width so the tab strip begins at
           the TOP OF THE CENTER COLUMN, not the window's left edge — that
           far-left strip belongs to the left sidebar (and hosts the macOS

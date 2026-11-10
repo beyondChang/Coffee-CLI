@@ -12,7 +12,7 @@
 // Dispatch + persistence mirror the former Explorer wiring exactly so behaviour
 // is unchanged; only the presentation moved.
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { SegmentedTabs } from './SegmentedTabs';
 import { AgentSettings } from '../agent/AgentPages';
 import { useAppState, useAppDispatch, HOTKEY_SCHEMES, type HotkeyScheme, type ThemeColor, type ThemeMode, type ThemeShape, type IconTheme } from '../../store/app-state';
@@ -158,6 +158,17 @@ export function SettingsModal() {
 
   const open = state.settingsOpen;
   const close = () => { finishScaleDrag(); dispatch({ type: 'SET_SETTINGS_OPEN', open: false }); };
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Keep the keyboard focus inside the dialog while it is open. The session
+  // panes stay mounted behind the overlay and their Escape handlers interrupt
+  // a busy agent unless the event target is inside a [role="dialog"].
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => { previous?.focus?.(); };
+  }, [open]);
 
   // App version for the rail footer — pulled from the Tauri runtime (matches
   // tauri.conf.json) once, lazily so non-Tauri dev just shows nothing.
@@ -172,7 +183,12 @@ export function SettingsModal() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -295,15 +311,11 @@ export function SettingsModal() {
   const currentLabel = SECTIONS.find(s => s.id === section)?.label ?? '';
 
   return (
-    // A page over the centre area, like usage and tool settings, not a dialog over the whole window.
-    <div className="settings-page">
-      <div className="settings-modal settings-modal--page" role="region" aria-label={t('settings.title')}>
+    // Centered overlay: the workspace (tabs, terminals, both side rails) stays
+    // visible behind the dimmed backdrop instead of being replaced by a page.
+    <div className="settings-overlay" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
+      <div className="settings-modal" role="dialog" aria-modal="true" aria-label={t('settings.title')} tabIndex={-1} ref={dialogRef}>
         <aside className="settings-rail">
-          {/* The page covers the whole window, so its first entry leads back. */}
-          <button type="button" className="settings-rail-back" onClick={close}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
-            {t('settings.back')}
-          </button>
           {SECTIONS.map(s => (
             <button
               key={s.id}
@@ -331,6 +343,9 @@ export function SettingsModal() {
         <section className="settings-content">
           <header className="settings-header">
             <span className="settings-header-title">{currentLabel}</span>
+            <button type="button" className="settings-close" aria-label={t('settings.close')} onClick={close}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
           </header>
 
           <div className={`settings-body${section === 'agent' ? ' settings-body--agent' : ''}`}>
