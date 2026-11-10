@@ -28,6 +28,22 @@ import { HistoryGitMark } from './HistoryGitMark';
 import { receiveOrchestration, useOrchestration, workerState, type OrchestrationTask } from '../../lib/orchestration';
 import { RemoveWorkerDialog } from '../center/RemoveWorkerDialog';
 import '../../styles/orchestration.css';
+
+/** One folder in the 项目分类 list, with every saved conversation under it. */
+interface ProjectGroup {
+  key: string;
+  name: string;
+  cwd: string;
+  sessions: SavedSession[];
+}
+
+/** One folder in the 项目分类 list, with every saved conversation under it. */
+interface ProjectGroup {
+  key: string;
+  name: string;
+  cwd: string;
+  sessions: SavedSession[];
+}
 import { getUnreadSessionReplies, subscribeSessionReplies, sessionReplyKey } from '../../lib/session-replies';
 // hermes/opencode PNG assets live in src/icons-inline/ so the Launchpad
 // can `?inline`-import them as data URIs and bypass the <img> async-decode
@@ -255,7 +271,10 @@ export function HistoryBoard() {
   // The one tool whose sessions the "tool" view lists.
   const [toolFilter, setToolFilter] = useState(() => { try { return localStorage.getItem('cc-history-tool') ?? ''; } catch { return ''; } });
   useEffect(() => { try { localStorage.setItem('cc-history-tool', toolFilter); } catch { /* Storage unavailable. */ } }, [toolFilter]);
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
+  // null means "nothing opened yet" — every project starts collapsed, and the
+  // first toggle materialises the set from that baseline.
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string> | null>(null);
+  const [projectMenu, setProjectMenu] = useState<{ x: number; y: number; group: ProjectGroup } | null>(null);
   // How many sessions each project shows beyond its preview, so one busy folder cannot push the others away.
   const [projectExtras, setProjectExtras] = useState<Map<string, number>>(new Map());
   useEffect(() => { try { localStorage.setItem('cc-history-layout', layout); } catch { /* Storage unavailable. */ } }, [layout]);
@@ -410,7 +429,7 @@ export function HistoryBoard() {
     ? availableSessions.filter(session => layout === 'list' || session.tool === toolFilter).map(session => ({ kind: 'session' as const, session, grouped: false }))
     : projects.flatMap((group): Array<{ kind: 'project'; group: typeof group } | { kind: 'session'; session: SavedSession; grouped: boolean } | { kind: 'more'; group: typeof group; remaining: number; expanded: boolean }> => {
       const header = { kind: 'project' as const, group };
-      if (collapsedProjects.has(group.key)) return [header];
+      if (!collapsedProjects || collapsedProjects.has(group.key)) return [header];
       const limit = PROJECT_PREVIEW + (projectExtras.get(group.key) ?? 0);
       // An open session keeps its live status on screen wherever it falls in the list.
       const shown = group.sessions.filter((session, index) => index < limit || session.id.startsWith('live:') || openSessions.has(`${session.tool}:${session.session_token}`));
@@ -845,9 +864,17 @@ export function HistoryBoard() {
           }}>{t('history.show_less')}</button>}
         </div>
       ) : (
-        <button type="button" key={row.group.key} className="history-project-row" aria-expanded={!collapsedProjects.has(row.group.key)} onClick={() => {
+        <button type="button" key={row.group.key} className="history-project-row" aria-expanded={!!collapsedProjects && !collapsedProjects.has(row.group.key)} onClick={() => {
           setPreview(null);
-          setCollapsedProjects(current => { const next = new Set(current); if (next.has(row.group.key)) next.delete(row.group.key); else next.add(row.group.key); return next; });
+          setCollapsedProjects(current => {
+            const next = new Set(current ?? projects.map(project => project.key));
+            if (next.has(row.group.key)) next.delete(row.group.key); else next.add(row.group.key);
+            return next;
+          });
+        }} onContextMenu={event => {
+          event.preventDefault();
+          event.stopPropagation();
+          setProjectMenu({ x: event.clientX, y: event.clientY, group: row.group });
         }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
           <span>{row.group.name}</span>
@@ -909,6 +936,17 @@ export function HistoryBoard() {
       </div>
       <footer className="history-search-footer">{t('history.search_hint')}</footer>
     </dialog>, document.body)}
+    {projectMenu && (
+      <ProjectContextMenu
+        menu={projectMenu}
+        onClose={() => setProjectMenu(null)}
+        onClear={() => {
+          const sessions = projectMenu.group.sessions;
+          setProjectMenu(null);
+          for (const session of sessions) void handleDeleteHistory(session);
+        }}
+      />
+    )}
     {ctxMenu && <SessionContextMenu menu={ctxMenu} onClose={() => setCtxMenu(null)} onRename={startRename} onDelete={saved => contextWorker ? requestWorkerRemoval(contextWorker) : void handleDeleteHistory(saved)}
       onOpenWorker={contextWorker && contextParent ? () => void openWorker(contextWorker, contextParent) : undefined}
       onDetachWorker={canDetachWorker && contextWorker && contextParent ? () => void detachWorker(contextWorker, contextParent) : undefined}
@@ -918,5 +956,35 @@ export function HistoryBoard() {
     {ctxMenuEl}
     {removeWorkerTarget && <RemoveWorkerDialog title={removeWorkerTarget.task.title} error={removeWorkerTarget.error} onRemove={() => removeWorker(removeWorkerTarget.task)} onClose={() => setRemoveWorkerTarget(null)} />}
   </>
+  );
+}
+
+/** Right-click menu for a project row. Only one action today: drop every saved
+ *  conversation under that folder. */
+function ProjectContextMenu({ menu, onClose, onClear }: { menu: { x: number; y: number }; onClose: () => void; onClear: () => void }) {
+  const t = useT();
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const dismiss = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) onClose();
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('mousedown', dismiss);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [onClose]);
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    ...(menu.y + 60 > window.innerHeight ? { bottom: Math.max(0, window.innerHeight - menu.y) } : { top: menu.y }),
+    ...(menu.x + 170 > window.innerWidth ? { right: Math.max(0, window.innerWidth - menu.x) } : { left: menu.x }),
+  };
+  return createPortal(
+    <div className="ctx-menu" ref={menuRef} style={style} role="menu">
+      <button className="ctx-menu-item" onClick={() => { onClose(); onClear(); }}>{t('history.clear_sessions')}</button>
+    </div>,
+    document.body,
   );
 }

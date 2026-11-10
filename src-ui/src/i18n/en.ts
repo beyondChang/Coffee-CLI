@@ -206,6 +206,7 @@ export const en = {
   'history.search_title': 'Search sessions or workspaces',
   'history.list': 'Sessions',
   'history.projects': 'Projects',
+  'history.clear_sessions': 'Clear sessions',
   'history.layout': 'View',
   'history.all_apps': "All apps",
   'history.icons': "App icons",

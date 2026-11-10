@@ -205,6 +205,7 @@ export const vi = {
   'history.search_title': 'Tìm phiên hoặc không gian làm việc',
   'history.list': 'Danh sách phiên',
   'history.projects': 'Dự án',
+  'history.clear_sessions': 'Xóa phiên',
   'history.layout': 'Chế độ xem',
   'history.all_apps': "Tất cả ứng dụng",
   'history.icons': "Biểu tượng ứng dụng",

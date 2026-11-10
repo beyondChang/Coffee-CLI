@@ -207,6 +207,7 @@ export const ja = {
   'history.search_title': 'セッションやワークスペースを検索',
   'history.list': 'セッション一覧',
   'history.projects': 'プロジェクト別',
+  'history.clear_sessions': 'セッションを消去',
   'history.layout': '表示方法',
   'history.all_apps': "すべてのアプリ",
   'history.icons': "アプリアイコン",

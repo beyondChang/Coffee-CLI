@@ -207,6 +207,7 @@ export const ko = {
   'history.search_title': '세션 또는 작업 공간 검색',
   'history.list': '세션 목록',
   'history.projects': '프로젝트별',
+  'history.clear_sessions': '세션 지우기',
   'history.layout': '보기 방식',
   'history.all_apps': "모든 앱",
   'history.icons': "앱 아이콘",

@@ -205,6 +205,7 @@ export const fr = {
   'history.search_title': 'Rechercher des sessions ou espaces de travail',
   'history.list': 'Sessions',
   'history.projects': 'Projets',
+  'history.clear_sessions': 'Effacer les sessions',
   'history.layout': 'Affichage',
   'history.all_apps': "Toutes les apps",
   'history.icons': "Icônes des apps",

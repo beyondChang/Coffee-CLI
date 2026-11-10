@@ -207,6 +207,7 @@ export const zhTW = {
   'history.search_title': '搜尋會話或工作區',
   'history.list': '會話列表',
   'history.projects': '專案分類',
+  'history.clear_sessions': '清除會話',
   'history.layout': '顯示方式',
   'history.all_apps': "全部應用",
   'history.icons': "應用圖示",

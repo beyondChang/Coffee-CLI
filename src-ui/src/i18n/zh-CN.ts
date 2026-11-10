@@ -207,6 +207,7 @@ export const zhCN = {
   'history.search_title': '搜索会话或工作区',
   'history.list': '会话列表',
   'history.projects': '项目分类',
+  'history.clear_sessions': '清除会话',
   'history.layout': '显示方式',
   'history.all_apps': "全部应用",
   'history.icons': "应用图标",

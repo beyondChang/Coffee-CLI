@@ -205,6 +205,7 @@ export const de = {
   'history.search_title': 'Sitzungen oder Arbeitsbereiche suchen',
   'history.list': 'Sitzungen',
   'history.projects': 'Projekte',
+  'history.clear_sessions': 'Sitzungen löschen',
   'history.layout': 'Ansicht',
   'history.all_apps': "Alle Apps",
   'history.icons': "App-Symbole",

@@ -205,6 +205,7 @@ export const pt = {
   'history.search_title': 'Pesquisar sessões ou espaços de trabalho',
   'history.list': 'Sessões',
   'history.projects': 'Projetos',
+  'history.clear_sessions': 'Limpar sessões',
   'history.layout': 'Visualização',
   'history.all_apps': "Todos os apps",
   'history.icons': "Ícones dos apps",

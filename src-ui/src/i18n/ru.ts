@@ -205,6 +205,7 @@ export const ru = {
   'history.search_title': 'Поиск сеансов или рабочих областей',
   'history.list': 'Сеансы',
   'history.projects': 'Проекты',
+  'history.clear_sessions': 'Очистить сеансы',
   'history.layout': 'Вид',
   'history.all_apps': "Все приложения",
   'history.icons': "Значки приложений",
