@@ -121,11 +121,15 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
 .agent-channel-summary-label:hover, .agent-sidebar-button:hover { background: var(--bg-hover); }
 .agent-sidebar-button svg { width: 18px; height: 18px; }
 
-/* WeChat link badge beside the Coffee Agent composer's target label. */
-.agent-weixin-status { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; height: 26px; margin-right: auto; padding: 4px 8px; border: 0; border-radius: var(--shape-radius-btn, 5px); background: transparent; color: var(--text-2); font: var(--type-caption)/16px var(--font, system-ui); white-space: nowrap; cursor: pointer; }
-.agent-weixin-status:hover { color: var(--text-1); background: var(--bg-hover); }
+/* WeChat link badge beside the Coffee Agent composer's target label.
+   Give it the same filled chip as the workspace label and New chat so the
+   three controls read as one group instead of a floating piece of text. */
+.agent-weixin-status { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; height: 26px; margin-right: auto; padding: 4px 7px; border: 0; border-radius: var(--shape-radius-btn, 5px); background: var(--bg-hover); color: var(--text-2); font: var(--type-caption)/16px var(--font, system-ui); white-space: nowrap; cursor: pointer; }
+.agent-weixin-status:hover { color: var(--text-1); background: var(--accent-bg, var(--bg-hover)); }
 .agent-weixin-status:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
-.agent-weixin-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--red); }
+/* Deliberately not var(--red): the themed red is a muted pink in dark mode,
+   while an unlinked channel needs an unmistakable bright red in every theme. */
+.agent-weixin-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #ff3b30; }
 .agent-weixin-dot.is-connected { background: var(--green); }
 /* The badge takes over the target label's push; New chat, when present,
    takes it back so both stay grouped on the left of the footer. */
