@@ -24,6 +24,7 @@ import { sessionSplitRects, splitSessionIds } from '../../lib/session-split-layo
 import { ToolConfigModal } from './ToolConfigModal';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { FileViewer } from './FileViewer';
+import { FileTabContextMenu, type FileTabMenuState } from './FileTabContextMenu';
 import { getTabOrder, supportsAgentStatus, useAppState, type ClaudeMode, type ToolType } from '../../store/app-state';
 import { isFrostShape } from '../../lib/personalization';
 import { isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation } from '../../lib/chat-tools';
@@ -386,6 +387,7 @@ export function CenterPanel() {
   // Per-tool launch override modal (gear icon → opens settings for that tool).
   const [configModalTool, setConfigModalTool] = useState<{ key: string; label: string } | null>(null);
   const [closingGroup, setClosingGroup] = useState<{ id: string; error?: string } | null>(null);
+  const [fileMenu, setFileMenu] = useState<FileTabMenuState | null>(null);
   const [pinnedItems, setPinnedItems] = useState<string[]>(() => {
     // Hard cap must match MAX_PINS constant below. Inlined as a literal
     // because MAX_PINS is declared after this initializer runs.
@@ -1319,6 +1321,7 @@ export function CenterPanel() {
             className={`chrome-tab ${fileTabActive && activeFile === file.path && !utilityPageOpen ? 'active' : ''}`}
             title={file.path}
             onClick={() => dispatch({ type: 'SET_FILE_TAB_ACTIVE', active: true, path: file.path })}
+            onContextMenu={event => { event.preventDefault(); setFileMenu({ path: file.path, x: event.clientX, y: event.clientY }); }}
           >
             {/* Same document glyph as the other file surfaces, so the tab
                 reads as "file content" at a glance. */}
@@ -1342,6 +1345,24 @@ export function CenterPanel() {
             </div>
           </div>
         ))}
+
+        {fileMenu && (() => {
+          const index = openFiles.findIndex(file => file.path === fileMenu.path);
+          const close = (paths: string[]) => dispatch({ type: 'CLOSE_FILES', paths });
+          return (
+            <FileTabContextMenu
+              menu={fileMenu}
+              canCloseLeft={index > 0}
+              canCloseRight={index >= 0 && index < openFiles.length - 1}
+              onCloseCurrent={() => dispatch({ type: 'CLOSE_FILE', path: fileMenu.path })}
+              onCloseLeft={() => close(openFiles.slice(0, index).map(file => file.path))}
+              onCloseRight={() => close(openFiles.slice(index + 1).map(file => file.path))}
+              onCloseAll={() => close(openFiles.map(file => file.path))}
+              onClose={() => setFileMenu(null)}
+            />
+          );
+        })()}
+
 
         <NewSessionTabButton />
 

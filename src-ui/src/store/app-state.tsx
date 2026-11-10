@@ -316,6 +316,7 @@ type Action =
   | { type: 'SET_TAB_TITLE'; id: string; title: string }
   | { type: 'OPEN_FILE'; file: OpenFile }
   | { type: 'CLOSE_FILE'; path: string }
+  | { type: 'CLOSE_FILES'; paths: string[] }
   | { type: 'SET_FILE_TAB_ACTIVE'; active: boolean; path?: string }
   | { type: 'OPEN_AGENT_PAGE'; page: AgentPage }
   | { type: 'CLOSE_AGENT_PAGE'; page: AgentPage };
@@ -644,6 +645,12 @@ function reducer(state: AppState, action: Action): AppState {
       const openFiles = state.openFiles.filter(file => file.path !== action.path);
       // Closing the focused tab falls back to the neighbour on its left.
       const activeFile = state.activeFile === action.path ? openFiles.at(-1)?.path ?? null : state.activeFile;
+      return { ...state, openFiles, activeFile, fileTabActive: activeFile ? state.fileTabActive : false };
+    }
+    case 'CLOSE_FILES': {
+      const closing = new Set(action.paths);
+      const openFiles = state.openFiles.filter(file => !closing.has(file.path));
+      const activeFile = state.activeFile && !closing.has(state.activeFile) ? state.activeFile : openFiles.at(-1)?.path ?? null;
       return { ...state, openFiles, activeFile, fileTabActive: activeFile ? state.fileTabActive : false };
     }
     case 'SET_FILE_TAB_ACTIVE':
