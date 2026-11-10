@@ -37,10 +37,10 @@
 .history-search-trigger:hover, .history-layout-menu-btn:hover, .history-layout-menu-btn.open { background: var(--bg-hover); }
 .history-search-trigger:focus-visible, .history-layout-menu-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .history-search-trigger > svg, .history-layout-menu-btn > svg { display: block; }
-/* Search and the layout filter are one icon pair: both buttons and their strokes
-   keep the same color in every state, so neither icon reads as a lighter shade. */
+/* Both header buttons stay on one color; each SVG pins its own stroke token so
+   hover/open states can never make one icon lighter than the other. */
 .history-head-actions > button { color: var(--text-2); }
-.history-head-actions > button > svg { color: inherit; opacity: 1; stroke: currentColor; }
+.history-head-actions > button > svg { color: inherit; opacity: 1; }
 /* As wide as its longest label in the current language, not the shared menus' 200px floor. */
 .ctx-menu.history-layout-menu { min-width: 0; width: max-content; }
 .history-layout-menu .ctx-menu-item > span { flex: 1; }

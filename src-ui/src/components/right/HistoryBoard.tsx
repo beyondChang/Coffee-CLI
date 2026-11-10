@@ -775,8 +775,9 @@ export function HistoryBoard() {
         <span>{layout === 'tool' ? getToolName(toolFilter) : t(layout === 'list' ? 'history.list' : 'history.projects')}</span>
         <div className="history-head-actions">
           <button type="button" className="history-search-trigger" aria-label={t('history.search')} title={t('history.search')} onClick={openSearch}>
-            {/* Lucide search; license in /icons/LICENSE-lucide.txt. */}
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
+            {/* Lucide search; license in /icons/LICENSE-lucide.txt. Both header SVGs
+                pin their stroke to one token instead of inheriting button states. */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: 'var(--text-2)' }} aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
           </button>
           <button type="button" ref={layoutBtnRef} className={`history-layout-menu-btn${layoutMenu ? ' open' : ''}`} aria-label={t('history.layout')} aria-haspopup="menu" aria-expanded={!!layoutMenu} onClick={() => {
             if (layoutMenu) { setLayoutMenu(null); return; }
@@ -785,8 +786,9 @@ export function HistoryBoard() {
             const favorites = favoriteTools(), tools = toolFilter && !favorites.includes(toolFilter) ? [...favorites, toolFilter] : favorites;
             if (r) setLayoutMenu({ right: Math.max(0, window.innerWidth - r.right), top: r.bottom + 4, tools });
           }}>
-            {/* Lucide list-filter; license in /icons/LICENSE-lucide.txt. */}
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M7 12h10M10 18h4" /></svg>
+            {/* Lucide list-filter; license in /icons/LICENSE-lucide.txt. The lines
+                sit on half-pixels so they render as solid as the search circle. */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: 'var(--text-2)' }} aria-hidden="true"><path d="M3 6.75h18M7 12.75h10M10 18.75h4" /></svg>
           </button>
         </div>
       </div>
