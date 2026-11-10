@@ -22,19 +22,11 @@
   text-align: left;
 }
 .history-search-trigger { margin-bottom: 18px; }
-/* Search and the layout switch are navigation, not content: they hold the top
-   of the list while the projects scroll under them. One sticky wrapper for
-   both rows — sticking them individually made the search row break out of the
-   header and overlap the first project. */
-.history-sticky-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    /* Same paint as the panel behind it, otherwise the projects scrolling
-       underneath show through the header. */
-    background-color: var(--bg-panel);
-    background-image: var(--chrome-shade, none);
-    padding: 4px 0 6px;
+/* Rendered into Explorer's header slot: outside the scroll container, so it
+   can never overlap the sessions. */
+.history-head {
+    display: block;
+    flex-shrink: 0;
 }
 .history-search-trigger > svg { display: block; flex-shrink: 0; }
 .history-layout-toggle { justify-content: space-between; margin-bottom: 6px; color: var(--accent); font-size: var(--type-label); }

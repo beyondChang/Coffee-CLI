@@ -227,6 +227,16 @@
     overflow: hidden;
 }
 .explorer-scroll[data-tab="history"] > * { flex-shrink: 0; }
+.explorer-head-slot {
+    flex-shrink: 0;
+    padding: 0 8px;
+}
+.explorer-head-slot:empty { display: none; }
+.explorer-head-slot {
+    flex-shrink: 0;
+    padding: 0 8px;
+}
+.explorer-head-slot:empty { display: none; }
 .explorer-scroll[data-tab="history"] > .explorer-content {
     flex: 1 1 auto;
     min-height: 0;
