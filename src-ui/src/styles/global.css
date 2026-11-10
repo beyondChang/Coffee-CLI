@@ -2745,9 +2745,9 @@ html.is-windows[data-frost="frost"] #root {
 /* Floating popups — ctx-menu (right-click + lang + theme) and
    tool-config-modal (per-agent launch settings) share the faint-white-wash
    + 1px-white-outline + top-edge highlight + outer drop shadow combo.
-   The session search dialog is deliberately excluded: it is text-dense and
-   stays fully opaque (see .history-search-dialog in HistoryBoard.css). */
-[data-shape="glass"] .ctx-menu {
+   The session search dialog and the history layout menu are deliberately
+   excluded: both are text-dense and stay fully opaque. */
+[data-shape="glass"] .ctx-menu:not(.history-layout-menu) {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.14);
     backdrop-filter: var(--glass-blur);
@@ -3239,9 +3239,10 @@ html.is-windows[data-frost="frost"] #root {
 /* Floating menus (theme/settings popover, right-click menus) drop to a
    smoked translucent fill so the carbon mesh reads behind them while the
    items stay legible. No blur — keeps carbon's static/zero-cost rule.
-   The session search dialog is excluded so it stays fully opaque. */
-[data-shape="carbon"] .ctx-menu,
-[data-shape="monogram"] .ctx-menu,
+   The session search dialog and the history layout menu are excluded so
+   they stay fully opaque. */
+[data-shape="carbon"] .ctx-menu:not(.history-layout-menu),
+[data-shape="monogram"] .ctx-menu:not(.history-layout-menu),
 [data-shape="carbon"] .term-ctx-menu,
 [data-shape="monogram"] .term-ctx-menu {
     background-color: color-mix(in oklab, var(--bg-app) 76%, transparent) !important;
