@@ -305,6 +305,8 @@ export const zhCN = {
   'file.error': '无法读取该文件',
   'right.panel.label': '右侧面板',
   'panel.open_right': '打开右侧面板',
+  'panel.open_left': '打开左侧面板',
+  'panel.close_left': '关闭左侧面板',
   'panel.close_right': '关闭右侧面板',
   'launchpad.open_folder': '打开文件夹',
   'launchpad.pick_folder': '选择项目目录',

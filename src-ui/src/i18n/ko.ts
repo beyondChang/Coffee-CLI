@@ -305,6 +305,8 @@ export const ko = {
   'file.error': '파일을 읽을 수 없습니다',
   'right.panel.label': '오른쪽 패널',
   'panel.open_right': '오른쪽 패널 열기',
+  'panel.open_left': '왼쪽 패널 열기',
+  'panel.close_left': '왼쪽 패널 닫기',
   'panel.close_right': '오른쪽 패널 닫기',
   'launchpad.open_folder': '폴더 열기',
   'launchpad.pick_folder': '프로젝트 폴더 선택',

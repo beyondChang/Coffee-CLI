@@ -305,6 +305,8 @@ export const ja = {
   'file.error': 'このファイルを読み取れませんでした',
   'right.panel.label': '右パネル',
   'panel.open_right': '右パネルを開く',
+  'panel.open_left': '左パネルを開く',
+  'panel.close_left': '左パネルを閉じる',
   'panel.close_right': '右パネルを閉じる',
   'launchpad.open_folder': 'フォルダを開く',
   'launchpad.pick_folder': 'プロジェクトフォルダを選択',

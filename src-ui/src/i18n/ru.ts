@@ -305,6 +305,8 @@ export const ru = {
   'file.error': 'Не удалось прочитать файл',
   'right.panel.label': 'Правая панель',
   'panel.open_right': 'Открыть правую панель',
+  'panel.open_left': 'Открыть левую панель',
+  'panel.close_left': 'Закрыть левую панель',
   'panel.close_right': 'Закрыть правую панель',
   'launchpad.open_folder': 'Открыть папку',
   'launchpad.pick_folder': 'Выберите папку проекта',

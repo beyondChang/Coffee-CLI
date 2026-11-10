@@ -307,6 +307,8 @@ export const vi = {
   'file.error': 'Không đọc được tệp này',
   'right.panel.label': 'Bảng bên phải',
   'panel.open_right': 'Mở bảng bên phải',
+  'panel.open_left': 'Mở bảng bên trái',
+  'panel.close_left': 'Đóng bảng bên trái',
   'panel.close_right': 'Đóng bảng bên phải',
   'launchpad.open_folder': 'Mở thư mục',
   'launchpad.pick_folder': 'Chọn thư mục dự án',

@@ -49,7 +49,6 @@ export function TitleBar() {
   // column visibly squish-then-rebound (or expand-then-shrink) on every
   // toggle. Removing the window-edge move trades a non-standard "trim
   // collapsed window" effect for zero flicker — the right call.
-  const toggleLeft  = () => dispatch({ type: 'TOGGLE_LEFT_PANEL' });
   const activeTab = state.terminals.find(t => t.id === state.activeTerminalId);
   const claudeComposerLocked = isConversationSession(activeTab) && !state.agentPageActive && !state.fileTabActive;
   const gambitOpen = claudeComposerLocked || state.gambitOpen;
@@ -118,18 +117,8 @@ export function TitleBar() {
             adjacent with Gambit in the MIDDLE so the row mirrors the screen
             (left panel on the left, right on the right) and the default Alt+QWE
             keys read left-to-right. */}
-        <button
-          className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted${state.leftPanelHidden ? '' : ' is-active'}`}
-          onClick={toggleLeft}
-          aria-label={`Toggle left panel (${hk.left})`}
-          aria-pressed={!state.leftPanelHidden}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter">
-            <rect x="3" y="3" width="18" height="18" />
-            <line x1="9" y1="4" x2="9" y2="20" />
-          </svg>
-          <span className="titlebar-hotkey-hint">{hk.left}</span>
-        </button>
+        {/* The side-panel toggles live at the centre pane's edges now
+            (PanelEdgeHandle); the titlebar keeps only Gambit plus hotkeys. */}
         {/* Gambit compose (middle) — always visible even when the left panel is
             hidden. Keyboard glyph; open state reads from the .is-active bg, so
             no need to swap the icon to an X. */}

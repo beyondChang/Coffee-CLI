@@ -305,6 +305,8 @@ export const es = {
   'file.error': 'No se pudo leer este archivo',
   'right.panel.label': 'Panel derecho',
   'panel.open_right': 'Abrir panel derecho',
+  'panel.open_left': 'Abrir panel izquierdo',
+  'panel.close_left': 'Cerrar panel izquierdo',
   'panel.close_right': 'Cerrar panel derecho',
   'launchpad.open_folder': 'Abrir carpeta',
   'launchpad.pick_folder': 'Elige una carpeta de proyecto',

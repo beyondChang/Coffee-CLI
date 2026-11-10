@@ -305,6 +305,8 @@ export const zhTW = {
   'file.error': '無法讀取此檔案',
   'right.panel.label': '右側面板',
   'panel.open_right': '開啟右側面板',
+  'panel.open_left': '開啟左側面板',
+  'panel.close_left': '關閉左側面板',
   'panel.close_right': '關閉右側面板',
   'launchpad.open_folder': '開啟資料夾',
   'launchpad.pick_folder': '選擇專案目錄',

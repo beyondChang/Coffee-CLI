@@ -21,7 +21,7 @@ import { CenterPanel } from './components/center/CenterPanel';
 import { ActiveGambit } from './components/center/ActiveGambit';
 import { AgentBridge } from './components/agent/AgentBridge';
 import { RightPanel } from './components/right/Compiler';
-import { RightPanelReveal } from './components/common/RightPanelReveal';
+import { PanelEdgeHandle } from './components/common/PanelEdgeHandle';
 import { GitStatusProvider } from './lib/git-status';
 import './styles/global.css';
 
@@ -558,9 +558,13 @@ export function App() {
           app window. Internally reads the active tab's gambit state. */}
       <ActiveGambit />
 
-      {/* Reopen handle for the right panel — a hover strip at the centre
-          pane's top-right corner, since that toggle left the titlebar. */}
-      {!state.settingsOpen && <RightPanelReveal />}
+      {/* Side-panel handles — the titlebar no longer carries those toggles;
+          each panel opens and closes from the matching corner of the centre
+          pane, mirroring each other. */}
+      {!state.settingsOpen && <>
+        <PanelEdgeHandle side="left" />
+        <PanelEdgeHandle side="right" />
+      </>}
 
       {/* Personalization settings — centered modal opened by the titlebar
           gear. App-level overlay (gated on state.settingsOpen) so it floats
