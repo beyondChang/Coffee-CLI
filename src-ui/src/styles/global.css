@@ -2146,15 +2146,17 @@ body.resizing-panels .pane-resizer {
 
 /* Chrome = titlebar + both side panels. In dark mode it sits one step darker
    than the palette's panel tone so the centre column reads as its own surface;
-   light palettes already separate the two. Exposed as a variable because other
-   surfaces (the sticky session-search row) must match it exactly. */
-:root { --bg-chrome: var(--bg-panel); }
-html[data-mode="dark"] { --bg-chrome: color-mix(in srgb, var(--bg-panel) 90%, #000000 10%); }
+   light palettes already separate the two. The shade is a gradient overlay
+   rather than color-mix(): every surface that must match it just paints
+   --bg-panel plus --chrome-shade, which needs no color maths at parse time. */
+:root { --chrome-shade: none; }
+html[data-mode="dark"] { --chrome-shade: linear-gradient(rgb(0 0 0 / 0.10), rgb(0 0 0 / 0.10)); }
 
 .titlebar,
 .panel-left,
 .panel-right {
-    background-color: var(--bg-chrome);
+    background-color: var(--bg-panel);
+    background-image: var(--chrome-shade);
 }
 
 .panel-content {
