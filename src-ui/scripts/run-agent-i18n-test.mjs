@@ -80,7 +80,7 @@ for (const [language, dictionary] of Object.entries(api.dictionaries)) {
   context.__agentTestState.settingsSection = 'agent';
   // Coffee Agent's configuration is the settings page's Agent section.
   const settings = renderToStaticMarkup(React.createElement(api.AgentSettings));
-  for (const key of ['agent.settings.intro', 'agent.settings.help', 'agent.model.title', 'agent.model.provider', 'agent.modes.title', 'agent.delegation.title', 'agent.modes.sentinel.title', 'agent.modes.project_manager.title', 'agent.modes.expert_config.title', 'agent.channels.title']) {
+  for (const key of ['agent.settings.help', 'agent.model.title', 'agent.model.provider', 'agent.modes.title', 'agent.delegation.title', 'agent.modes.sentinel.title', 'agent.modes.project_manager.title', 'agent.modes.expert_config.title', 'agent.channels.title']) {
     assert.ok(settings.includes(escaped(dictionary[key])), `${language}: settings did not render ${key}`);
   }
   assert.equal((settings.match(/role="switch"/g) ?? []).length, 4, `${language}: all four work modes need their own switch`);

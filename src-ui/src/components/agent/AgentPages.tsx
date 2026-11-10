@@ -267,7 +267,7 @@ interface ModelSettings {
 }
 const DEFAULT_URL = { openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com' };
 
-function AgentModelSection() {
+function AgentModelSection({ helpButton }: { helpButton?: ReactNode }) {
   const t = useT();
   const [config, setConfig] = useState<ModelSettings>({ provider: 'openai', baseUrl: DEFAULT_URL.openai, model: '', apiKey: '' });
   const [loading, setLoading] = useState(true);
@@ -300,7 +300,7 @@ function AgentModelSection() {
   };
 
   return <section className="agent-settings-section">
-      <h2>{t('agent.model.title')}</h2>
+      <div className="agent-model-heading"><h2>{t('agent.model.title')}</h2>{helpButton}</div>
       <form className="agent-model-form" onSubmit={save}>
         <fieldset disabled={loading || saving}>
           <label className="agent-field"><span>{t('agent.model.provider')}</span><AgentSelect label={t('agent.model.provider')} value={config.provider} options={[{ value: 'openai', label: t('agent.model.provider_openai') }, { value: 'anthropic', label: t('agent.model.provider_anthropic') }]} onChange={provider => {
@@ -607,7 +607,10 @@ export function AgentSettings() {
   const t = useT();
   const { state } = useAppState();
   const [helpOpen, setHelpOpen] = useState(false);
-  return <><div className="agent-settings-scroll"><div className="agent-settings-content"><p className="agent-settings-intro">{t('agent.settings.intro')}{' '}<button type="button" className="agent-help-link" onClick={() => setHelpOpen(true)}>{t('agent.settings.help')}</button></p><AgentModelSection /><AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
+  // The intro paragraph is gone; keep the instructions reachable via a compact
+  // button beside the model heading instead of a block of body text up top.
+  const helpButton = <button type="button" className="agent-settings-help-button" title={t('agent.settings.help')} aria-label={t('agent.settings.help')} onClick={() => setHelpOpen(true)}>?</button>;
+  return <><div className="agent-settings-scroll"><div className="agent-settings-content"><AgentModelSection helpButton={helpButton} /><AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
 }
 
 /** A Coffee Agent tab: the conversation. Its configuration moved into the settings page. */
