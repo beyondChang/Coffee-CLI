@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { SegmentedTabs } from './SegmentedTabs';
 import { AgentSettings } from '../agent/AgentPages';
+import { UsageDashboard } from '../center/UsageDashboard';
 import { useAppState, useAppDispatch, HOTKEY_SCHEMES, type HotkeyScheme, type ThemeColor, type ThemeMode, type ThemeShape, type IconTheme } from '../../store/app-state';
 import { playNotifySound } from '../../lib/notify-sound';
 import { useT } from '../../i18n/useT';
@@ -27,8 +28,8 @@ import { setUiScale, useUiScale } from '../../lib/ui-scale';
 import { THEME_COLORS, THEME_MODES, THEME_SHAPES, ICON_ART_THEMES, LANGUAGES, TASK_VIEW_MODES, isMaskTintTheme } from '../../lib/personalization';
 import './SettingsModal.css';
 
-type Section = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'gambit' | 'sound' | 'language' | 'agent';
-const SECTION_IDS: Section[] = ['general', 'appearance', 'wallpaper', 'terminal', 'gambit', 'sound', 'language', 'agent'];
+type Section = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'gambit' | 'sound' | 'language' | 'agent' | 'usage';
+const SECTION_IDS: Section[] = ['general', 'appearance', 'wallpaper', 'terminal', 'gambit', 'sound', 'language', 'agent', 'usage'];
 
 // Read a `cc-*` boolean localStorage preference. Module-level
 // so the SettingsModal sound toggles can seed their useState initializers.
@@ -68,6 +69,9 @@ const TASK_VIEW_ICONS: Record<'list' | 'note' | 'prompt', ReactNode> = {
 };
 
 const ICONS: Record<Section, ReactNode> = {
+  usage: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3v18h18M8 16v-5M13 16V5M18 16V9" /></svg>
+  ),
   agent: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
@@ -307,6 +311,7 @@ export function SettingsModal() {
     { id: 'terminal',   label: t('settings.terminal') },
     { id: 'language',   label: t('settings.language') },
     { id: 'agent',      label: t('settings.agent') },
+    { id: 'usage',      label: t('usage.nav') },
   ];
   const currentLabel = SECTIONS.find(s => s.id === section)?.label ?? '';
 
@@ -326,19 +331,6 @@ export function SettingsModal() {
               {s.label}
             </button>
           ))}
-          {/* Usage statistics moved here from the left panel. It is a full
-              centre-column page, so opening it dismisses this modal rather
-              than rendering inside the settings content column. */}
-          <button
-            type="button"
-            className="settings-rail-item"
-            onClick={() => { finishScaleDrag(); dispatch({ type: 'SET_USAGE_OPEN', open: true }); }}
-          >
-            <span className="settings-rail-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3v18h18M8 16v-5M13 16V5M18 16V9" /></svg>
-            </span>
-            {t('usage.nav')}
-          </button>
           {version && (
             <div className="settings-rail-version">
               <span className="settings-rail-version-num">v{version}</span>
@@ -354,8 +346,12 @@ export function SettingsModal() {
             </button>
           </header>
 
-          <div className={`settings-body${section === 'agent' ? ' settings-body--agent' : ''}`}>
+          <div className={`settings-body${section === 'agent' ? ' settings-body--agent' : ''}${section === 'usage' ? ' settings-body--usage' : ''}`}>
             {section === 'agent' && <AgentSettings />}
+            {/* Statistics stays inside the dialog: the dashboard is absolutely
+                positioned and owns its own scrolling, so the body is its
+                positioning context rather than the centre column. */}
+            {section === 'usage' && <UsageDashboard />}
             {section === 'appearance' && (
               <>
                 <div className="settings-section-head">

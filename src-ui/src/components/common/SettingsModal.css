@@ -30,6 +30,13 @@
 /* The dialog floats over the workspace; no full-page variant is used. */
 .settings-body--agent { padding: 0; }
 
+/* The usage dashboard is absolutely positioned and scrolls itself (it was
+   originally built to fill the whole centre column). Make the settings body
+   its containing block so it fills the dialog's content column instead, with
+   tighter gutters to keep the narrow column usable. */
+.settings-body--usage { padding: 0; position: relative; overflow: hidden; }
+.settings-body--usage .usage-dashboard { padding: 18px 18px 24px; }
+
 /* Space between two groups merged into one section (appearance + wallpaper, general + sound). */
 .settings-group-gap { height: 1px; margin: 24px 0 8px; background: var(--border, rgba(255, 255, 255, 0.06)); }
 
