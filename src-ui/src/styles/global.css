@@ -2144,19 +2144,20 @@ body.resizing-panels .pane-resizer {
     overflow: hidden;
 }
 
-/* Chrome = titlebar + both side panels. In dark mode it sits one step darker
-   than the palette's panel tone so the centre column reads as its own surface;
-   light palettes already separate the two. The shade is a gradient overlay
-   rather than color-mix(): every surface that must match it just paints
-   --bg-panel plus --chrome-shade, which needs no color maths at parse time. */
-:root { --chrome-shade: none; }
-html[data-mode="dark"] { --chrome-shade: linear-gradient(rgb(0 0 0 / 0.10), rgb(0 0 0 / 0.10)); }
+/* Chrome = titlebar + both side panels, one step LIGHTER than the centre
+   workspace so the content column reads as the recessed surface. The lift is
+   a white gradient overlay (10% dark palettes, 55% light ones) instead of
+   color-mix(): every surface that must match it paints --bg-panel plus
+   --chrome-shade, with no colour maths at parse time. */
+:root { --chrome-shade: linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55)); }
+html[data-mode="dark"] { --chrome-shade: linear-gradient(rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.10)); }
 
-/* Specificity beats the plain .panel-left / .panel-right rules further down,
-   which reset the background shorthand. */
-html .titlebar,
-html .panel-left,
-html .panel-right {
+/* #root prefix: the carbon / monogram shapes deliberately null the chrome
+   background further down the file, which made all three surfaces read as one
+   colour. An id beats those class-level rules without !important. */
+#root .titlebar,
+#root .panel-left,
+#root .panel-right {
     background-color: var(--bg-panel);
     background-image: var(--chrome-shade);
 }
