@@ -367,10 +367,11 @@ export function CenterPanel() {
   const t = useT();
   const terminals = state.terminals;
   const activeTerminalId = state.activeTerminalId;
-  // File tab: the read-only viewer opened from the right panel's 文件 tree.
-  // Its chrome-tab sits in the strip beside terminal tabs; fileTabActive
-  // tracks whether it (not a terminal tab) is the focused surface.
-  const openFile = state.openFile;
+  // File tabs: the read-only viewers opened from the right panel's 文件 tree.
+  // Each open file keeps its own tab; the strip shows them beside the
+  // terminal tabs, and fileTabActive says that strip owns focus.
+  const openFiles = state.openFiles;
+  const activeFile = state.activeFile;
   const fileTabActive = state.fileTabActive;
   const agentPageActive = state.agentPageActive;
   const usageOpen = state.usageOpen;
@@ -1304,13 +1305,16 @@ export function CenterPanel() {
         });
         })()}
 
-        {/* File tab — a peer of the terminal tabs in the strip, but not a
-            PTY. Clicking it focuses the viewer (SET_FILE_TAB_ACTIVE); its X
-            closes the file. No status-grid (a file has no agent state). */}
-        {openFile && (
+        {/* File tabs — peers of the terminal tabs in the strip, but not PTYs.
+            Every opened file keeps its own tab; clicking one focuses it,
+            its X closes just that file. No status-grid (a file has no agent
+            state). */}
+        {openFiles.map(file => (
           <div
-            className={`chrome-tab ${fileTabActive && !utilityPageOpen ? 'active' : ''}`}
-            onClick={() => dispatch({ type: 'SET_FILE_TAB_ACTIVE', active: true })}
+            key={file.path}
+            className={`chrome-tab ${fileTabActive && activeFile === file.path && !utilityPageOpen ? 'active' : ''}`}
+            title={file.path}
+            onClick={() => dispatch({ type: 'SET_FILE_TAB_ACTIVE', active: true, path: file.path })}
           >
             {/* Same document glyph as the other file surfaces, so the tab
                 reads as "file content" at a glance. */}
@@ -1320,11 +1324,11 @@ export function CenterPanel() {
               <line x1="8" y1="13" x2="16" y2="13"/>
               <line x1="8" y1="17" x2="16" y2="17"/>
             </svg>
-            <span className="tab-title" style={{ flex: '0 1 auto', minWidth: 0, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{openFile.name}</span>
+            <span className="tab-title" style={{ flex: '0 1 auto', minWidth: 0, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{file.name}</span>
             <div className="tab-actions tab-actions--close-only">
               <button
                 className="tab-close-btn close-button"
-                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'CLOSE_FILE' }); }}
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'CLOSE_FILE', path: file.path }); }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1333,7 +1337,7 @@ export function CenterPanel() {
               </button>
             </div>
           </div>
-        )}
+        ))}
 
         <NewSessionTabButton />
 
@@ -1415,13 +1419,18 @@ export function CenterPanel() {
         ) : null)}
         {splitVisible && state.sessionSplit && <SessionSplitDividers layout={state.sessionSplit} />}
 
-        {/* File tab content — fills the content area when the file tab is
-            focused. FileViewer handles its own loading / unreadable states. */}
-        {openFile && fileTabActive && !utilityPageOpen && (
-          <div className="terminal-wrapper" style={{ display: 'flex', width: '100%', height: '100%', position: 'relative' }}>
-            <FileViewer path={openFile.path} />
+        {/* File tab contents — one viewer per open file, kept mounted so
+            scroll position, undo history and unsaved keystrokes survive tab
+            switches. Only the focused one is displayed. */}
+        {openFiles.map(file => (
+          <div
+            key={file.path}
+            className="terminal-wrapper"
+            style={{ display: fileTabActive && activeFile === file.path && !utilityPageOpen ? 'flex' : 'none', width: '100%', height: '100%', position: 'relative' }}
+          >
+            <FileViewer path={file.path} />
           </div>
-        )}
+        ))}
 
         {state.agentPages.map(page => (
           <div key={page} className="terminal-wrapper" style={{ display: agentPageActive === page && !utilityPageOpen ? 'flex' : 'none', width: '100%', height: '100%' }}>

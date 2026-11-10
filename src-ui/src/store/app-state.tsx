@@ -243,13 +243,12 @@ export interface AppState {
   taskViewMode: 'list' | 'note' | 'prompt';
 
   // ── File preview (右侧「文件」→ click a file) ───────────────────────────
-  // A clicked file opens as a read-only tab in the centre, a peer of the
-  // terminal tabs. `openFile` holds the snapshot to render (path + name);
-  // `fileTabActive` tracks whether that tab — not a terminal — is focused.
-  // The snapshot is not persisted: it points at files open at the time.
-  openFile: OpenFile | null;
-  /// True while the centre file tab is the active surface (clicked in the tab
-  /// strip). Clicking any terminal tab clears it (folded into SET_ACTIVE_TERMINAL).
+  // Every clicked file opens its own read-only tab in the centre, a peer of
+  // the terminal tabs, so several files can stay open side by side.
+  // `activeFile` is the path whose tab is focused; `fileTabActive` says the
+  // file strip — not a terminal — owns focus right now.
+  openFiles: OpenFile[];
+  activeFile: string | null;
   fileTabActive: boolean;
   usageOpen: boolean;
   /** The automations page in the centre, one of the full pages like usage. */
@@ -316,8 +315,8 @@ type Action =
   | { type: 'SET_TASK_VIEW_MODE'; mode: 'list' | 'note' | 'prompt' }
   | { type: 'SET_TAB_TITLE'; id: string; title: string }
   | { type: 'OPEN_FILE'; file: OpenFile }
-  | { type: 'CLOSE_FILE' }
-  | { type: 'SET_FILE_TAB_ACTIVE'; active: boolean }
+  | { type: 'CLOSE_FILE'; path: string }
+  | { type: 'SET_FILE_TAB_ACTIVE'; active: boolean; path?: string }
   | { type: 'OPEN_AGENT_PAGE'; page: AgentPage }
   | { type: 'CLOSE_AGENT_PAGE'; page: AgentPage };
 
@@ -632,14 +631,23 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, taskViewMode: action.mode };
     }
     case 'OPEN_FILE':
-      // Clicking a file opens it straight in the centre and focuses that tab,
-      // so the click reads as "show me this file" rather than parking an
-      // unfocused tab in the strip.
-      return { ...state, openFile: action.file, fileTabActive: true, agentPageActive: null };
-    case 'CLOSE_FILE':
-      return { ...state, openFile: null, fileTabActive: false };
+      // Each clicked file gets its own tab; opening one that is already there
+      // just focuses it. The click reads as "show me this file".
+      return {
+        ...state,
+        openFiles: state.openFiles.some(file => file.path === action.file.path) ? state.openFiles : [...state.openFiles, action.file],
+        activeFile: action.file.path,
+        fileTabActive: true,
+        agentPageActive: null,
+      };
+    case 'CLOSE_FILE': {
+      const openFiles = state.openFiles.filter(file => file.path !== action.path);
+      // Closing the focused tab falls back to the neighbour on its left.
+      const activeFile = state.activeFile === action.path ? openFiles.at(-1)?.path ?? null : state.activeFile;
+      return { ...state, openFiles, activeFile, fileTabActive: activeFile ? state.fileTabActive : false };
+    }
     case 'SET_FILE_TAB_ACTIVE':
-      return { ...state, fileTabActive: action.active, agentPageActive: action.active ? null : state.agentPageActive };
+      return { ...state, fileTabActive: action.active, activeFile: action.path ?? state.activeFile, agentPageActive: action.active ? null : state.agentPageActive };
     case 'OPEN_AGENT_PAGE':
       return {
         ...state,
@@ -871,7 +879,8 @@ function getInitialState(): AppState {
     rightPanelHidden,
     rightView,
     taskViewMode,
-    openFile: null,
+    openFiles: [],
+    activeFile: null,
     fileTabActive: false,
     usageOpen: false,
     automationsOpen: false,

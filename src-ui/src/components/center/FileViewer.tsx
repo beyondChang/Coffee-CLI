@@ -16,8 +16,9 @@ import './FileViewer.css';
 /** Above this size we skip tokenizing — a multi-megabyte grammar pass would
  *  freeze the window, and nobody reads 2 MB of source in a narrow pane. */
 const HIGHLIGHT_LIMIT = 400_000;
-/** Typing pause before an edit is written back to disk. */
-const SAVE_DELAY_MS = 700;
+/** Typing pause before an edit is written back to disk. Every keystroke
+ *  restarts the wait, so a continuous burst saves 3s after it stops. */
+const SAVE_DELAY_MS = 3000;
 /** Keystrokes closer together than this collapse into one undo step. */
 const UNDO_GROUP_MS = 400;
 const UNDO_LIMIT = 300;
@@ -36,6 +37,9 @@ export function FileViewer({ path }: { path: string }) {
   const [mode, setMode] = useState<{ path: string; value: 'preview' | 'edit' }>({ path, value: 'preview' });
   const [buffer, setBuffer] = useState<{ path: string; text: string } | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [saveError, setSaveError] = useState('');
+  // Latest unsaved text, so closing the tab mid-pause still flushes the edit.
+  const pending = useRef<{ path: string; text: string; disk: string } | null>(null);
   const history = useRef<{ path: string; entries: string[]; index: number; stamp: number }>({ path, entries: [], index: -1, stamp: 0 });
   const current = loaded && loaded.path === path ? loaded : null;
   const editing = isMarkdown(path) && mode.path === path && mode.value === 'edit';
@@ -61,18 +65,31 @@ export function FileViewer({ path }: { path: string }) {
   }, [current, path]);
 
   // Auto-save: one write per typing pause, skipped while the buffer still
-  // matches what is on disk.
+  // matches what is on disk. Each keystroke re-runs this effect, which clears
+  // the previous timer — so the 3s only elapse once typing has stopped.
   useEffect(() => {
     if (!buffer || buffer.path !== path) return;
     if (buffer.text === current?.text) return;
+    pending.current = { path, text: buffer.text, disk: current?.text ?? '' };
     const timer = window.setTimeout(() => {
       setSaveState('saving');
       commands.fsWriteText(path, buffer.text)
-        .then(() => setSaveState('saved'))
-        .catch(() => setSaveState('error'));
+        .then(() => { pending.current = null; setSaveState('saved'); })
+        .catch(error => {
+          console.error('[FileViewer] save failed:', error);
+          setSaveError(String(error));
+          setSaveState('error');
+        });
     }, SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [buffer, current?.text, path]);
+
+  // Flush an edit that is still waiting for its pause when the tab closes.
+  useEffect(() => () => {
+    const job = pending.current;
+    if (!job || job.text === job.disk) return;
+    commands.fsWriteText(job.path, job.text).catch(error => console.error('[FileViewer] flush failed:', error));
+  }, []);
 
   const change = (value: string) => {
     const now = Date.now();
@@ -112,7 +129,7 @@ export function FileViewer({ path }: { path: string }) {
     <div className={`file-viewer${editing ? ' is-editing' : ''}`}>
       {markdown && (
         <div className="file-viewer-bar">
-          <span className={`file-viewer-save${saveState === 'error' ? ' is-error' : ''}`} role="status">{status}</span>
+          <span className={`file-viewer-save${saveState === 'error' ? ' is-error' : ''}`} role="status" title={saveState === 'error' ? saveError : undefined}>{status}</span>
           <span className="file-viewer-switch" role="group" aria-label={t('file.preview')}>
             <button type="button" aria-pressed={!editing} onClick={() => setMode({ path, value: 'preview' })}>{t('file.preview')}</button>
             <button type="button" aria-pressed={editing} onClick={() => setMode({ path, value: 'edit' })}>{t('file.edit')}</button>
