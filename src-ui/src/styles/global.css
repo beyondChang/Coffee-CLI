@@ -2255,6 +2255,11 @@ body.resizing-panels .pane-resizer {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    /* Chrome (titlebar + both side panels) paints --bg-panel; the workspace
+       paints --bg-app so the content column reads as its own surface instead
+       of one flat colour across the whole window. Shape overrides below
+       (glass / carbon / monogram) still take this back to transparent. */
+    background: var(--bg-app);
     /* No backdrop-filter — terminal uses opaque background + WebGL rendering.
        Blur here causes severe flickering in WebView2 release builds. */
     backdrop-filter: none;
