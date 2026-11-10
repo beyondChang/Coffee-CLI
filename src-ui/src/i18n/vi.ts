@@ -358,6 +358,7 @@ export const vi = {
   'settings.terminal': 'Terminal',
   'settings.gambit': 'Phím tắt',
   'settings.language': 'Ngôn ngữ',
+  'settings.agent': 'Trợ lý',
   'settings.sound': 'Âm thanh',
   'settings.sound.done': 'Chuông khi hoàn thành tác vụ',
   'settings.sound.wait': 'Chuông khi chờ quyền',

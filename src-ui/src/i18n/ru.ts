@@ -356,6 +356,7 @@ export const ru = {
   'settings.terminal': 'Терминал',
   'settings.gambit': 'Горячие клавиши',
   'settings.language': 'Язык',
+  'settings.agent': 'Ассистент',
   'settings.sound': 'Звук',
   'settings.sound.done': 'Сигнал о завершении задачи',
   'settings.sound.wait': 'Сигнал запроса разрешения',

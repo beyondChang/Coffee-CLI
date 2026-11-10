@@ -356,6 +356,7 @@ export const ja = {
   'settings.terminal': 'ターミナル',
   'settings.gambit': 'ショートカット',
   'settings.language': '言語',
+  'settings.agent': 'アシスタント',
   'settings.sound': 'サウンド',
   'settings.sound.done': 'タスク完了のチャイム',
   'settings.sound.wait': '権限リクエストのチャイム',

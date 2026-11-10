@@ -356,6 +356,7 @@ export const es = {
   'settings.terminal': 'Terminal',
   'settings.gambit': 'Atajos',
   'settings.language': 'Idioma',
+  'settings.agent': 'Asistente',
   'settings.sound': 'Sonido',
   'settings.sound.done': 'Aviso de tarea completada',
   'settings.sound.wait': 'Aviso de solicitud de permiso',

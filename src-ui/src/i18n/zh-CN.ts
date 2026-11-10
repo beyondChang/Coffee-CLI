@@ -355,6 +355,7 @@ export const zhCN = {
   'settings.wallpaper': '壁纸',
   'settings.terminal': '终端',
   'settings.language': '语言',
+  'settings.agent': '助手',
   'settings.sound': '声音',
   'settings.sound.done': '任务完成提示音',
   'settings.sound.wait': '等待权限提示音',

@@ -355,6 +355,7 @@ export const zhTW = {
   'settings.wallpaper': '桌布',
   'settings.terminal': '終端',
   'settings.language': '語言',
+  'settings.agent': '助手',
   'settings.sound': '聲音',
   'settings.sound.done': '任務完成提示音',
   'settings.sound.wait': '等待權限提示音',

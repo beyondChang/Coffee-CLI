@@ -306,7 +306,7 @@ export function SettingsModal() {
     { id: 'appearance', label: t('settings.appearance') },
     { id: 'terminal',   label: t('settings.terminal') },
     { id: 'language',   label: t('settings.language') },
-    { id: 'agent',      label: 'Coffee Agent' },
+    { id: 'agent',      label: t('settings.agent') },
   ];
   const currentLabel = SECTIONS.find(s => s.id === section)?.label ?? '';
 
@@ -329,13 +329,6 @@ export function SettingsModal() {
           {version && (
             <div className="settings-rail-version">
               <span className="settings-rail-version-num">v{version}</span>
-              <button
-                type="button"
-                className="settings-rail-version-link"
-                onClick={() => commands.openUrl('https://coffeecli.com').catch(() => {})}
-              >
-                CoffeeCLI.com
-              </button>
             </div>
           )}
         </aside>

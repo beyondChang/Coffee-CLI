@@ -355,6 +355,7 @@ export const en = {
   'settings.wallpaper': 'Wallpaper',
   'settings.terminal': 'Terminal',
   'settings.language': 'Language',
+  'settings.agent': 'Assistant',
   'settings.sound': 'Sound',
   'settings.sound.done': 'Task complete chime',
   'settings.sound.wait': 'Permission prompt chime',

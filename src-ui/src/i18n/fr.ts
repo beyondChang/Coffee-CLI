@@ -356,6 +356,7 @@ export const fr = {
   'settings.terminal': 'Terminal',
   'settings.gambit': 'Raccourcis',
   'settings.language': 'Langue',
+  'settings.agent': 'Assistant',
   'settings.sound': 'Son',
   'settings.sound.done': 'Sonnerie de tâche terminée',
   'settings.sound.wait': "Sonnerie de demande d'autorisation",

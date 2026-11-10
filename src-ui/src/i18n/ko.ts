@@ -356,6 +356,7 @@ export const ko = {
   'settings.terminal': '터미널',
   'settings.gambit': '단축키',
   'settings.language': '언어',
+  'settings.agent': '어시스턴트',
   'settings.sound': '소리',
   'settings.sound.done': '작업 완료 알림음',
   'settings.sound.wait': '권한 요청 알림음',

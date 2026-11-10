@@ -356,6 +356,7 @@ export const de = {
   'settings.terminal': 'Terminal',
   'settings.gambit': 'Tastenkürzel',
   'settings.language': 'Sprache',
+  'settings.agent': 'Assistent',
   'settings.sound': 'Sound',
   'settings.sound.done': 'Ton bei Aufgabenabschluss',
   'settings.sound.wait': 'Ton bei Berechtigungsanfrage',
