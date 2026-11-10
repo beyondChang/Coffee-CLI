@@ -305,6 +305,7 @@ export const fr = {
   'file.error': 'Impossible de lire ce fichier',
   'right.panel.label': 'Panneau droit',
   'panel.open_right': 'Ouvrir le panneau droit',
+  'panel.close_right': 'Fermer le panneau droit',
   'launchpad.open_folder': 'Ouvrir un dossier',
   'launchpad.pick_folder': 'Choisir un dossier de projet',
   'launchpad.remote': 'Distant',

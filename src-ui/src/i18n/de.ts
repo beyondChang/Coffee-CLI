@@ -305,6 +305,7 @@ export const de = {
   'file.error': 'Datei konnte nicht gelesen werden',
   'right.panel.label': 'Rechtes Panel',
   'panel.open_right': 'Rechtes Panel öffnen',
+  'panel.close_right': 'Rechtes Panel schließen',
   'launchpad.open_folder': 'Ordner öffnen',
   'launchpad.pick_folder': 'Projektordner wählen',
   'launchpad.remote': 'Remote',

@@ -305,6 +305,7 @@ export const pt = {
   'file.error': 'Não foi possível ler este ficheiro',
   'right.panel.label': 'Painel direito',
   'panel.open_right': 'Abrir painel direito',
+  'panel.close_right': 'Fechar painel direito',
   'launchpad.open_folder': 'Abrir pasta',
   'launchpad.pick_folder': 'Escolher pasta do projeto',
   'launchpad.remote': 'Remoto',
