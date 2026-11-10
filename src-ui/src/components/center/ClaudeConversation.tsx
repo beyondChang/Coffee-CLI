@@ -20,7 +20,6 @@ import { WelcomeGreeting, WelcomeRestoring, WelcomeSessionMeta } from './Welcome
 import { ConversationDirectory } from '../../lib/conversation-links';
 import { useConversationMenu } from '../../lib/use-conversation-menu';
 import { CollapsibleUserMessage, ConversationNavigation, MessageCopyButton, type ConversationNavigationItem, ColdReturnCard, Chevron } from './ConversationControls';
-import { commands } from '../../tauri';
 import CLAWD_SVG from '../../icons-inline/clawd.svg?raw';
 import CLAUDE_WORKING_MARK from '../../icons-inline/claude-working-mark.webp';
 import { turnTitle } from '../../lib/turn-title';
@@ -267,6 +266,7 @@ function EditDiff({ before, after, path }: { before: string; after: string; path
 
 export const ClaudeTool = memo(function ClaudeTool({ message }: { message: ClaudeMessage }) {
   const t = useT();
+  const { dispatch } = useAppState();
   const [bodyOpen, setBodyOpen] = useState(() => ['Bash', 'Edit', 'Write'].includes(message.toolName ?? ''));
   const input = message.input ?? {}, name = message.toolName ?? t('claude.tool'), path = text(input.file_path) || text(input.path);
   const before = text(input.old_string), after = text(input.new_string);
@@ -280,7 +280,7 @@ export const ClaudeTool = memo(function ClaudeTool({ message }: { message: Claud
   return <section className={`claude-tool claude-tool--${message.toolStatus ?? 'running'}`}>
     <div className="claude-tool-heading">
       <button onClick={() => setBodyOpen(v => !v)} aria-expanded={showBody}><strong>{search?.title ?? orchestrationToolLabel(name, t) ?? name}</strong></button>
-      {path ? <button className="claude-file-path" onClick={() => void commands.showInFolder(path)}>{description}</button> : <span>{description}</span>}
+      {path ? <button className="claude-file-path" onClick={() => dispatch({ type: 'OPEN_FILE', file: { path, name: path.replace(/\\/g, '/').split('/').pop() ?? path, folderPath: '' } })}>{description}</button> : <span>{description}</span>}
       {!bash && !edit && !write && <button className="claude-chevron" aria-label={t('claude.tool_details')} onClick={() => setBodyOpen(v => !v)}><Chevron open={bodyOpen} /></button>}
     </div>
     {edit && <div className="claude-tool-subtitle">{removed || added ? [removed ? t('claude.lines_removed', { count: removed }) : '', added ? t('claude.lines_added', { count: added }) : ''].filter(Boolean).join(' · ') : t('claude.modified')}</div>}
