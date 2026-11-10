@@ -4,16 +4,14 @@ import { ChannelConnectionSummary } from '../agent/AgentPages';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppState } from '../../store/app-state';
-import type { IconTheme, ToolType } from '../../store/app-state';
+import type { IconTheme } from '../../store/app-state';
 import { useT } from '../../i18n/useT';
 import { isMaskTintTheme } from '../../lib/personalization';
-import { ScrollPanel } from '../common/ScrollPanel';
 import { bindAutoHideScrollbar } from '../../lib/auto-hide-scrollbar';
 import { clipboardWrite } from '../../lib/clipboard';
 import { beginExplorerDrag } from '../../lib/explorer-drag';
 import { getFileIconSrc } from '../../lib/file-icons';
 import { useFileStats, useDirtyDirs } from '../../lib/git-status';
-import { refreshHistory } from '../../lib/history-cache';
 import { commands, onSelfUpdateProgress } from '../../tauri';
 import { IS_WINDOWS } from '../../lib/platform';
 import type { DirEntryInfo } from '../../tauri';
@@ -44,13 +42,6 @@ export interface CtxMenuState {
 
 // Module-level clipboard: survives menu close/open cycles
 let fsClipboard: { action: 'copy' | 'cut'; path: string } | null = null;
-
-// OpenClaw (persona forge), Hermes Agent, and Remote Terminal are
-// directory-agnostic — they don't bind to a local project folder, so the
-// workspace dir-picker and file tree are hidden for these tabs (clicking
-// the picker would otherwise restart the PTY in a new cwd, which makes
-// no sense — Remote runs over SSH/WebSocket on a different host).
-const CWD_AGNOSTIC_TOOLS: ReadonlySet<ToolType> = new Set<ToolType>(['openclaw', 'hermes', 'remote']);
 
 // Dispatch a custom event to refresh any BrowserDirNode that owns that directory
 function dispatchFsRefresh(dirPath: string) {
@@ -306,7 +297,7 @@ export function ThemedIcon({ src, alt, onFallback }: {
 
 /** A single expandable directory node for the "My Computer" tab.
  *  Loads children lazily from the backend on first expand. */
-function BrowserDirNode({ name, dirPath, icon, onCtxMenu }: { name: string; dirPath: string; icon?: string; onCtxMenu: (menu: CtxMenuState) => void }) {
+export function BrowserDirNode({ name, dirPath, icon, onCtxMenu }: { name: string; dirPath: string; icon?: string; onCtxMenu: (menu: CtxMenuState) => void }) {
   const { state: { iconTheme } } = useAppState();
   const [open, setOpen] = useState(false);
   const [children, setChildren] = useState<DirEntryInfo[] | null>(null);
@@ -449,7 +440,7 @@ function BrowserDirNode({ name, dirPath, icon, onCtxMenu }: { name: string; dirP
 }
 
 /** A leaf file node inside the My Computer tree with inline rename support. */
-function BrowserFileNode({ entry, parentDirPath, onCtxMenu }: {
+export function BrowserFileNode({ entry, parentDirPath, onCtxMenu }: {
   entry: DirEntryInfo;
   parentDirPath: string;
   onCtxMenu: (menu: CtxMenuState) => void;
@@ -544,47 +535,6 @@ export function Explorer() {
   const { state, dispatch } = useAppState();
   const t = useT();
 
-  const activeSession = state.terminals.find(t => t.id === state.activeTerminalId);
-  const folderPath = activeSession?.folderPath || null;
-  const [workspaceSearch, setWorkspaceSearch] = useState<{ folder: string | null; query: string } | null>(null);
-  const searchingWorkspace = workspaceSearch !== null && workspaceSearch.folder === folderPath;
-  const workspaceQuery = searchingWorkspace ? workspaceSearch.query.trim().toLowerCase() : '';
-
-  // Context menu state
-  const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
-  const handleCtxMenu = useCallback((menu: CtxMenuState) => setCtxMenu(menu), []);
-  const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
-
-  // Workspace tree: read one directory level at a time from the OS — same
-  // semantics as Windows Explorer / Finder / GNOME Files. Filtering only
-  // affects this listing; subdirs still lazy-load via BrowserDirNode.
-  const [rootEntries, setRootEntries] = useState<DirEntryInfo[] | null>(null);
-  useEffect(() => {
-    if (!folderPath) { setRootEntries(null); return; }
-    let cancelled = false;
-    let request = 0;
-    const load = () => {
-      const current = ++request;
-      commands.listDirectory(folderPath)
-        .then(entries => { if (!cancelled && current === request) setRootEntries(entries); })
-        .catch(() => { if (!cancelled && current === request) setRootEntries([]); });
-    };
-    load();
-    // Initial reads and refreshes share one sequence so an older response
-    // cannot replace a newer directory listing after a tab switch or save.
-    const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '');
-    const target = norm(folderPath);
-    const handler = (e: Event) => {
-      const ev = e as CustomEvent<{ dirPath: string }>;
-      const dir = norm(ev.detail.dirPath);
-      if (dir === target) {
-        load();
-      }
-    };
-    window.addEventListener('fs-refresh', handler);
-    return () => { cancelled = true; window.removeEventListener('fs-refresh', handler); };
-  }, [folderPath]);
-
   // Update check
   const [hasUpdate, setHasUpdate] = useState(false);
   // The brand (title + the self-update button) renders here but DISPLAYS
@@ -646,66 +596,11 @@ export function Explorer() {
     }
   }, [installing]);
 
-  // Keep the last-selected view across panel collapse and application restarts.
-  const [activeTab, setActiveTab] = useState<'history' | 'workspace'>(() => {
-    try {
-      const saved = localStorage.getItem('cc-left-tab');
-      if (saved === 'workspace' || saved === 'history') return saved;
-    } catch { /* Best-effort operation; failure is non-fatal. */ }
-    return 'history';
-  });
-  useEffect(() => {
-    try { localStorage.setItem('cc-left-tab', activeTab); } catch { /* Best-effort operation; failure is non-fatal. */ }
-  }, [activeTab]);
-
-  // OS-level fs watcher — picks up changes from the terminal CLI, editors,
-  // git, or any process writing under folderPath. The backend emits the
-  // same `fs-refresh` event shape that right-click menu actions dispatch
-  // synthetically, so the listener above handles both paths uniformly.
-  //
-  // CRITICAL ordering: register the Tauri `listen('fs-refresh')` BEFORE
-  // calling `startFsWatcher`. The previous order (start → import → listen)
-  // dropped any event fired in the few-ms gap between the OS watcher
-  // arming and the JS subscription registering — exactly the window in
-  // which an editor's save burst or `npm install` first writes hit.
-  useEffect(() => {
-    if (!folderPath) return;
-    let unlisten: (() => void) | null = null;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const { listen } = await import('@tauri-apps/api/event');
-        if (cancelled) return;
-        const handle = await listen<{ dirPath: string }>('fs-refresh', (event) => {
-          // Re-dispatch onto `window` so Explorer's existing listeners
-          // (workspace re-scan + BrowserDirNode child refresh) both fire.
-          window.dispatchEvent(new CustomEvent('fs-refresh', {
-            detail: { dirPath: event.payload.dirPath },
-          }));
-        });
-        if (cancelled) { handle(); return; }
-        unlisten = handle;
-
-        // Listener is live — now arm the OS watcher.
-        await commands.startFsWatcher(folderPath);
-      } catch (err) {
-        console.warn('[Explorer] fs watcher setup failed:', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (unlisten) unlisten();
-      commands.stopFsWatcher().catch(() => {});
-    };
-  }, [folderPath]);
-
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (activeTab !== 'history' || !scrollRef.current) return;
+    if (!scrollRef.current) return;
     return bindAutoHideScrollbar(scrollRef.current);
-  }, [activeTab]);
+  }, []);
 
   // The update download sits in the sidebar's bottom row, left of settings, where most desktop apps keep it.
   const updateButton = hasUpdate ? (
@@ -766,35 +661,26 @@ export function Explorer() {
         brandSlot
       )}
 
-      {/* History scrolls as one sheet with the actions above it; the workspace
-          tree keeps its own scroller so its header stays put. */}
-      <div className="explorer-scroll" data-tab={activeTab} ref={scrollRef}>
+      {/* Sessions scroll as one sheet with the actions above them. The
+          workspace tree lives in the right panel (FilesBoard) so both lists
+          keep a readable width instead of sharing one narrow column. */}
+      <div className="explorer-scroll" ref={scrollRef}>
       <div className="explorer-tabs">
         <button className="explorer-new-session" onClick={() => window.dispatchEvent(new Event('coffee-new-session'))}>
           {/* Lucide square-pen; license in /icons/LICENSE-lucide.txt. */}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
           <span>{t('explorer.new_session')}</span>
         </button>
-        <span className="explorer-view-switch" data-active={activeTab} role="group" aria-label={`${t('explorer.tab.history')} / ${t('explorer.tab.workspace')}`}>
-        <span className="explorer-view-thumb" aria-hidden="true" />
         <button
-          className={`explorer-tab ${activeTab === 'history' ? 'active' : ''}`}
-          aria-label={t('explorer.tab.history')}
-          aria-pressed={activeTab === 'history'}
-          onClick={() => { setActiveTab('history'); refreshHistory(); }}
-        >
-          {/* Lucide history, folder and square-check; see /icons/LICENSE-lucide.txt. */}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></svg>
-        </button>
-        <button
-          className={`explorer-tab ${activeTab === 'workspace' ? 'active' : ''}`}
+          type="button"
+          className={`explorer-tab explorer-files-entry${state.rightView === 'files' ? ' active' : ''}`}
           aria-label={t('explorer.tab.workspace')}
-          aria-pressed={activeTab === 'workspace'}
-          onClick={() => setActiveTab('workspace')}
+          aria-pressed={state.rightView === 'files'}
+          title={t('explorer.tab.workspace')}
+          onClick={() => dispatch({ type: 'SET_RIGHT_VIEW', view: 'files' })}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></svg>
         </button>
-        </span>
       </div>
 
       <button type="button" className="explorer-new-session explorer-usage" aria-pressed={!!state.toolSettingsOpen} onClick={() => dispatch({ type: 'SET_TOOL_SETTINGS_OPEN', open: true })}>
@@ -806,84 +692,16 @@ export function Explorer() {
       <button type="button" className="explorer-new-session explorer-usage" aria-pressed={!!state.automationsOpen} onClick={() => dispatch({ type: 'SET_AUTOMATIONS_OPEN', open: true })}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M5 3 2 6" /><path d="m22 6-3-3" /></svg><span>{t('automation.title')}</span>
       </button>
-      {(activeTab === 'workspace' && activeSession?.tool && !CWD_AGNOSTIC_TOOLS.has(activeSession.tool)) && (
-        <span className={`workspace-dir-btn${searchingWorkspace ? ' is-searching' : ''}`} role="search" aria-label={t('explorer.filter_files')}>
-          {searchingWorkspace ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5" /></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"></path>
-          </svg>}
-          {searchingWorkspace ? <input className="workspace-filter-input" role="searchbox" autoFocus aria-label={t('explorer.filter_files')} placeholder={t('explorer.filter_files')} value={workspaceSearch.query} onChange={event => setWorkspaceSearch(event.target.value ? { folder: folderPath, query: event.target.value } : null)} onBlur={() => { if (!workspaceSearch.query) setWorkspaceSearch(null); }} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setWorkspaceSearch(null); } }} /> : <span className="workspace-dir-path">
-            {activeSession.folderPath
-              ? `⁦${activeSession.folderPath}⁩`
-              : '—'}
-          </span>}
-          <button type="button" className={`workspace-filter-toggle${searchingWorkspace ? ' close-button' : ''}`} aria-label={t(searchingWorkspace ? 'history.close_search' : 'explorer.filter_files')} onMouseDown={event => event.preventDefault()} onClick={() => setWorkspaceSearch(searchingWorkspace ? null : { folder: folderPath, query: '' })}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{searchingWorkspace ? <path d="m6 6 12 12M6 18 18 6" /> : <><circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5" /></>}</svg>
-          </button>
-        </span>
-      )}
-
-      {/* File list Content */}
+      {/* Session list content */}
       <div className="panel-content explorer-content">
-        {activeTab === 'history' ? (
-          // HistoryBoard returns a fragment and was originally hosted inside
-          // .task-board which provided the 16px gutter. In Explorer's flex
-          // shell that padding doesn't exist, so we wrap to restore it.
-          <div className="explorer-history-host"><HistoryBoard /></div>
-        ) : (!activeSession?.tool || CWD_AGNOSTIC_TOOLS.has(activeSession.tool)) ? (
-          // Launchpad (no tool picked yet) or a CWD-agnostic tool
-          // (OpenClaw / Hermes Agent) — both render the same blank
-          // state: a faint folder glyph, no file tree, no dir picker.
-          // Without this gate the workspace would show the default
-          // cwd's tree even before the user has chosen a tool.
-          <div className="empty-state" style={{ justifyContent: 'center', gap: '10px' }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent)' }}>
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-        ) : !folderPath ? (
-          // Waiting state — terminal will sync the directory automatically
-          <div className="empty-state" style={{ justifyContent: 'center', gap: '10px' }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent)' }}>
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-        ) : rootEntries === null ? (
-          <ScrollPanel>
-            <div className="file-tree-container" style={{ pointerEvents: 'none' }}>
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', opacity: Math.max(0.1, 1 - i * 0.08) }}>
-                  <div className="shimmer-box" style={{ width: 14, height: 14, borderRadius: 'var(--radius-xs)', flexShrink: 0 }}></div>
-                  <div className="shimmer-box" style={{ width: `${30 + (i * 7) % 40}%`, height: 12, borderRadius: 'var(--radius-xs)' }}></div>
-                </div>
-              ))}
-            </div>
-          </ScrollPanel>
-        ) : (
-          <ScrollPanel>
-            <div className="file-tree-container">
-              {workspaceQuery && !rootEntries.some(entry => entry.name.toLowerCase().includes(workspaceQuery)) && <div className="workspace-filter-empty" role="status">{t('explorer.no_matches')}</div>}
-              {rootEntries.slice().sort((a, b) => {
-                if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-                return a.name.localeCompare(b.name);
-              }).map(entry => (
-                <div key={entry.path} hidden={!!workspaceQuery && !entry.name.toLowerCase().includes(workspaceQuery)}>
-                  {entry.is_dir ? (
-                    <BrowserDirNode name={entry.name} dirPath={entry.path} onCtxMenu={handleCtxMenu} />
-                  ) : (
-                    <BrowserFileNode entry={entry} parentDirPath={folderPath!} onCtxMenu={handleCtxMenu} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </ScrollPanel>
-        )}
+        {/* HistoryBoard returns a fragment and was originally hosted inside
+            .task-board which provided the 16px gutter. In Explorer's flex
+            shell that padding doesn't exist, so we wrap to restore it. */}
+        <div className="explorer-history-host"><HistoryBoard /></div>
       </div>
       </div>
 
       <ChannelConnectionSummary update={updateButton} />
-
-      {/* Right-click context menu */}
-      {ctxMenu && <ContextMenu menu={ctxMenu} onClose={closeCtxMenu} />}
 
       {/* Theme + language pickers now live in the titlebar-gear SettingsModal
           (App-level), not here. */}

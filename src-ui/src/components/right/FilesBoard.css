@@ -1,0 +1,76 @@
+/* FilesBoard.css — workspace tree hosted by the right panel. */
+
+.right-files-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.right-files-host[hidden] { display: none; }
+
+.right-files-head {
+  display: flex;
+  align-items: center;
+  padding: 10px 10px 6px;
+}
+
+.right-files-path {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 4px 0 0;
+  border-radius: var(--shape-radius-btn);
+  color: var(--text-2);
+  font: 400 var(--type-body)/20px var(--font);
+}
+
+.right-files-path-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  unicode-bidi: plaintext;
+}
+
+.right-files-filter {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-1);
+  font: 400 var(--type-body)/20px var(--font);
+}
+.right-files-filter::placeholder { color: var(--text-3); }
+
+.right-files-filter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--shape-radius-btn);
+  background: transparent;
+  color: var(--text-3);
+}
+.right-files-filter-toggle:hover { color: var(--text-1); background: var(--bg-hover); }
+.right-files-filter-toggle:focus-visible { outline: 1px solid var(--accent); }
+.right-files-filter-toggle[aria-pressed="true"] { color: var(--text-1); }
+
+.right-files-tree { padding: 2px 6px 16px 8px; }
+
+.right-files-empty {
+  flex: 1;
+  justify-content: center;
+  gap: 10px;
+}

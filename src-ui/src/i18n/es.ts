@@ -295,6 +295,7 @@ export const es = {
   'task.greeting.evening': 'Buenas noches, ¿algo ambicioso?',
   'task.tab.tasks': 'Lista de tareas',
   'task.tab.changes': 'Historial',
+  'task.tab.files': 'Archivos',
   'changes.empty': 'Aún no hay cambios.',
   'launchpad.open_folder': 'Abrir carpeta',
   'launchpad.pick_folder': 'Elige una carpeta de proyecto',

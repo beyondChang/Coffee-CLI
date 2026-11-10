@@ -295,6 +295,7 @@ export const zhTW = {
   'task.greeting.evening': '晚安，想來點大事嗎？',
   'task.tab.tasks': '任務列表',
   'task.tab.changes': '修改記錄',
+  'task.tab.files': '檔案',
   'changes.empty': '暫無修改。',
   'launchpad.open_folder': '開啟資料夾',
   'launchpad.pick_folder': '選擇專案目錄',

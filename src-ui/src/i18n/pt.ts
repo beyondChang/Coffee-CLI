@@ -295,6 +295,7 @@ export const pt = {
   'task.greeting.evening': 'Boa noite. Algo ambicioso?',
   'task.tab.tasks': 'Lista de tarefas',
   'task.tab.changes': 'Histórico',
+  'task.tab.files': 'Ficheiros',
   'changes.empty': 'Ainda sem alterações.',
   'launchpad.open_folder': 'Abrir pasta',
   'launchpad.pick_folder': 'Escolher pasta do projeto',

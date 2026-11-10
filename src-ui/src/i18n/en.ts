@@ -295,6 +295,7 @@ export const en = {
   'task.greeting.evening': 'Evening. Feeling ambitious?',
   'task.tab.tasks': 'Tasks',
   'task.tab.changes': 'Changes',
+  'task.tab.files': 'Files',
   'changes.empty': 'No changes yet.',
   'launchpad.open_folder': 'Open Folder',
   'launchpad.pick_folder': 'Choose a project folder',

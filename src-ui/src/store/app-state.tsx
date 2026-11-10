@@ -97,6 +97,9 @@ export type HotkeyAction = 'left' | 'gambit' | 'right';
 // 'hidden' = hide the toggles entirely (keyboard-only — Alt+Q/W/E still work).
 export type TitlebarToggleDisplay = 'icon-hotkey' | 'icon' | 'hidden';
 
+/** Right-panel tabs. 'detail' is derived from the diff selection, not stored. */
+export type RightPanelView = 'tasks' | 'changes' | 'files';
+
 // Which chrome toggle a keydown maps to under the active scheme, or null. The
 // caller MUST then preventDefault (cancels the macOS Alt-glyph + the control
 // byte) AND stopPropagation (keeps the combo out of xterm's own keydown).
@@ -229,6 +232,10 @@ export interface AppState {
   leftPanelHidden: boolean;
   rightPanelHidden: boolean;
 
+  // Which right-panel tab is open. Held in app state (not component state) so
+  // the left sidebar's folder button can jump straight to the workspace tree.
+  rightView: RightPanelView;
+
   // Right-panel task board form. 'list' = compact to-do checklist (default),
   // 'note' = big sticky-note cards (traffic-light status + timestamp + roomy
   // text area). Same task data either way — purely a presentation choice made
@@ -340,6 +347,7 @@ type Action =
   | { type: 'SET_SESSION_TOKEN'; id: string; token: string }
   | { type: 'TOGGLE_LEFT_PANEL' }
   | { type: 'TOGGLE_RIGHT_PANEL' }
+  | { type: 'SET_RIGHT_VIEW'; view: RightPanelView }
   | { type: 'SET_TASK_VIEW_MODE'; mode: 'list' | 'note' | 'prompt' }
   | { type: 'SET_TAB_TITLE'; id: string; title: string }
   | { type: 'SET_DIFF_SELECTION'; selection: DiffSelection }
@@ -652,6 +660,10 @@ function reducer(state: AppState, action: Action): AppState {
       try { localStorage.setItem('cc-right-hidden', next ? '1' : '0'); } catch { /* Best-effort operation; failure is non-fatal. */ }
       return { ...state, rightPanelHidden: next };
     }
+    case 'SET_RIGHT_VIEW': {
+      try { localStorage.setItem('cc-right-tab', action.view); } catch { /* Best-effort operation; failure is non-fatal. */ }
+      return { ...state, rightView: action.view, rightPanelHidden: false, diffTabActive: false };
+    }
     case 'SET_TASK_VIEW_MODE': {
       try { localStorage.setItem('cc-task-view', action.mode); } catch { /* Best-effort operation; failure is non-fatal. */ }
       return { ...state, taskViewMode: action.mode };
@@ -874,6 +886,8 @@ function getInitialState(): AppState {
   // Default 'overlay' (the gentle half-height panel) — existing users see no
   // change. Only flips to 'tab' if the user explicitly expanded-to-tab before.
   let diffMode: 'overlay' | 'tab' = 'overlay';
+  // Right-panel tab: 'changes' unless the user last left it on tasks/files.
+  let rightView: RightPanelView = 'changes';
   // Gambit starts closed unless the user saved an open preference.
   let gambitOpen = false;
   try {
@@ -883,6 +897,10 @@ function getInitialState(): AppState {
     if (savedTaskView === 'list' || savedTaskView === 'note' || savedTaskView === 'prompt') taskViewMode = savedTaskView;
     const savedDiffMode = localStorage.getItem('cc-diff-mode');
     if (savedDiffMode === 'tab' || savedDiffMode === 'overlay') diffMode = savedDiffMode;
+    const savedRightView = localStorage.getItem('cc-right-tab')
+      // Legacy: an older build remembered the task board as a left tab.
+      ?? (localStorage.getItem('cc-left-tab') === 'tasks' ? 'tasks' : null);
+    if (savedRightView === 'tasks' || savedRightView === 'changes' || savedRightView === 'files') rightView = savedRightView;
     gambitOpen = localStorage.getItem('cc-gambit-open') === '1';
   } catch { /* Best-effort operation; failure is non-fatal. */ }
 
@@ -909,6 +927,7 @@ function getInitialState(): AppState {
     titlebarToggleDisplay,
     leftPanelHidden,
     rightPanelHidden,
+    rightView,
     taskViewMode,
     diffSelection: null,
     diffMode,

@@ -297,6 +297,7 @@ export const vi = {
   'task.greeting.evening': 'Chào buổi tối. Có kế hoạch gì lớn không?',
   'task.tab.tasks': 'Danh sách',
   'task.tab.changes': 'Lịch sử',
+  'task.tab.files': 'Tệp',
   'changes.empty': 'Chưa có thay đổi.',
   'launchpad.open_folder': 'Mở thư mục',
   'launchpad.pick_folder': 'Chọn thư mục dự án',

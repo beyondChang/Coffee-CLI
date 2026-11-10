@@ -295,6 +295,7 @@ export const ko = {
   'task.greeting.evening': '좋은 저녁, 뭔가 시작해볼까요?',
   'task.tab.tasks': '작업 목록',
   'task.tab.changes': '변경 기록',
+  'task.tab.files': '파일',
   'changes.empty': '아직 변경 사항이 없습니다.',
   'launchpad.open_folder': '폴더 열기',
   'launchpad.pick_folder': '프로젝트 폴더 선택',

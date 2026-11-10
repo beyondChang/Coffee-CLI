@@ -295,6 +295,7 @@ export const ja = {
   'task.greeting.evening': 'こんばんは。何か始めますか？',
   'task.tab.tasks': 'タスク一覧',
   'task.tab.changes': '変更履歴',
+  'task.tab.files': 'ファイル',
   'changes.empty': 'まだ変更はありません。',
   'launchpad.open_folder': 'フォルダを開く',
   'launchpad.pick_folder': 'プロジェクトフォルダを選択',

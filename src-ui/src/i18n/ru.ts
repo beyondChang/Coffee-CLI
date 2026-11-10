@@ -295,6 +295,7 @@ export const ru = {
   'task.greeting.evening': 'Добрый вечер. Что-нибудь масштабное?',
   'task.tab.tasks': 'Список задач',
   'task.tab.changes': 'История изменений',
+  'task.tab.files': 'Файлы',
   'changes.empty': 'Изменений пока нет.',
   'launchpad.open_folder': 'Открыть папку',
   'launchpad.pick_folder': 'Выберите папку проекта',

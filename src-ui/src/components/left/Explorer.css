@@ -88,58 +88,6 @@
 .explorer-new-session:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
 .explorer-usage { flex: 0 0 auto; width: calc(100% - 16px); margin: 0 8px 6px; }
 
-.workspace-dir-btn {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    width: calc(100% - 16px);
-    margin: 0 8px 4px;
-    /* Fixed height prevents jitter between languages — different scripts
-       (CJK / Latin / Cyrillic / Vietnamese) render the same font-size at
-       slightly different intrinsic heights, and when the folder path
-       toggles between "empty state label" and an actual path, the label
-       was visibly resizing. Replace vertical padding with fixed height +
-       line-height to lock it regardless of content. 34px = the rendered
-       height of the Sessions tab's <input> at font 13 / padding 8 with
-       browser default line-height (~1.2). */
-    height: 34px;
-    padding: 0 10px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text-3);
-    font-family: var(--font);
-    font-size: var(--type-body);
-    font-weight: 500;
-    line-height: 1;
-    cursor: default;
-    text-align: left;
-    overflow: hidden;
-    box-sizing: border-box;
-}
-
-.workspace-dir-path {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    direction: rtl;
-    text-align: left;
-    flex: 1;
-    min-width: 0;
-    /* Match the fixed label height so vertical centering is consistent
-       across languages (different scripts have different default
-       line-heights otherwise). */
-    line-height: 32px;
-}
-
-.workspace-dir-btn > svg { flex-shrink: 0; }
-.workspace-dir-btn.is-searching { background: transparent; }
-.workspace-dir-btn.is-searching:focus-within { border-color: var(--accent); }
-.workspace-filter-input { flex: 1; width: 0; min-width: 0; border: 0; outline: 0; padding: 0; background: transparent; color: var(--text-2); font: 400 var(--type-body)/20px var(--font); }
-.workspace-filter-input::placeholder { color: var(--text-3); }
-.workspace-filter-toggle { display: flex; align-items: center; justify-content: center; flex: 0 0 20px; height: 24px; padding: 0; border: 0; border-radius: var(--shape-radius-btn); background: transparent; color: var(--text-3); }
-.workspace-filter-toggle:hover { color: var(--text-1); background: var(--bg-hover); }
-.workspace-filter-toggle:focus-visible { outline: 1px solid var(--accent); }
 .workspace-filter-empty { padding: 8px; color: var(--text-3); font-size: var(--type-body); line-height: 1.4; }
 
 /* Custom styling removed for first child separator */
@@ -155,46 +103,20 @@
 
 .explorer-tab:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
 
-/* History / workspace switch: one track with a sliding accent thumb so the
-   current view reads like a toggle. Spans, not divs, so the material shapes'
-   global surface reset leaves the track and thumb visible. */
-.explorer-view-switch {
-    position: relative;
-    display: flex;
-    flex-shrink: 0;
-    /* Clear of the sidebar's scrollbar rail on the right. */
-    margin-right: 6px;
-    padding: 2px;
-    border-radius: var(--shape-radius-btn, 6px);
-    /* The unselected track blends into the panel; only the thumb is tinted. */
-    background: transparent;
-}
-.explorer-view-switch .explorer-tab {
+/* Workspace entry: the file tree lives in the right panel, so this button
+   just brings that tab forward instead of swapping the sidebar's content. */
+.explorer-files-entry {
     flex: 0 0 30px;
-    /* WebKit sizes the track from its content and ignores the flex-basis here,
-       so the folder button overflowed and got clipped (issue #172). */
     width: 30px;
-    height: 26px;
+    height: 28px;
+    margin-left: 6px;
+    margin-right: 6px;
     padding: 0;
+    border-radius: var(--shape-radius-btn, 6px);
     color: var(--text-3);
 }
-.explorer-view-switch .explorer-tab:hover:not(.active) { color: var(--text-2); }
-.explorer-view-switch .explorer-tab.active { color: var(--text-1); }
-.explorer-view-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 30px;
-    height: 26px;
-    border-radius: max(0px, calc(var(--shape-radius-btn, 6px) - 2px));
-    background: color-mix(in srgb, var(--text-1) 8%, transparent);
-    transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1);
-    pointer-events: none;
-    z-index: 1;
-}
-.explorer-view-switch[data-active="workspace"] .explorer-view-thumb { transform: translateX(30px); }
-[data-shape="panel"] .explorer-view-switch .explorer-tab.active { background: transparent; }
-@media (prefers-reduced-motion: reduce) { .explorer-view-thumb { transition: none; } }
+.explorer-files-entry:hover:not(.active) { color: var(--text-2); }
+.explorer-files-entry.active { color: var(--text-1); background: color-mix(in srgb, var(--text-1) 8%, transparent); }
 
 .explorer-panel .agent-channel-summary { margin-inline: 8px; }
 
@@ -215,21 +137,19 @@
     padding: 0 8px;
 }
 
-/* History mode: tabs, actions and list share one scroller. */
+/* Sessions mode: tabs, actions and list share one scroller. */
 .explorer-scroll {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
-}
-.explorer-scroll[data-tab="history"] {
     overflow-x: hidden;
     overflow-y: auto;
 }
-.explorer-scroll[data-tab="history"] > * { flex-shrink: 0; }
-.explorer-scroll[data-tab="history"] > .explorer-content,
-.explorer-scroll[data-tab="history"] .explorer-history-host,
-.explorer-scroll[data-tab="history"] .history-session-list {
+.explorer-scroll > * { flex-shrink: 0; }
+.explorer-scroll > .explorer-content,
+.explorer-scroll .explorer-history-host,
+.explorer-scroll .history-session-list {
     flex: none;
     overflow: visible;
 }

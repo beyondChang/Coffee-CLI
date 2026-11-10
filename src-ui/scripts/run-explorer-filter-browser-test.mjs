@@ -1,4 +1,4 @@
-// Real Explorer, mocked filesystem and app state; no native sessions or user files.
+// Real FilesBoard (right-panel workspace tree), mocked filesystem and app state; no native sessions or user files.
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -28,7 +28,7 @@ const mock = `
   export function HistoryBoard(){return null} export function ChannelConnectionSummary(){return null}
 `;
 await build({
-  stdin: { resolveDir: project, loader: 'tsx', contents: `import React from 'react';import{createRoot}from'react-dom/client';import{Explorer}from'./src/components/left/Explorer';import'./src/styles/global.css';localStorage.setItem('cc-left-tab','workspace');createRoot(document.getElementById('root')).render(<Explorer/>);` },
+  stdin: { resolveDir: project, loader: 'tsx', contents: `import React from 'react';import{createRoot}from'react-dom/client';import{FilesBoard}from'./src/components/right/FilesBoard';import'./src/styles/global.css';createRoot(document.getElementById('root')).render(<FilesBoard/>);` },
   bundle: true, outfile: join(directory, 'fixture.js'), jsx: 'automatic',
   nodePaths: [join(project, 'node_modules')], external: ['/fonts/*', '/monogram.svg', '/backgrounds/*'],
   define: { 'process.env.NODE_ENV': '"development"', __IS_LINUX__: 'false' },
@@ -37,7 +37,7 @@ await build({
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: mock, resolveDir: project, loader: 'js' }));
   } }],
 });
-const html = `<!doctype html><html data-theme="dark" data-mode="dark" data-shape="soft"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:650px}#root{width:280px}.panel-left{width:280px!important;height:650px}</style><div id="root"></div><script src="/fixture.js"></script></html>`;
+const html = `<!doctype html><html data-theme="dark" data-mode="dark" data-shape="soft"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:650px}#root{width:280px}.right-files-host{height:650px}</style><div id="root"></div><script src="/fixture.js"></script></html>`;
 const server = http.createServer(async (req, res) => {
   try {
     if (req.url === '/') return res.setHeader('Content-Type', 'text/html').end(html);
@@ -56,13 +56,13 @@ try {
   const search = page.getByRole('searchbox'), toggle = page.getByRole('button', { name: '筛选文件和文件夹…' });
   await page.locator('.tree-file').first().waitFor();
   await page.locator('.tree-dir-header').click(); await page.getByText('child.ts', { exact: true }).waitFor();
-  const pathBox = await page.locator('.workspace-dir-btn').boundingBox();
+  const pathBox = await page.locator('.right-files-path').boundingBox();
   await toggle.click(); assert.equal(await search.evaluate(el => document.activeElement === el), true);
-  assert.deepEqual(await page.locator('.workspace-dir-btn').boundingBox(), pathBox, 'switching to search does not move the file list');
+  assert.deepEqual(await page.locator('.right-files-path').boundingBox(), pathBox, 'switching to search does not move the file list');
   await search.fill('  README  '); assert.equal(await page.locator('.tree-file:visible').count(), 1);
   await page.getByText('README.md', { exact: true }).click();
   assert.equal(await page.evaluate(() => window.calls.actions.at(-1).selection.path), 'D:/project/README.md', 'filtered files retain preview behavior');
-  await search.press('Escape'); assert.match(await page.locator('.workspace-dir-path').textContent(), /D:\/project/);
+  await search.press('Escape'); assert.match(await page.locator('.right-files-path-text').textContent(), /D:\/project/);
   assert.equal(await page.getByText('child.ts', { exact: true }).isVisible(), true, 'closing search preserves expanded directories');
   assert.deepEqual(await page.evaluate(() => window.calls.reads), ['D:/project', 'D:/project/src'], 'typing never rescans or changes directories');
   await toggle.click(); await search.fill('SRC'); assert.equal(await page.locator('.tree-dir-header:visible').count(), 1);
@@ -79,7 +79,7 @@ try {
     await page.evaluate(({ mode, shape }) => { document.documentElement.dataset.mode = mode; document.documentElement.dataset.shape = shape; }, { mode, shape });
     await toggle.click(); await search.fill('other');
     assert.equal(await search.evaluate(el => getComputedStyle(el).cursor), 'text');
-    assert.equal(await page.locator('.workspace-dir-btn').evaluate(el => el.scrollWidth <= el.clientWidth), true);
+    assert.equal(await page.locator('.right-files-path').evaluate(el => el.scrollWidth <= el.clientWidth), true);
     await page.screenshot({ path: join(directory, mode + '-' + shape + '.png') }); await search.press('Escape');
   }
   assert.deepEqual(errors, []);
