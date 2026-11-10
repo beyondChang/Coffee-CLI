@@ -1934,7 +1934,7 @@ html.is-macos .titlebar-left-slot.is-collapsed {
    treatment as min/max/close (full-opacity icon, transparent base,
    bg-hover on hover) so the whole right cluster reads as one chrome
    band. The only structural difference is width: 36px tools-slot vs
-   46px window-control slot, matching VS Code's tool/action convention. */
+   50px window-control slot, matching VS Code's tool/action convention. */
 .titlebar-layout-toggles {
     display: flex;
     align-items: center;
@@ -2014,8 +2014,8 @@ html.is-macos .titlebar-left-slot.is-collapsed {
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    width: 46px;
-    height: 100%; /* full-height button; the 10px icon stays centred + unchanged, only the hover bg grows */
+    width: 50px;
+    height: 100%; /* full-height button; the 12px glyph stays centred, only the hover bg grows */
     background: transparent;
     border: none;
     color: var(--text-2);
