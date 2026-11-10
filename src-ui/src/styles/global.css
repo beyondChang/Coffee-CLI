@@ -2144,6 +2144,15 @@ body.resizing-panels .pane-resizer {
     overflow: hidden;
 }
 
+/* Chrome reads one step lighter than the palette's panel tone in dark mode,
+   so the titlebar + sidebars vs the centre column is obvious at a glance.
+   Light palettes already separate the two, so they keep their values. */
+html[data-mode="dark"] .titlebar,
+html[data-mode="dark"] .panel-left,
+html[data-mode="dark"] .panel-right {
+    background-color: color-mix(in srgb, var(--bg-panel) 80%, #ffffff 20%);
+}
+
 .panel-content {
     flex: 1;
     overflow-y: auto;
