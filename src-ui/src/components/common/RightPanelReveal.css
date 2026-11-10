@@ -4,7 +4,10 @@
   position: fixed;
   top: 48px;
   right: 0;
-  z-index: 45;
+  /* Above the floating scroll rail (z-index 250): otherwise the rail sits on
+     top of this handle, takes the hover and reveals the content scrollbar
+     whenever the pointer approaches the button. */
+  z-index: 300;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -2,8 +2,8 @@
 //
 // The titlebar keeps only the left-panel and Gambit toggles; this slim handle
 // pinned to the centre pane's top-right corner replaces the old right-panel
-// toggle. It floats over the content edge, reads as "open" with a panel glyph
-// and flips to a collapse chevron once the panel is on screen.
+// toggle. A left chevron pulls the panel in; once it is open the same handle
+// points right and closes it again.
 
 import { useAppState, useAppDispatch, schemeLabels } from '../../store/app-state';
 import { useT } from '../../i18n/useT';
@@ -30,9 +30,9 @@ export function RightPanelReveal() {
           <path d="m9 6 6 6-6 6" />
         </svg>
       ) : (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" />
-          <line x1="15" y1="4" x2="15" y2="20" />
+        // Left chevron: pulls the panel in from the right edge.
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m15 6-6 6 6 6" />
         </svg>
       )}
     </button>
