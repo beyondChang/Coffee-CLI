@@ -356,11 +356,24 @@ export function ThemedIcon({ src, alt, onFallback }: {
 
 /** A single expandable directory node for the "My Computer" tab.
  *  Loads children lazily from the backend on first expand. */
-export function BrowserDirNode({ name, dirPath, icon, onCtxMenu }: { name: string; dirPath: string; icon?: string; onCtxMenu: (menu: CtxMenuState) => void }) {
+export function BrowserDirNode({ name, dirPath, icon, onCtxMenu, isExpanded, onToggle }: { name: string; dirPath: string; icon?: string; onCtxMenu: (menu: CtxMenuState) => void;
+  // Optional controlled expansion. When provided, the node's open state comes
+  // from the parent (so the right-panel tree can persist it per project);
+  // omit both to keep the original self-contained lazy behaviour.
+  isExpanded?: (dirPath: string) => boolean;
+  onToggle?: (dirPath: string, open: boolean) => void;
+}) {
   const { state: { iconTheme } } = useAppState();
-  const [open, setOpen] = useState(false);
+  const controlled = isExpanded !== undefined;
+  const [openState, setOpen] = useState(() => (controlled ? false : false));
+  const open = controlled ? isExpanded(dirPath) : openState;
   const [children, setChildren] = useState<DirEntryInfo[] | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const setOpenBoth = (next: boolean) => {
+    if (controlled) onToggle?.(dirPath, next);
+    else setOpen(next);
+  };
 
   // True when any descendant file has uncommitted changes. Used to tint the
   // folder name as a "trail" leading to the change — folded folders still
@@ -387,8 +400,21 @@ export function BrowserDirNode({ name, dirPath, icon, onCtxMenu }: { name: strin
       }
       setLoading(false);
     }
-    setOpen(!open);
+    setOpenBoth(!open);
   };
+
+  // Restored-from-persistence case: the node mounts already open (excluded from
+  // the toggle path above) but has no children yet — load them lazily.
+  useEffect(() => {
+    if (!controlled || !open || children !== null) return;
+    let cancelled = false;
+    setLoading(true);
+    commands.listDirectory(dirPath)
+      .then(entries => { if (!cancelled) setChildren(entries); })
+      .catch(() => { if (!cancelled) setChildren([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [controlled, open, children, dirPath]);
 
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState(name);
@@ -495,7 +521,7 @@ export function BrowserDirNode({ name, dirPath, icon, onCtxMenu }: { name: strin
             return a.name.localeCompare(b.name);
           }).map(entry => (
             entry.is_dir ? (
-              <BrowserDirNode key={entry.path} name={entry.name} dirPath={entry.path} onCtxMenu={onCtxMenu} />
+              <BrowserDirNode key={entry.path} name={entry.name} dirPath={entry.path} onCtxMenu={onCtxMenu} isExpanded={isExpanded} onToggle={onToggle} />
             ) : (
               <BrowserFileNode key={entry.path} entry={entry} parentDirPath={dirPath} onCtxMenu={onCtxMenu} />
             )

@@ -4,7 +4,7 @@
 // both into one narrow column. The tree now owns a right-panel tab and reads
 // the active session's folder, so terminal CWD changes still drive it.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../../store/app-state';
 import type { ToolType } from '../../store/app-state';
 import { useT } from '../../i18n/useT';
@@ -12,6 +12,7 @@ import { commands } from '../../tauri';
 import type { DirEntryInfo } from '../../tauri';
 import { ScrollPanel } from '../common/ScrollPanel';
 import { BrowserDirNode, BrowserFileNode, ContextMenu, type CtxMenuState } from '../left/Explorer';
+import { loadExpanded, saveExpanded, normFolder } from '../../lib/file-panel-state';
 import '../left/Explorer.css';
 import './FilesBoard.css';
 
@@ -40,6 +41,29 @@ export function FilesBoard() {
   const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
 
   const [rootEntries, setRootEntries] = useState<DirEntryInfo[] | null>(null);
+
+  // Per-project expanded folders. Loaded when the active folder changes and
+  // persisted back on every toggle so switching projects (or restarting the
+  // app) restores the same tree shape. Keyed by normalised path.
+  const folderKey = folderPath ? normFolder(folderPath) : null;
+  const [expandedMap, setExpandedMap] = useState<Record<string, Set<string>>>({});
+  const expanded = (folderKey && expandedMap[folderKey]) || EMPTY_SET;
+  const isExpanded = useCallback((dirPath: string) => expanded.has(normFolder(dirPath)), [expanded]);
+  const toggleExpanded = useCallback((dirPath: string, open: boolean) => {
+    if (!folderKey) return;
+    setExpandedMap(prev => {
+      const current = new Set(prev[folderKey] ?? []);
+      const norm = normFolder(dirPath);
+      if (open) current.add(norm); else current.delete(norm);
+      saveExpanded(folderKey, current);
+      return { ...prev, [folderKey]: current };
+    });
+  }, [folderKey]);
+  // Lazily load a project's saved set the first time it is shown.
+  useEffect(() => {
+    if (!folderKey || expandedMap[folderKey]) return;
+    setExpandedMap(prev => (prev[folderKey] ? prev : { ...prev, [folderKey]: loadExpanded(folderKey) }));
+  }, [folderKey, expandedMap]);
   useEffect(() => {
     setQuery(null);
     if (!folderPath) { setRootEntries(null); return; }
