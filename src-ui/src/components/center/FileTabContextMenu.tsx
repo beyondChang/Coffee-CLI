@@ -58,7 +58,6 @@ export function FileTabContextMenu({ menu, canCloseLeft, canCloseRight, onCloseC
       {item(t('filetab.close_right'), canCloseRight, onCloseRight)}
       {item(t('filetab.close_left'), canCloseLeft, onCloseLeft)}
       {item(t('filetab.close_current'), true, onCloseCurrent)}
-      <div className="ctx-menu-divider" />
       {item(t('filetab.close_all'), true, onCloseAll)}
       <div className="ctx-menu-divider" />
       {item(t('filetab.open_folder'), true, () => {
