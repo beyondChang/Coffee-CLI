@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { commands } from '../../tauri';
 import { useT } from '../../i18n/useT';
+import { getShikiTheme, tokenizeFile, type LineTokens } from '../../lib/shiki';
 import { MarkdownContent } from './MarkdownContent';
 import './FileViewer.css';
 
@@ -28,6 +29,9 @@ const isHtml = (path: string) => /\.(html?|xhtml)$/i.test(path);
 const hasPreview = (path: string) => isMarkdown(path) || isHtml(path);
 const isImage = (path: string) => /\.(png|jpe?g|gif|webp|bmp|svg|ico|avif)$/i.test(path);
 
+/** Above this size we skip tokenizing — a multi-megabyte grammar pass would
+ *  freeze the window, and nobody reads 2 MB of source in a narrow pane. */
+const HIGHLIGHT_LIMIT = 400_000;
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 8;
 
@@ -122,6 +126,7 @@ function TextViewer({ path }: { path: string }) {
   // Keyed by path so a new file shows the loading state without an extra
   // effect-only reset (and never flashes the previous file's contents).
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [tokenized, setTokenized] = useState<{ path: string; lines: LineTokens[] } | null>(null);
   const [mode, setMode] = useState<{ path: string; value: 'preview' | 'edit' }>({ path, value: 'preview' });
   const [buffer, setBuffer] = useState<{ path: string; text: string } | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -134,8 +139,6 @@ function TextViewer({ path }: { path: string }) {
   // Markdown / HTML keep the 预览 · 编辑 switch; every other text file opens
   // straight into the editor — there is nothing to preview it as.
   const editing = previewable && mode.path === path && mode.value === 'edit';
-  const textEditable = !previewable;
-  const showEditor = textEditable || editing;
   const text = buffer && buffer.path === path ? buffer.text : current?.text ?? '';
 
   useEffect(() => {
@@ -145,6 +148,18 @@ function TextViewer({ path }: { path: string }) {
       .catch(() => { if (!cancelled) setLoaded({ path, text: null, failed: true }); });
     return () => { cancelled = true; };
   }, [path]);
+
+  // Highlight the buffer (not just what is on disk) so the colouring follows
+  // the caret as you type. Unknown languages resolve to null → plain text.
+  useEffect(() => {
+    if (typeof text !== 'string' || text.length > HIGHLIGHT_LIMIT) return;
+    let cancelled = false;
+    const theme = getShikiTheme(document.documentElement.dataset.mode ?? null);
+    tokenizeFile(text, path, theme)
+      .then(lines => { if (!cancelled) setTokenized(lines ? { path, lines } : null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [text, path]);
 
   // Auto-save: one write per typing pause, skipped while the buffer still
   // matches what is on disk. Each keystroke re-runs this effect, which clears
@@ -191,6 +206,13 @@ function TextViewer({ path }: { path: string }) {
     setBuffer({ path, text: value });
   };
 
+  const editorKeys = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const key = event.key.toLowerCase();
+    if (key === 'z' && !event.shiftKey) { event.preventDefault(); step(-1); }
+    else if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); step(1); }
+  };
+
   const step = (delta: -1 | 1) => {
     const h = history.current;
     if (h.path !== path) return;
@@ -225,7 +247,11 @@ function TextViewer({ path }: { path: string }) {
         </div>
       ) : null}
 
-      {showEditor ? (
+      {!previewable ? (
+        // Code and plain text: syntax colours underneath, an invisible
+        // textarea on top so the caret, selection and IME all behave.
+        <CodeEditor path={path} text={text} tokens={tokenized?.path === path ? tokenized.lines : null} onChange={change} onKeyDown={editorKeys} />
+      ) : editing ? (
         <textarea
           className="file-viewer-editor"
           value={text}
@@ -235,12 +261,7 @@ function TextViewer({ path }: { path: string }) {
           autoCorrect="off"
           aria-label={path}
           onChange={event => change(event.target.value)}
-          onKeyDown={event => {
-            if (!(event.ctrlKey || event.metaKey)) return;
-            const key = event.key.toLowerCase();
-            if (key === 'z' && !event.shiftKey) { event.preventDefault(); step(-1); }
-            else if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); step(1); }
-          }}
+          onKeyDown={editorKeys}
         />
       ) : markdown ? (
         <div className="file-viewer-markdown" role="document" aria-label={path}>
@@ -255,3 +276,51 @@ function TextViewer({ path }: { path: string }) {
   );
 }
 
+/** Highlighted read-only layer + transparent textarea on top. Both layers use
+ *  the same font metrics and integer line-height, so the caret sits exactly on
+ *  the coloured glyphs; scrolling the textarea translates the layer behind. */
+function CodeEditor({ path, text, tokens, onChange, onKeyDown }: {
+  path: string;
+  text: string;
+  tokens: LineTokens[] | null;
+  onChange: (value: string) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+}) {
+  const highlight = useRef<HTMLDivElement>(null);
+  const rows = tokens ?? text.split('\n').map(line => [{ content: line, color: undefined }]);
+  return (
+    <div className="file-viewer-edit">
+      <div className="file-viewer-highlight" aria-hidden="true">
+        <div className="file-viewer-highlight-inner" ref={highlight}>
+          {rows.map((line, index) => (
+            <div className="file-viewer-row" key={index}>
+              <span className="file-viewer-lineno">{index + 1}</span>
+              <span className="file-viewer-line">
+                {line.length ? line.map((token, i) => (
+                  <span key={i} style={token.color ? { color: token.color } : undefined}>{token.content}</span>
+                )) : '\u00a0'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <textarea
+        className="file-viewer-input"
+        value={text}
+        spellCheck={false}
+        wrap="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        aria-label={path}
+        onChange={event => onChange(event.target.value)}
+        onKeyDown={onKeyDown}
+        onScroll={event => {
+          const layer = highlight.current;
+          if (!layer) return;
+          const el = event.currentTarget;
+          layer.style.transform = `translate(${-el.scrollLeft}px, ${-el.scrollTop}px)`;
+        }}
+      />
+    </div>
+  );
+}

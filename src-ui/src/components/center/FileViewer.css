@@ -220,3 +220,149 @@
   border: 0;
   background: #ffffff;
 }
+
+/* ── Code editor: highlight layer behind a transparent textarea ────────── */
+.file-viewer-edit {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  line-height: 20px;
+  /* Ligatures would advance differently in the two layers and drift the caret. */
+  font-variant-ligatures: none;
+}
+
+.file-viewer-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.file-viewer-highlight-inner {
+  width: max-content;
+  min-width: 100%;
+  padding: 10px 16px 24px 0;
+  will-change: transform;
+}
+
+.file-viewer-edit .file-viewer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  height: 20px;
+  padding: 0;
+  line-height: 20px;
+}
+.file-viewer-edit .file-viewer-row:hover { background: transparent; }
+.file-viewer-edit .file-viewer-lineno {
+  flex: 0 0 46px;
+  width: 46px;
+  min-width: 46px;
+  padding-right: 0;
+  line-height: 20px;
+  text-align: right;
+}
+.file-viewer-edit .file-viewer-line {
+  white-space: pre;
+  line-height: 20px;
+  tab-size: 2;
+}
+
+.file-viewer-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  /* 46px gutter + 10px gap lines the caret up with the coloured glyphs. */
+  padding: 10px 16px 24px 56px;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: auto;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-1);
+  font: inherit;
+  line-height: 20px;
+  letter-spacing: normal;
+  tab-size: 2;
+  white-space: pre;
+  font-variant-ligatures: none;
+}
+.file-viewer-input::selection {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* ── Code editor: highlight layer behind a transparent textarea ────────── */
+.file-viewer-edit {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  line-height: 20px;
+  /* Ligatures would advance differently in the two layers and drift the caret. */
+  font-variant-ligatures: none;
+}
+
+.file-viewer-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.file-viewer-highlight-inner {
+  width: max-content;
+  min-width: 100%;
+  padding: 10px 16px 24px 0;
+  will-change: transform;
+}
+
+.file-viewer-edit .file-viewer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  height: 20px;
+  padding: 0;
+  line-height: 20px;
+}
+.file-viewer-edit .file-viewer-row:hover { background: transparent; }
+.file-viewer-edit .file-viewer-lineno {
+  flex: 0 0 46px;
+  width: 46px;
+  min-width: 46px;
+  padding-right: 0;
+  line-height: 20px;
+  text-align: right;
+}
+.file-viewer-edit .file-viewer-line {
+  white-space: pre;
+  line-height: 20px;
+  tab-size: 2;
+}
+
+.file-viewer-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  /* 46px gutter + 10px gap lines the caret up with the coloured glyphs. */
+  padding: 10px 16px 24px 56px;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: auto;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-1);
+  font: inherit;
+  line-height: 20px;
+  letter-spacing: normal;
+  tab-size: 2;
+  white-space: pre;
+  font-variant-ligatures: none;
+}
+.file-viewer-input::selection {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
