@@ -11,10 +11,9 @@
 
 import { useEffect } from 'react';
 import { commands, isTauri } from '../../tauri';
-import { useAppState, useAppDispatch, schemeLabels } from '../../store/app-state';
+import { useAppState, useAppDispatch } from '../../store/app-state';
 import { IS_MACOS } from '../../lib/platform';
 import { useT } from '../../i18n/useT';
-import { isConversationSession } from '../../lib/chat-tools';
 import './TitleBar.css';
 
 export function TitleBar() {
@@ -22,10 +21,6 @@ export function TitleBar() {
   const dispatch = useAppDispatch();
   const t = useT();
 
-  // The active scheme's three combos, shown as persistent hints on the left /
-  // Gambit / right buttons — a deliberate memory hook for the product's
-  // signature one-hand shortcuts (left=Q · Gambit=W · right=E by default).
-  const hk = schemeLabels(state.hotkeyScheme);
   // ⌘, (Ctrl+, elsewhere) opens and closes settings, as in most desktop apps.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -49,10 +44,6 @@ export function TitleBar() {
   // column visibly squish-then-rebound (or expand-then-shrink) on every
   // toggle. Removing the window-edge move trades a non-standard "trim
   // collapsed window" effect for zero flicker — the right call.
-  const activeTab = state.terminals.find(t => t.id === state.activeTerminalId);
-  const claudeComposerLocked = isConversationSession(activeTab) && !state.agentPageActive && !state.fileTabActive;
-  const gambitOpen = claudeComposerLocked || state.gambitOpen;
-
   // Drag is wired as a single JS path: mousedown anywhere on the bar (except
   // on a child <button>) calls `startDragging()`, double-click toggles
   // maximize. We previously set both `data-tauri-drag-region` and
@@ -113,35 +104,9 @@ export function TitleBar() {
           "crossed-lines" look the user flagged. Active signal still travels
           via .is-active background only. */}
       <div className="titlebar-layout-toggles" data-toggle-display={state.titlebarToggleDisplay}>
-        {/* Left panel · Gambit · right panel — the three hinted chrome toggles,
-            adjacent with Gambit in the MIDDLE so the row mirrors the screen
-            (left panel on the left, right on the right) and the default Alt+QWE
-            keys read left-to-right. */}
-        {/* The side-panel toggles live at the centre pane's edges now
-            (PanelEdgeHandle); the titlebar keeps only Gambit plus hotkeys. */}
-        {/* Gambit compose (middle) — always visible even when the left panel is
-            hidden. Keyboard glyph; open state reads from the .is-active bg, so
-            no need to swap the icon to an X. */}
-        <button
-          className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted${gambitOpen ? ' is-active' : ''}`}
-          onClick={() => dispatch({ type: 'TOGGLE_GAMBIT' })}
-          disabled={claudeComposerLocked}
-          aria-label={`Gambit compose (${hk.gambit})`}
-          aria-pressed={gambitOpen}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="2" />
-            <path d="M6 8h.001" />
-            <path d="M10 8h.001" />
-            <path d="M14 8h.001" />
-            <path d="M18 8h.001" />
-            <path d="M8 12h.001" />
-            <path d="M12 12h.001" />
-            <path d="M16 12h.001" />
-            <path d="M7 16h10" />
-          </svg>
-          <span className="titlebar-hotkey-hint">{hk.gambit}</span>
-        </button>
+        {/* The panel toggles and the Gambit compose switch no longer live in
+            the titlebar: the side panels open from PanelEdgeHandle at the
+            centre pane's edges, and Gambit keeps its Alt+W hotkey only. */}
         {/* The right-panel toggle moved to a hover strip on the centre pane's
             right edge (RightPanelReveal), so the chrome group stays short. */}
         {/* Personalization settings — gear opens the consolidated modal that

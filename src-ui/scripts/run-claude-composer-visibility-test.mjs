@@ -57,23 +57,22 @@ function buttons(node) {
   if (!node || typeof node !== 'object') return [];
   return [...(node.type === 'button' ? [node] : []), ...(node.children ?? []).flat(Infinity).flatMap(buttons)];
 }
-const toggle = () => buttons(titlebar()).find(b => b.props['aria-label']?.startsWith('Gambit compose'));
+// The titlebar no longer carries a Gambit switch; the composer is driven by
+// the Alt+W hotkey / reducer alone, so these checks dispatch it directly.
+const toggleGambit = () => { state = reducer(state, { type: 'TOGGLE_GAMBIT' }); };
 for (const preference of [false, true]) {
   state = { terminals, activeTerminalId: 'claude', gambitOpen: preference, agentPageActive: null, diffTabActive: false };
   assert.equal(host().type, 'gambit', 'Claude always has its input, including a previously closed preference');
-  assert.equal(toggle().props.disabled, true);
-  assert.equal(toggle().props['aria-pressed'], true);
   const before = state;
-  toggle().props.onClick();
-  assert.equal(state, before, 'titlebar toggle cannot close Claude or change the terminal preference');
+  toggleGambit();
+  assert.equal(state, before, 'the hotkey cannot close Claude or change the terminal preference');
   host().props.onClose();
   assert.equal(state, before, 'composer close cannot close Claude');
   state = reducer(state, { type: 'TOGGLE_GAMBIT' });
   assert.equal(state, before, 'hotkey uses the same guarded reducer');
   state = { ...state, activeTerminalId: 'terminal' };
   assert.equal(!!host(), preference, 'switching to a terminal restores its existing preference');
-  assert.equal(toggle().props.disabled, false);
-  toggle().props.onClick();
+  toggleGambit();
   assert.equal(state.gambitOpen, !preference);
   assert.equal(!!host(), !preference);
   console.log(`OK: Claude is always open and ordinary terminal preference ${preference} survives tab switches`);
@@ -81,8 +80,7 @@ for (const preference of [false, true]) {
 for (const surface of [{ agentPageActive: 'agent' }, { diffTabActive: true }]) {
   state = { terminals, activeTerminalId: 'claude', gambitOpen: false, agentPageActive: null, diffTabActive: false, ...surface };
   assert.equal(host(), null, 'hidden Claude does not mount an extra composer on another surface');
-  assert.equal(toggle().props.disabled, false);
-  toggle().props.onClick();
+  toggleGambit();
   assert.equal(state.gambitOpen, true, 'other surfaces retain their existing toggle behavior');
 }
 state = { terminals, activeTerminalId: null, gambitOpen: false };
@@ -91,8 +89,7 @@ console.log('OK: Agent, diff and no-tab surfaces retain their existing behavior'
 
 state = { terminals: [{ id: 'native', tool: 'claude', claudeMode: 'terminal' }], activeTerminalId: 'native', gambitOpen: false };
 assert.equal(host(), null, 'native Claude terminal can keep Gambit closed');
-assert.equal(toggle().props.disabled, false);
-toggle().props.onClick();
+toggleGambit();
 assert.equal(host().props.claude, false, 'native Claude uses ordinary terminal compose controls');
 assert.equal(Object.hasOwn(host().props, 'canUseChat'), false, 'native Claude has no retired view switch');
 console.log('OK: native Claude terminal retains its ordinary composer controls and toggle');
@@ -129,7 +126,8 @@ console.log('OK: existing Codex/Kimi/other tool tabs retain CLI routing');
 for (const preference of [false, true]) {
   state = { terminals: [{ id: 'codex-desktop', tool: 'codex', codexMode: 'conversation' }], activeTerminalId: 'codex-desktop', gambitOpen: preference, agentPageActive: null, diffTabActive: false };
   assert.equal(host().props.codex, true);
-  assert.equal(toggle().props.disabled, true);
+  toggleGambit();
+  assert.equal(state.gambitOpen, preference, 'conversation tabs cannot close the composer');
   const before = state;
   state = reducer(state, { type: 'TOGGLE_GAMBIT' });
   assert.equal(state, before);
@@ -145,7 +143,8 @@ for (const codexMode of ['conversation', 'terminal']) {
 console.log('OK: Codex conversation uses its own backend, keeps its composer and retains mode on reconnect');
 state = { terminals: [{ id: 'opencode-desktop', tool: 'opencode', opencodeMode: 'conversation' }], activeTerminalId: 'opencode-desktop', gambitOpen: false, agentPageActive: null, diffTabActive: false };
 assert.equal(host().props.opencode, true, 'OpenCode conversations always have their composer');
-assert.equal(toggle().props.disabled, true);
+toggleGambit();
+assert.equal(state.gambitOpen, false, 'conversation tabs cannot close the composer');
 assert.equal(await host().props.onSend('OpenCode prompt'), true);
 assert.deepEqual(openCodeSends.at(-1), { id: 'opencode-desktop', text: 'OpenCode prompt' });
 assert.equal(terminalSends.some(send => send.id === 'opencode-desktop'), false);
@@ -161,7 +160,8 @@ state = { terminals: [{ id: 'pi-desktop', tool: 'pi', piMode: 'conversation' }],
 assert.equal(host().props.pi, true, 'Pi conversations always have their composer');
 assert.equal(host().props.worktreeControl?.type, 'worktree-control', 'Pi conversations offer the worktree switch');
 assert.equal(host().props.worktreeControl.props.key, 'worktree:pi-desktop', 'the switch is keyed to the Pi tab');
-assert.equal(toggle().props.disabled, true);
+toggleGambit();
+assert.equal(state.gambitOpen, false, 'conversation tabs cannot close the composer');
 assert.equal(await host().props.onSend('Pi prompt'), true);
 assert.deepEqual(piSends.at(-1), { id: 'pi-desktop', text: 'Pi prompt' });
 assert.equal(terminalSends.some(send => send.id === 'pi-desktop'), false);
@@ -177,7 +177,8 @@ for (const preference of [false, true]) {
   state = { terminals: [{ id: 'dsh-desktop', tool: 'dsh' }], activeTerminalId: 'dsh-desktop', gambitOpen: preference, agentPageActive: null, diffTabActive: false };
   assert.equal(host().type, 'gambit', 'DeepSeek Harness always has its composer');
   assert.equal(host().props.dsh, true);
-  assert.equal(toggle().props.disabled, true);
+  toggleGambit();
+  assert.equal(state.gambitOpen, preference, 'conversation tabs cannot close the composer');
   assert.equal(await host().props.onSend('/compact'), true);
   assert.deepEqual(dshSends.at(-1), { id: 'dsh-desktop', text: '/compact' });
   assert.equal(terminalSends.some(send => send.id === 'dsh-desktop'), false, 'no PTY path exists for DeepSeek Harness');
