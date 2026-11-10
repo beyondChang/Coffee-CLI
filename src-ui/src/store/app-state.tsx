@@ -324,6 +324,12 @@ type Action =
 /** The "new session" launchpad is a tab whose tool has not been chosen yet.
  *  It owns the whole workspace: no side panel, no compose box. */
 export function isLaunchpadActive(state: AppState): boolean {
+  // A Coffee Agent / file / utility page takes over the centre column while
+  // the untouched chooser stays the active terminal behind it. Only suppress
+  // panels when the chooser is what the user is actually looking at —
+  // otherwise its right-panel handle disappears and TOGGLE_RIGHT_PANEL is
+  // ignored, making the right panel unreachable on those pages.
+  if (state.agentPageActive || state.fileTabActive || state.usageOpen || state.toolSettingsOpen || state.automationsOpen) return false;
   const session = state.terminals.find(tab => tab.id === state.activeTerminalId);
   return !!session && session.tool === null;
 }
