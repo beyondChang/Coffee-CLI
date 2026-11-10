@@ -131,3 +131,51 @@
   color: var(--text-3);
   font-size: var(--type-body);
 }
+
+/* ── Image preview ─────────────────────────────────────────────────────── */
+.file-viewer.is-image {
+  background: var(--bg-app);
+  overflow: auto;
+}
+
+.file-viewer-image-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.file-viewer-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* ── Image preview ─────────────────────────────────────────────────────── */
+.file-viewer.is-image {
+  background: var(--bg-app);
+  overflow: auto;
+}
+
+.file-viewer-image-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.file-viewer-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
+  image-rendering: -webkit-optimize-contrast;
+}

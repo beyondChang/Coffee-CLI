@@ -27,8 +27,37 @@ interface Loaded { path: string; text: string | null; failed: boolean }
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 const isMarkdown = (path: string) => /\.(md|markdown|mdx)$/i.test(path);
+const isImage = (path: string) => /\.(png|jpe?g|gif|webp|bmp|svg|ico|avif)$/i.test(path);
+
+/** Images have no text to tokenize, so they get their own surface. */
+function ImageViewer({ path }: { path: string }) {
+  const t = useT();
+  const [url, setUrl] = useState('');
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('@tauri-apps/api/core')
+      .then(({ convertFileSrc }) => { if (!cancelled) setUrl(convertFileSrc(path)); })
+      .catch(() => { if (!cancelled) setUrl('file:///' + path.replace(/\\/g, '/')); });
+    return () => { cancelled = true; };
+  }, [path]);
+
+  if (failed) return <div className="file-viewer-status" role="alert">{t('file.error')}</div>;
+  return (
+    <div className="file-viewer is-image">
+      <div className="file-viewer-image-stage">
+        {url && <img className="file-viewer-image" src={url} alt={path.replace(/\\/g, '/').split('/').pop() ?? path} onError={() => setFailed(true)} />}
+      </div>
+    </div>
+  );
+}
 
 export function FileViewer({ path }: { path: string }) {
+  return isImage(path) ? <ImageViewer path={path} /> : <TextViewer path={path} />;
+}
+
+function TextViewer({ path }: { path: string }) {
   const t = useT();
   // Keyed by path so a new file shows the loading state without an extra
   // effect-only reset (and never flashes the previous file's contents).
