@@ -135,22 +135,28 @@
 /* ── Image preview ─────────────────────────────────────────────────────── */
 .file-viewer.is-image {
   background: var(--bg-app);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .file-viewer-image-stage {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
+.file-viewer-image-stage.is-zoomed { cursor: zoom-out; }
 
 .file-viewer-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+  transform-origin: center center;
+  will-change: transform;
   border-radius: var(--radius-sm, 4px);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
   image-rendering: -webkit-optimize-contrast;
@@ -159,22 +165,28 @@
 /* ── Image preview ─────────────────────────────────────────────────────── */
 .file-viewer.is-image {
   background: var(--bg-app);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .file-viewer-image-stage {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
+.file-viewer-image-stage.is-zoomed { cursor: zoom-out; }
 
 .file-viewer-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+  transform-origin: center center;
+  will-change: transform;
   border-radius: var(--radius-sm, 4px);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
   image-rendering: -webkit-optimize-contrast;

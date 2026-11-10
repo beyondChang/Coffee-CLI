@@ -30,24 +30,59 @@ const isMarkdown = (path: string) => /\.(md|markdown|mdx)$/i.test(path);
 const isImage = (path: string) => /\.(png|jpe?g|gif|webp|bmp|svg|ico|avif)$/i.test(path);
 
 /** Images have no text to tokenize, so they get their own surface. */
+const ZOOM_MIN = 0.15;
+const ZOOM_MAX = 8;
+
 function ImageViewer({ path }: { path: string }) {
   const t = useT();
   const [url, setUrl] = useState('');
   const [failed, setFailed] = useState(false);
+  const [zoom, setZoom] = useState({ scale: 1, x: 0, y: 0 });
+  const stageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setZoom({ scale: 1, x: 0, y: 0 });
     import('@tauri-apps/api/core')
       .then(({ convertFileSrc }) => { if (!cancelled) setUrl(convertFileSrc(path)); })
       .catch(() => { if (!cancelled) setUrl('file:///' + path.replace(/\\/g, '/')); });
     return () => { cancelled = true; };
   }, [path]);
 
+  // Wheel zooms around the pointer. Native (non-passive) listener so the
+  // gesture can't also scroll the pane, and the anchor keeps the pixel under
+  // the cursor in place instead of drifting toward the centre.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = stage.getBoundingClientRect();
+      const px = event.clientX - (rect.left + rect.width / 2);
+      const py = event.clientY - (rect.top + rect.height / 2);
+      setZoom(prev => {
+        const scale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, prev.scale * Math.exp(-event.deltaY * 0.0015)));
+        const ratio = scale / prev.scale;
+        return { scale, x: px - (px - prev.x) * ratio, y: py - (py - prev.y) * ratio };
+      });
+    };
+    stage.addEventListener('wheel', onWheel, { passive: false });
+    return () => stage.removeEventListener('wheel', onWheel);
+  }, []);
+
   if (failed) return <div className="file-viewer-status" role="alert">{t('file.error')}</div>;
   return (
     <div className="file-viewer is-image">
-      <div className="file-viewer-image-stage">
-        {url && <img className="file-viewer-image" src={url} alt={path.replace(/\\/g, '/').split('/').pop() ?? path} onError={() => setFailed(true)} />}
+      <div className={`file-viewer-image-stage${zoom.scale !== 1 ? ' is-zoomed' : ''}`} ref={stageRef}>
+        {url && (
+          <img
+            className="file-viewer-image"
+            src={url}
+            alt={path.replace(/\\/g, '/').split('/').pop() ?? path}
+            style={{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` }}
+            onError={() => setFailed(true)}
+          />
+        )}
       </div>
     </div>
   );
