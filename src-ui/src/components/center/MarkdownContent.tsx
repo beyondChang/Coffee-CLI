@@ -6,6 +6,7 @@ import { tokenizeByLang, getShikiTheme, type LineTokens } from '../../lib/shiki'
 import { useDataAttr } from '../../lib/use-data-attr';
 import { commands } from '../../tauri';
 import { ConversationDirectory, conversationLink, findPaths } from '../../lib/conversation-links';
+import { useAppDispatch } from '../../store/app-state';
 import { linkifyBareUrls, wrapEmphasizedUrls } from '../../lib/markdown-emphasis-links';
 
 function CodeBlock({ code, lang }: { code: string; lang: string | null }) {
@@ -34,20 +35,24 @@ function CodeBlock({ code, lang }: { code: string; lang: string | null }) {
   );
 }
 
-/** Inline code that is exactly a file path shows it in the file manager. Clicking never runs it: the path may be a program. */
+/** Inline code that is exactly a file path opens that file in a centre tab.
+ *  Paths are always resolved before opening, and clicking never runs the file:
+ *  it may be a program. */
 function InlineCode({ children, ...props }: ComponentProps<'code'>) {
   const cwd = useContext(ConversationDirectory);
+  const dispatch = useAppDispatch();
   const text = String(children), [path] = findPaths(text);
   const link = path && path.start === 0 && path.end === text.length ? conversationLink(text, cwd) : null;
   if (!link?.local) return <code className="md-inline-code" {...props}>{children}</code>;
   return <code className="md-inline-code" {...props}><a href={link.target} data-conversation-target={link.target} data-conversation-local="true" onClick={event => {
     event.preventDefault(); event.stopPropagation();
-    void commands.showInFolder(link.target).catch(error => console.warn('[Markdown] failed to reveal file', link.target, error));
+    dispatch({ type: 'OPEN_FILE', file: { path: link.target, name: link.target.replace(/\\/g, '/').split('/').pop() ?? link.target, folderPath: cwd ?? '' } });
   }}>{children}</a></code>;
 }
 
 function MarkdownLink({ children, href, ...props }: ComponentProps<'a'>) {
   const cwd = useContext(ConversationDirectory);
+  const dispatch = useAppDispatch();
   const link = conversationLink(href ?? '', cwd);
   return (
     <a
@@ -61,6 +66,12 @@ function MarkdownLink({ children, href, ...props }: ComponentProps<'a'>) {
         event.preventDefault();
         if (!link) return;
         event.stopPropagation();
+        // Local file links open in a viewer tab like inline paths; only
+        // http(s) / mailto go to the system handler.
+        if (link.local) {
+          dispatch({ type: 'OPEN_FILE', file: { path: link.target, name: link.target.replace(/\\/g, '/').split('/').pop() ?? link.target, folderPath: cwd ?? '' } });
+          return;
+        }
         void commands.openUrl(link.target).catch(error => {
           console.warn('[Markdown] failed to open link', link.target, error);
         });
