@@ -197,7 +197,7 @@ export function App() {
   const orchestration = useOrchestration();
   useSessionReplyVisibility(state);
   const activeTabId = state.agentPageActive ? `agent:${state.agentPageActive}`
-    : state.diffTabActive ? 'diff' : state.activeTerminalId;
+    : state.fileTabActive ? 'diff' : state.activeTerminalId;
   // Resolved half of the palette (index.html sets it pre-paint, the effect
   // below keeps it current) — re-renders us when follow-system flips.
   const resolvedMode = useDataAttr('data-mode');

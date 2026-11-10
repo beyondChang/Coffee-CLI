@@ -1,0 +1,22 @@
+/* RightPanel.css — tab strip and hosts for the right workspace panel. */
+
+.compiler-top.changes-board { min-height: 0; padding: 0; }
+.right-panel-workbench { --font: var(--font-nav); font-family: var(--font); container-type: inline-size; }
+
+.right-task-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.right-task-host[hidden] { display: none; }
+.right-task-host .task-board { padding: 10px 10px 16px; }
+
+.changes-title { display: flex; align-items: stretch; gap: 22px; min-height: 43px; padding: 0 14px; color: var(--text-1); font-size: var(--type-body); font-weight: 500; flex-shrink: 0; }
+.changes-title > button { display: flex; align-items: center; gap: 7px; position: relative; padding: 10px 0; color: var(--text-2); font: inherit; font-weight: 400; background: none; border: 0; white-space: nowrap; }
+.changes-title > button[aria-selected="true"] { color: var(--text-1); font-weight: 500; }
+.changes-title > button[aria-selected="true"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); border-radius: 2px; }
+.changes-title > button:disabled { opacity: .45; }
+.changes-title-count { color: var(--text-3); font-size: var(--type-body); font-variant-numeric: tabular-nums; }
+.right-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+@container (max-width: 300px) {
+  .right-panel-workbench .changes-title { gap: 8px; padding-inline: 8px; font-size: var(--type-body); }
+  .right-panel-workbench .changes-title > button { min-width: 0; flex: 1; justify-content: center; }
+  .right-panel-workbench .changes-title-count { flex-shrink: 0; font-size: var(--type-label); }
+}

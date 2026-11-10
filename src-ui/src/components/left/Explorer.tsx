@@ -20,9 +20,9 @@ import './Explorer.css';
 import { fetchLatestManifest, isNewerVersion } from '../../lib/update-manifest';
 
 
-// Snapshot lifecycle and the `+N -M` map live in lib/file-stats.tsx so the
-// right-side ChangesBoard can read the same data when the left panel is
-// collapsed. Explorer is now a pure consumer.
+// Snapshot lifecycle and the `+N -M` map live in lib/git-status.tsx so every
+// tree consumer (the right panel's file tree) shares one poll. Explorer is a
+// pure consumer.
 const normPath = (p: string) => p.replace(/\\/g, '/');
 
 // ─── Context Menu ────────────────────────────────────────────────────────────
@@ -34,9 +34,9 @@ export interface CtxMenuState {
   relativePath: string;
   isDir?: boolean;
   onRename?: () => void;
-  // ChangesBoard reuses this menu read-only — the audit view shouldn't
-  // mutate the agent's just-edited files. Hides cut/copy/paste/rename/delete
-  // + the relative-path entry.
+  // Read-only callers (diff or preview surfaces) pass compact — the audit
+  // view shouldn't mutate the agent's just-edited files. Hides
+  // cut/copy/paste/rename/delete + the relative-path entry.
   compact?: boolean;
 }
 
@@ -488,10 +488,7 @@ export function BrowserFileNode({ entry, parentDirPath, onCtxMenu }: {
       className={`tree-file ${renaming ? 'renaming' : ''}`}
       onClick={() => {
         if (renaming) return;
-        dispatch({ type: 'SET_DIFF_SELECTION', selection: {
-          path: entry.path, repoRoot: parentDirPath, folderPath: parentDirPath,
-          rel: entry.name, kind: 'file', fileSize: entry.size,
-        } });
+        dispatch({ type: 'OPEN_FILE', file: { path: entry.path, name: entry.name, folderPath: parentDirPath } });
       }}
       onContextMenu={handleCtxMenu}
       onMouseDown={onFileMouseDown}

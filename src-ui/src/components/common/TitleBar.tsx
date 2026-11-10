@@ -52,7 +52,7 @@ export function TitleBar() {
   const toggleLeft  = () => dispatch({ type: 'TOGGLE_LEFT_PANEL' });
   const toggleRight = () => dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
   const activeTab = state.terminals.find(t => t.id === state.activeTerminalId);
-  const claudeComposerLocked = isConversationSession(activeTab) && !state.agentPageActive && !state.diffTabActive;
+  const claudeComposerLocked = isConversationSession(activeTab) && !state.agentPageActive && !state.fileTabActive;
   const gambitOpen = claudeComposerLocked || state.gambitOpen;
 
   // Drag is wired as a single JS path: mousedown anywhere on the bar (except

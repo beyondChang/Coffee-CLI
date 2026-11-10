@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useLayoutEffect, useRef, useMemo, useSyncExternalStore } from 'react';
+import { Fragment, useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { AutomationsPage } from './AutomationsPage';
 import { addProjectFolder, getProjectFolders, removeProjectFolder, subscribeProjectFolders } from '../../lib/project-folders';
 import { createPortal } from 'react-dom';
@@ -23,7 +23,7 @@ import { SessionSplitDividers } from './SessionSplitDividers';
 import { sessionSplitRects, splitSessionIds } from '../../lib/session-split-layout';
 import { ToolConfigModal } from './ToolConfigModal';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import { DiffPanel } from '../right/DiffPanel';
+import { FileViewer } from './FileViewer';
 import { getTabOrder, supportsAgentStatus, useAppState, type ClaudeMode, type ToolType } from '../../store/app-state';
 import { isFrostShape } from '../../lib/personalization';
 import { isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation } from '../../lib/chat-tools';
@@ -367,26 +367,19 @@ export function CenterPanel() {
   const t = useT();
   const terminals = state.terminals;
   const activeTerminalId = state.activeTerminalId;
-  // Diff tab surface: visible only in tab mode with a selection. The diff
-  // chrome-tab sits in the strip beside terminal tabs; diffTabActive tracks
-  // whether it (not a terminal tab) is the focused surface.
-  const diffTabVisible = state.diffMode === 'tab' && state.diffSelection !== null;
-  const diffTabActive = state.diffTabActive;
+  // File tab: the read-only viewer opened from the right panel's 文件 tree.
+  // Its chrome-tab sits in the strip beside terminal tabs; fileTabActive
+  // tracks whether it (not a terminal tab) is the focused surface.
+  const openFile = state.openFile;
+  const fileTabActive = state.fileTabActive;
   const agentPageActive = state.agentPageActive;
   const usageOpen = state.usageOpen;
   const utilityPageOpen = usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen;
-  const contentActive = !utilityPageOpen && !diffTabActive && !agentPageActive;
+  const contentActive = !utilityPageOpen && !fileTabActive && !agentPageActive;
   const splitIds = splitSessionIds(state.sessionSplit);
   const splitVisible = contentActive && splitIds.length > 1 && splitIds.includes(activeTerminalId ?? '');
   const splitRects = splitVisible ? sessionSplitRects(state.sessionSplit!).leaves : [];
   const closeSplitLabel = t('split.close_pane');
-  // Diff tab title = basename of the selected file (mirrors DiffPanel's own
-  // header name). Computed here so the chrome-tab strip shows it without
-  // mounting the DiffPanel body.
-  const diffTabTitle = useMemo(() => {
-    const p = state.diffSelection?.path ?? '';
-    return p.replace(/\\/g, '/').split('/').pop() || p || (t('task.tab.changes') || 'Diff');
-  }, [state.diffSelection?.path, t]);
 
   const [toolsInstalled, setToolsInstalled] = useState<Record<string, boolean>>({});
   // Per-tool launch override modal (gear icon → opens settings for that tool).
@@ -1311,30 +1304,27 @@ export function CenterPanel() {
         });
         })()}
 
-        {/* Diff tab — a peer of the terminal tabs in the strip, but not a
-            PTY. Visible only in tab mode with a selection. Clicking it
-            focuses the diff surface (SET_DIFF_TAB_ACTIVE); its X clears the
-            diff entirely. No status-grid (diff has no agent state). */}
-        {diffTabVisible && (
+        {/* File tab — a peer of the terminal tabs in the strip, but not a
+            PTY. Clicking it focuses the viewer (SET_FILE_TAB_ACTIVE); its X
+            closes the file. No status-grid (a file has no agent state). */}
+        {openFile && (
           <div
-            className={`chrome-tab ${diffTabActive && !utilityPageOpen ? 'active' : ''}`}
-            onClick={() => dispatch({ type: 'SET_DIFF_TAB_ACTIVE', active: true })}
+            className={`chrome-tab ${fileTabActive && !utilityPageOpen ? 'active' : ''}`}
+            onClick={() => dispatch({ type: 'SET_FILE_TAB_ACTIVE', active: true })}
           >
-            {/* Diff tab glyph: a document with text lines — reads as "file
-                content view" (the diff is a read-only file viewer), in the
-                same icon family as the terminal/tool tabs. currentColor so
-                it follows the theme like the other tab icons. */}
+            {/* Same document glyph as the other file surfaces, so the tab
+                reads as "file content" at a glance. */}
             <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
               <line x1="8" y1="13" x2="16" y2="13"/>
               <line x1="8" y1="17" x2="16" y2="17"/>
             </svg>
-            <span className="tab-title" style={{ flex: '0 1 auto', minWidth: 0, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{diffTabTitle}</span>
+            <span className="tab-title" style={{ flex: '0 1 auto', minWidth: 0, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{openFile.name}</span>
             <div className="tab-actions tab-actions--close-only">
               <button
                 className="tab-close-btn close-button"
-                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'CLEAR_DIFF' }); }}
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'CLOSE_FILE' }); }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1425,24 +1415,11 @@ export function CenterPanel() {
         ) : null)}
         {splitVisible && state.sessionSplit && <SessionSplitDividers layout={state.sessionSplit} />}
 
-        {/* Diff tab content — fills the content area when the diff tab is
-            focused. The DiffPanel body handles its own loading/error/too-large
-            states; mode="tab" makes it fill this slot (no portal/backdrop). */}
-        {diffTabVisible && diffTabActive && !utilityPageOpen && state.diffSelection && (
+        {/* File tab content — fills the content area when the file tab is
+            focused. FileViewer handles its own loading / unreadable states. */}
+        {openFile && fileTabActive && !utilityPageOpen && (
           <div className="terminal-wrapper" style={{ display: 'flex', width: '100%', height: '100%', position: 'relative' }}>
-            <DiffPanel
-              mode="tab"
-              path={state.diffSelection.path}
-              repoRoot={state.diffSelection.repoRoot}
-              rel={state.diffSelection.rel}
-              kind={state.diffSelection.kind}
-              fileSize={state.diffSelection.fileSize}
-              commitHash={state.diffSelection.commitHash}
-              onClose={() => dispatch({ type: 'CLEAR_DIFF' })}
-              onToggleExpanded={() => dispatch({ type: 'SET_DIFF_MODE', mode: 'overlay' })}
-              added={state.diffSelection.added}
-              deleted={state.diffSelection.deleted}
-            />
+            <FileViewer path={openFile.path} />
           </div>
         )}
 

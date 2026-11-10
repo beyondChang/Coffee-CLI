@@ -88,7 +88,7 @@ export function createAgentToolExecutor({ stateRef, dispatch, pending, isCancell
       if (request.name === 'terminal_read_scrollback') return session.readScrollback(typeof args.startRow === 'number' ? args.startRow : undefined, typeof args.limit === 'number' ? args.limit : undefined);
       if (request.name === 'sessions_select') {
         dispatch({ type: 'SET_ACTIVE_TERMINAL', id: target.tabId });
-        requestAnimationFrame(() => { if (guard() && stateRef.current.activeTerminalId === target.tabId && !stateRef.current.agentPageActive && !stateRef.current.diffTabActive) focusTerminal(sessionId); });
+        requestAnimationFrame(() => { if (guard() && stateRef.current.activeTerminalId === target.tabId && !stateRef.current.agentPageActive && !stateRef.current.fileTabActive) focusTerminal(sessionId); });
         return { selected: true, ...target };
       }
       if (request.name === 'sessions_close') {

@@ -116,7 +116,7 @@ try {
   await pane('a').click({ position: { x: 35, y: 35 } });
   assert.equal(await page.evaluate(() => window.testState().activeTerminalId), 'a');
   assert.equal(await pane('a').getAttribute('class').then(value => value.includes('is-focused')), true);
-  const activeFolder = await page.evaluate(async () => { const { resolveDiffContext } = await import('/src/store/app-state.tsx'); const state = window.testState(); return resolveDiffContext(state.terminals.find(tab => tab.id === state.activeTerminalId)).folderPath; });
+  const activeFolder = await page.evaluate(async () => { const state = window.testState(); const tab = state.terminals.find(t => t.id === state.activeTerminalId); return tab && tab.tool ? tab.folderPath : null; });
   assert.equal(activeFolder, 'D:/a', 'right-side diff context follows the actual focused session');
   const divider = page.locator('.session-split-divider.is-horizontal').first(), line = await divider.boundingBox();
   await page.mouse.move(line.x + line.width / 2, line.y + 35); await page.mouse.down(); await page.mouse.move(line.x + 100, line.y + 35, { steps: 8 }); await page.mouse.up();

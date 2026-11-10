@@ -4,19 +4,18 @@
 // so polling it constantly — on every fs-refresh while an agent edits files,
 // regardless of whether the panel was even on screen — was the v2.8.7 perf
 // regression (UI lag during heavy agent activity). This provider now:
-//   • polls ONLY while the changes panel is visible (ChangesBoard registers
-//     via useGitPollingGate; hidden tabs deactivate their subscription),
+//   • polls ONLY while the right panel's 文件 tree is on screen (that tree is
+//     the only consumer left: the +/- badges and the dirty-folder tint),
 //   • debounces bursts at 800ms,
 //   • skips the re-render when a poll returns identical data,
 //   • derives a dirty-dirs Set so the Explorer tree's "has a changed
 //     descendant?" test is O(1) instead of scanning the whole change list.
 //
-// Consumers: useGitStatus() (ChangesBoard) · useFileStats() (Explorer badges)
-// · useDirtyDirs() (Explorer folder tinting).
+// Consumers: useFileStats() (tree badges) · useDirtyDirs() (folder tinting).
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useAppState, resolveDiffContext } from '../store/app-state';
+import { useAppState } from '../store/app-state';
 import type { ToolType } from '../store/app-state';
 import { commands, type GitChanges as NativeGitChanges, type GitFileEntry } from '../tauri';
 
@@ -25,30 +24,14 @@ type GitChanges = NativeGitChanges | { state: 'error' };
 export type FileStats = { added: number; deleted: number; mtimeMs: number };
 type FileStatsMap = Map<string, FileStats>;
 
-const GitStatusContext = createContext<GitChanges | null>(null);
 const FileStatsContext = createContext<FileStatsMap | null>(null);
 const DirtyDirsContext = createContext<Set<string>>(new Set());
-const PollGateContext = createContext<(active: boolean) => void>(() => {});
-
-/** Active tab's git working-tree status (no_git / not_repo / ok). */
-export const useGitStatus = () => useContext(GitStatusContext);
 /** Flat path→{added,deleted} map for the Explorer tree badges (git-derived). */
 export const useFileStats = () => useContext(FileStatsContext);
 /** Set of dirs (abs, normalized) containing a changed file — O(1) "has a dirty
  *  descendant?" lookup for the Explorer tree, instead of scanning every change
  *  per folder node. */
 export const useDirtyDirs = () => useContext(DirtyDirsContext);
-/** Called by ChangesBoard while it is mounted (i.e. its tab is visible) so the
- *  expensive git poll only runs when the user is actually looking at it. */
-export function useGitPollingGate(active = true) {
-  const gate = useContext(PollGateContext);
-  useEffect(() => {
-    if (!active) return;
-    gate(true);
-    return () => gate(false);
-  }, [gate, active]);
-}
-
 const CWD_AGNOSTIC_TOOLS: ReadonlySet<ToolType> = new Set<ToolType>([
   'openclaw', 'hermes', 'remote',
 ]);
@@ -98,21 +81,17 @@ function changesSignature(c: GitChanges | null): string {
 export function GitStatusProvider({ children }: { children: ReactNode }) {
   const { state } = useAppState();
   const activeSession = state.terminals.find(t => t.id === state.activeTerminalId);
-  const diffCtx = resolveDiffContext(activeSession);
-  const activeFolderPath = diffCtx?.folderPath ?? null;
-  const activeSessionId = diffCtx?.sessionId ?? null;
-  const activeTool = diffCtx?.tool ?? null;
+  // A session without a tool or a folder has no working tree to inspect.
+  const activeFolderPath = activeSession?.tool ? activeSession.folderPath || null : null;
+  const activeSessionId = activeFolderPath ? activeSession!.id : null;
+  const activeTool = activeFolderPath ? activeSession!.tool : null;
   const cwdAgnostic = !!(activeTool && CWD_AGNOSTIC_TOOLS.has(activeTool));
 
   const [tabChanges, setTabChanges] = useState<Map<string, GitChanges>>(new Map());
 
-  // Poll gate — ChangesBoard (mounted only while its tab is on screen) bumps
-  // this; a counter so React StrictMode's double-mount nets out correctly.
-  const [pollSubscribers, setPollSubscribers] = useState(0);
-  const setPollGate = useCallback((active: boolean) => {
-    setPollSubscribers(n => Math.max(0, n + (active ? 1 : -1)));
-  }, []);
-  const pollEnabled = pollSubscribers > 0;
+  // The tree is the only surface showing this data, so poll while it is on
+  // screen and stay idle otherwise (git_changes spawns several subprocesses).
+  const pollEnabled = !state.rightPanelHidden && state.rightView === 'files';
 
   // Capture the session baseline (current HEAD) for the active folder —
   // cheap (one rev-parse), NOT poll-gated, so it runs at app launch + on tab
@@ -204,7 +183,7 @@ export function GitStatusProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const live = new Set(
       state.terminals
-        .map(t => resolveDiffContext(t)?.sessionId)
+        .map(t => (t.tool && t.folderPath ? t.id : null))
         .filter((s): s is string => !!s),
     );
     setTabChanges(prev => {
@@ -224,14 +203,10 @@ export function GitStatusProvider({ children }: { children: ReactNode }) {
   const dirtyDirs = useMemo(() => deriveDirtyDirs(fileStats), [fileStats]);
 
   return (
-    <PollGateContext.Provider value={setPollGate}>
-      <GitStatusContext.Provider value={activeChanges}>
-        <FileStatsContext.Provider value={fileStats}>
-          <DirtyDirsContext.Provider value={dirtyDirs}>
-            {children}
-          </DirtyDirsContext.Provider>
-        </FileStatsContext.Provider>
-      </GitStatusContext.Provider>
-    </PollGateContext.Provider>
+    <FileStatsContext.Provider value={fileStats}>
+      <DirtyDirsContext.Provider value={dirtyDirs}>
+        {children}
+      </DirtyDirsContext.Provider>
+    </FileStatsContext.Provider>
   );
 }

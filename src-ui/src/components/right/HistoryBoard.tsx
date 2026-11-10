@@ -629,7 +629,7 @@ export function HistoryBoard() {
         const isWorking = owner?.agentStatus === 'working' || Boolean(session.session_token && workingSessions.has(`${session.tool}:${session.session_token}`));
         const needsAttention = owner?.agentStatus === 'wait_input' || Boolean(session.session_token && waitingSessions.has(`${session.tool}:${session.session_token}`));
         const isUnread = !isWorking && !needsAttention && Boolean(session.session_token && unreadReplies.has(sessionReplyKey(session.tool, session.session_token)));
-        const isActive = owner?.id === state.activeTerminalId && !state.agentPageActive && !state.diffTabActive || session.tool === 'coffee-agent' && session.id === activeAgentConversation && state.agentPageActive === 'agent';
+        const isActive = owner?.id === state.activeTerminalId && !state.agentPageActive && !state.fileTabActive || session.tool === 'coffee-agent' && session.id === activeAgentConversation && state.agentPageActive === 'agent';
         const gitStatus = gitStatuses.get(gitStatusKey(sessionGitTarget(session)));
         return (
           <div key={`${sessionKey}:${session.file_path ?? session.saved_at}`} className="history-family">
@@ -732,7 +732,7 @@ export function HistoryBoard() {
             {workers.length > 0 && <div className="history-workers" onPointerDown={event => event.stopPropagation()}>
               {workers.map(task => {
                 const child = state.terminals.find(tab => tab.id === task.sessionId), status = workerState(task, child);
-                return <div key={task.id} data-enter={task.phase === 'starting' || undefined} className={`history-worker${child?.id === state.activeTerminalId && !state.agentPageActive && !state.diffTabActive ? ' is-active' : ''}`} onMouseEnter={event => {
+                return <div key={task.id} data-enter={task.phase === 'starting' || undefined} className={`history-worker${child?.id === state.activeTerminalId && !state.agentPageActive && !state.fileTabActive ? ' is-active' : ''}`} onMouseEnter={event => {
                   if (ctxMenu || searchOpen) return;
                   const rect = event.currentTarget.getBoundingClientRect(), width = Math.min(320, window.innerWidth - 16);
                   setPreview({ key: `worker:${task.id}`, left: Math.max(8, Math.min(rect.right + 8, window.innerWidth - width - 8)), top: Math.max(8, Math.min(rect.top + (rect.height - 72) / 2, window.innerHeight - 80)) });

@@ -98,7 +98,7 @@ export type HotkeyAction = 'left' | 'gambit' | 'right';
 export type TitlebarToggleDisplay = 'icon-hotkey' | 'icon' | 'hidden';
 
 /** Right-panel tabs. 'detail' is derived from the diff selection, not stored. */
-export type RightPanelView = 'tasks' | 'changes' | 'files';
+export type RightPanelView = 'tasks' | 'files';
 
 // Which chrome toggle a keydown maps to under the active scheme, or null. The
 // caller MUST then preventDefault (cancels the macOS Alt-glyph + the control
@@ -242,61 +242,26 @@ export interface AppState {
   // in the settings modal. Default 'list' so existing users see no change.
   taskViewMode: 'list' | 'note' | 'prompt';
 
-  // ── Diff view (修改记录 → click a file) ─────────────────────────────────
-  // The right-side Changes tab shows a half-height bottom overlay (DiffPanel)
-  // when a file is selected. The user can "expand" that diff — historically a
-  // full-screen portal modal that blocked the agent terminal behind it. That
-  // is replaced by a center **diff tab** (peer of the Claude/Codex terminal
-  // tabs): `diffMode` selects which surface the open diff renders on.
-  //   'overlay' = right-bottom half-height (default; existing behavior)
-  //   'tab'     = center tab, full panel area
-  // `diffSelection` carries the snapshot needed to render the diff on either
-  // surface. It is snapshotted from the active terminal tab's folderPath +
-  // the clicked file row at selection time, because a diff tab is not a
-  // terminal and has no own folderPath to dynamically resolveDiffContext.
-  // Persisted preference in `cc-diff-mode`; the selection itself is NOT
-  // persisted (it depends on files open at the time).
-  diffSelection: DiffSelection | null;
-  diffMode: 'overlay' | 'tab';
-  /// True while the center diff tab is the active surface (clicked in the tab
+  // ── File preview (右侧「文件」→ click a file) ───────────────────────────
+  // A clicked file opens as a read-only tab in the centre, a peer of the
+  // terminal tabs. `openFile` holds the snapshot to render (path + name);
+  // `fileTabActive` tracks whether that tab — not a terminal — is focused.
+  // The snapshot is not persisted: it points at files open at the time.
+  openFile: OpenFile | null;
+  /// True while the centre file tab is the active surface (clicked in the tab
   /// strip). Clicking any terminal tab clears it (folded into SET_ACTIVE_TERMINAL).
-  /// Lets the diff tab coexist in the strip with terminal tabs the user can
-  /// switch back to, without diffMode flipping (mode = which surface the diff
-  /// renders on; this = which tab is focused right now).
-  diffTabActive: boolean;
+  fileTabActive: boolean;
   usageOpen: boolean;
   /** The automations page in the centre, one of the full pages like usage. */
   automationsOpen: boolean;
   toolSettingsOpen: boolean;
 }
 
-/// Snapshot of the file the user clicked in ChangesBoard, plus the folderPath
-/// of the terminal tab that was active when they clicked — enough for DiffPanel
-/// to render on either surface without re-resolving against a live terminal.
-export interface DiffSelection {
-  repoRoot: string;
-  folderPath: string;   // active terminal tab's cwd at snapshot time (tab title only)
+/// A file the user opened from the workspace tree, rendered in the centre.
+export interface OpenFile {
   path: string;         // absolute on-disk path
-  rel: string;          // repo-relative path for git specs
-  kind: 'uncommitted' | 'untracked' | 'committed' | 'file';
-  fileSize?: number;    // Explorer's size hint, before reading a file preview
-  commitHash?: string;
-  added?: number;
-  deleted?: number;
-}
-
-// ─── Diff context resolver ──────────────────────────────────────────────────
-// File panels follow the real session focused in either single or split view.
-interface DiffContext {
-  sessionId: string;
-  folderPath: string;
-  tool: ToolType;
-}
-
-export function resolveDiffContext(session: TerminalSession | null | undefined): DiffContext | null {
-  if (!session?.tool) return null;
-  if (!session.folderPath) return null;
-  return { sessionId: session.id, folderPath: session.folderPath, tool: session.tool };
+  name: string;         // basename for the tab title
+  folderPath: string;   // active terminal tab's cwd at open time
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -350,10 +315,9 @@ type Action =
   | { type: 'SET_RIGHT_VIEW'; view: RightPanelView }
   | { type: 'SET_TASK_VIEW_MODE'; mode: 'list' | 'note' | 'prompt' }
   | { type: 'SET_TAB_TITLE'; id: string; title: string }
-  | { type: 'SET_DIFF_SELECTION'; selection: DiffSelection }
-  | { type: 'CLEAR_DIFF' }
-  | { type: 'SET_DIFF_MODE'; mode: 'overlay' | 'tab' }
-  | { type: 'SET_DIFF_TAB_ACTIVE'; active: boolean }
+  | { type: 'OPEN_FILE'; file: OpenFile }
+  | { type: 'CLOSE_FILE' }
+  | { type: 'SET_FILE_TAB_ACTIVE'; active: boolean }
   | { type: 'OPEN_AGENT_PAGE'; page: AgentPage }
   | { type: 'CLOSE_AGENT_PAGE'; page: AgentPage };
 
@@ -376,7 +340,7 @@ function splitForSession(state: AppState, id: string, targetId: string, edge: Sp
 function reducer(state: AppState, action: Action): AppState {
   // Coffee Agent's configuration lives in settings; its old tab opens that section instead.
   if (action.type === 'OPEN_AGENT_PAGE' && action.page === 'config') return { ...state, settingsOpen: true, settingsSection: 'agent', usageOpen: false, toolSettingsOpen: false, automationsOpen: false };
-  if ((state.usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen) && !(action.type === 'LAUNCH_TERMINAL_TOOL' && action.background) && ['ADD_TERMINAL', 'LAUNCH_TERMINAL_TOOL', 'SET_ACTIVE_TERMINAL', 'OPEN_AGENT_PAGE', 'OPEN_SESSION_SPLIT', 'SET_DIFF_SELECTION', 'SET_DIFF_TAB_ACTIVE'].includes(action.type)) state = { ...state, usageOpen: false, toolSettingsOpen: false, settingsOpen: false, automationsOpen: false };
+  if ((state.usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen) && !(action.type === 'LAUNCH_TERMINAL_TOOL' && action.background) && ['ADD_TERMINAL', 'LAUNCH_TERMINAL_TOOL', 'SET_ACTIVE_TERMINAL', 'OPEN_AGENT_PAGE', 'OPEN_SESSION_SPLIT', 'OPEN_FILE', 'SET_FILE_TAB_ACTIVE'].includes(action.type)) state = { ...state, usageOpen: false, toolSettingsOpen: false, settingsOpen: false, automationsOpen: false };
   switch (action.type) {
     case 'SET_USAGE_OPEN':
       return { ...state, usageOpen: action.open, toolSettingsOpen: false, ...(action.open ? { settingsOpen: false, automationsOpen: false } : {}) };
@@ -389,7 +353,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (!session?.tool) return state;
       const layout = splitForSession(state, action.id, action.targetId, action.edge);
       if (!layout || !splitSessionIds(layout).includes(action.id)) return state;
-      return { ...state, sessionSplit: layout, activeTerminalId: action.id, agentPageActive: null, diffTabActive: false,
+      return { ...state, sessionSplit: layout, activeTerminalId: action.id, agentPageActive: null, fileTabActive: false,
         terminals: session.isHidden ? state.terminals.map(t => t.id === session.id ? { ...t, isHidden: false } : t) : state.terminals };
     }
     case 'CLOSE_SESSION_SPLIT': {
@@ -460,7 +424,7 @@ function reducer(state: AppState, action: Action): AppState {
         terminals: existing.isHidden ? state.terminals.map(t => t.id === existing.id ? { ...t, isHidden: false } : t) : state.terminals,
         activeTerminalId: existing.id,
         agentPageActive: null,
-        diffTabActive: false,
+        fileTabActive: false,
       };
       const session = action.session.tool && !action.session.startedAt
         ? { ...action.session, startedAt: Date.now() }
@@ -472,7 +436,7 @@ function reducer(state: AppState, action: Action): AppState {
         tabOrder: [...getTabOrder(state), session.id],
         activeTerminalId: session.id,
         agentPageActive: null,
-        diffTabActive: false,
+        fileTabActive: false,
       };
     }
     case 'LAUNCH_TERMINAL_TOOL': {
@@ -500,7 +464,7 @@ function reducer(state: AppState, action: Action): AppState {
         tabOrder: previous ? state.tabOrder : [...order.slice(0, index), action.id, ...order.slice(index)],
         activeTerminalId: action.background ? state.activeTerminalId : action.id,
         agentPageActive: action.background ? state.agentPageActive : null,
-        diffTabActive: action.background ? state.diffTabActive : false,
+        fileTabActive: action.background ? state.fileTabActive : false,
       };
     }
     case 'RESTORE_WORKER_SESSION': {
@@ -563,10 +527,9 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'SET_ACTIVE_TERMINAL':
-      // Activating a terminal tab blurs the diff tab (they're peer tabs in
-      // the strip; only one is focused at a time). diffMode is untouched —
-      // the diff still renders in its chosen surface, just not focused.
-      return { ...state, activeTerminalId: action.id, diffTabActive: false, agentPageActive: null };
+      // Activating a terminal tab blurs the file tab (they're peer tabs in
+      // the strip; only one is focused at a time).
+      return { ...state, activeTerminalId: action.id, fileTabActive: false, agentPageActive: null };
     case 'SET_TERMINAL_TOOL':
       return {
         ...state,
@@ -621,7 +584,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_DEFAULT_SHELL':
       return { ...state, defaultShell: action.shell };
     case 'TOGGLE_GAMBIT':
-      if (!state.agentPageActive && !state.diffTabActive && isConversationSession(state.terminals.find(t => t.id === state.activeTerminalId))) return state;
+      if (!state.agentPageActive && !state.fileTabActive && isConversationSession(state.terminals.find(t => t.id === state.activeTerminalId))) return state;
       return { ...state, gambitOpen: !state.gambitOpen };
     // Settings covers the whole window; it and the usage and tool settings pages are open one at a time.
     case 'TOGGLE_SETTINGS':
@@ -662,43 +625,27 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'SET_RIGHT_VIEW': {
       try { localStorage.setItem('cc-right-tab', action.view); } catch { /* Best-effort operation; failure is non-fatal. */ }
-      return { ...state, rightView: action.view, rightPanelHidden: false, diffTabActive: false };
+      return { ...state, rightView: action.view, rightPanelHidden: false, fileTabActive: false };
     }
     case 'SET_TASK_VIEW_MODE': {
       try { localStorage.setItem('cc-task-view', action.mode); } catch { /* Best-effort operation; failure is non-fatal. */ }
       return { ...state, taskViewMode: action.mode };
     }
-    case 'SET_DIFF_SELECTION':
-      // In tab mode, selecting a file focuses the diff tab immediately (the
-      // user's pref is the center surface, so a click should show it there,
-      // not just park an unfocused tab in the strip). Overlay mode leaves
-      // diffTabActive alone — the overlay renders regardless of focus.
-      return {
-        ...state,
-        diffSelection: action.selection,
-        rightPanelHidden: state.diffMode === 'overlay' ? false : state.rightPanelHidden,
-        agentPageActive: state.diffMode === 'tab' ? null : state.agentPageActive,
-        diffTabActive: state.diffMode === 'tab' ? true : state.diffTabActive,
-      };
-    case 'CLEAR_DIFF':
-      // Dropping the selection also folds the diff tab: a tab only renders
-      // while diffMode==='tab' && diffSelection. Clearing here covers both
-      // the tab's close button and the overlay's close button.
-      return { ...state, diffSelection: null, diffTabActive: false };
-    case 'SET_DIFF_MODE': {
-      try { localStorage.setItem('cc-diff-mode', action.mode); } catch { /* Best-effort operation; failure is non-fatal. */ }
-      // Entering tab mode focuses the diff tab; leaving blurs it. Keeps the
-      // active-surface tracking in lockstep with the surface the diff is on.
-      return { ...state, diffMode: action.mode, rightPanelHidden: action.mode === 'overlay' ? false : state.rightPanelHidden, diffTabActive: action.mode === 'tab', agentPageActive: action.mode === 'tab' ? null : state.agentPageActive };
-    }
-    case 'SET_DIFF_TAB_ACTIVE':
-      return { ...state, diffTabActive: action.active, agentPageActive: action.active ? null : state.agentPageActive };
+    case 'OPEN_FILE':
+      // Clicking a file opens it straight in the centre and focuses that tab,
+      // so the click reads as "show me this file" rather than parking an
+      // unfocused tab in the strip.
+      return { ...state, openFile: action.file, fileTabActive: true, agentPageActive: null };
+    case 'CLOSE_FILE':
+      return { ...state, openFile: null, fileTabActive: false };
+    case 'SET_FILE_TAB_ACTIVE':
+      return { ...state, fileTabActive: action.active, agentPageActive: action.active ? null : state.agentPageActive };
     case 'OPEN_AGENT_PAGE':
       return {
         ...state,
         agentPages: state.agentPages.includes(action.page) ? state.agentPages : [...state.agentPages, action.page],
         tabOrder: state.agentPages.includes(action.page) ? state.tabOrder : [...getTabOrder(state), `agent:${action.page}`],
-        agentPageActive: action.page, diffTabActive: false,
+        agentPageActive: action.page, fileTabActive: false,
       };
     case 'CLOSE_AGENT_PAGE': {
       const agentPages = state.agentPages.filter(page => page !== action.page);
@@ -883,11 +830,8 @@ function getInitialState(): AppState {
   // 'list', only flipped to 'note' by the TaskBoard first-launch seed — which
   // was fragile (cleared localStorage or a removed seed fell back to list).
   let taskViewMode: 'list' | 'note' | 'prompt' = 'note';
-  // Default 'overlay' (the gentle half-height panel) — existing users see no
-  // change. Only flips to 'tab' if the user explicitly expanded-to-tab before.
-  let diffMode: 'overlay' | 'tab' = 'overlay';
-  // Right-panel tab: 'changes' unless the user last left it on tasks/files.
-  let rightView: RightPanelView = 'changes';
+  // Right-panel tab: 'tasks' unless the user last left it on files.
+  let rightView: RightPanelView = 'tasks';
   // Gambit starts closed unless the user saved an open preference.
   let gambitOpen = false;
   try {
@@ -895,12 +839,10 @@ function getInitialState(): AppState {
     rightPanelHidden = localStorage.getItem('cc-right-hidden') !== '0';
     const savedTaskView = localStorage.getItem('cc-task-view');
     if (savedTaskView === 'list' || savedTaskView === 'note' || savedTaskView === 'prompt') taskViewMode = savedTaskView;
-    const savedDiffMode = localStorage.getItem('cc-diff-mode');
-    if (savedDiffMode === 'tab' || savedDiffMode === 'overlay') diffMode = savedDiffMode;
     const savedRightView = localStorage.getItem('cc-right-tab')
       // Legacy: an older build remembered the task board as a left tab.
       ?? (localStorage.getItem('cc-left-tab') === 'tasks' ? 'tasks' : null);
-    if (savedRightView === 'tasks' || savedRightView === 'changes' || savedRightView === 'files') rightView = savedRightView;
+    if (savedRightView === 'tasks' || savedRightView === 'files') rightView = savedRightView;
     gambitOpen = localStorage.getItem('cc-gambit-open') === '1';
   } catch { /* Best-effort operation; failure is non-fatal. */ }
 
@@ -929,9 +871,8 @@ function getInitialState(): AppState {
     rightPanelHidden,
     rightView,
     taskViewMode,
-    diffSelection: null,
-    diffMode,
-    diffTabActive: false,
+    openFile: null,
+    fileTabActive: false,
     usageOpen: false,
     automationsOpen: false,
     toolSettingsOpen: false,
