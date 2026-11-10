@@ -178,6 +178,22 @@ function TextViewer({ path }: { path: string }) {
     return () => window.clearTimeout(timer);
   }, [buffer, current?.text, path]);
 
+  // "已保存" is a receipt, not a state: it fades after a few seconds. Errors
+  // stay on screen until the next keystroke.
+  useEffect(() => {
+    if (saveState !== 'saved') return;
+    const timer = window.setTimeout(() => setSaveState('idle'), 3000);
+    return () => window.clearTimeout(timer);
+  }, [saveState]);
+
+  // "已保存" is a receipt, not a state: it fades after a few seconds. Errors
+  // stay on screen until the next keystroke.
+  useEffect(() => {
+    if (saveState !== 'saved') return;
+    const timer = window.setTimeout(() => setSaveState('idle'), 3000);
+    return () => window.clearTimeout(timer);
+  }, [saveState]);
+
   // Flush an edit that is still waiting for its pause when the tab closes.
   useEffect(() => () => {
     const job = pending.current;
