@@ -490,6 +490,13 @@ export const zhTW = {
   'gambit.worktree_detached': "主目錄不在任何分支上，請先切換到要合併的分支",
   'gambit.worktree_merge_failed': '合併失敗：{error}',
   'gambit.send_empty_hint': '先輸入內容或貼上圖片 (Ctrl+V)',
+  'gambit.voice': '語音輸入',
+  'gambit.voice_stop': '停止錄音',
+  'gambit.voice_failed_hint': '語音輸入不可用',
+  'gambit.voice_cancel': '捨棄錄音',
+  'gambit.voice_listening_hint': '正在聆聽…',
+  'gambit.voice_failed_reason': '語音輸入失敗：{error}',
+  'gambit.voice_no_input': '未偵測到聲音輸入',
 
 
   'conversation.reasoning': '思考過程',

@@ -389,6 +389,28 @@
 /* Terminal attach button sits right after the workspace label, matching the desktop composer's paperclip. */
 .gambit-attach { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:26px; height:26px; padding:0; border:0; border-radius:var(--shape-radius-btn,5px); color:var(--text-2); background:var(--bg-hover); cursor:pointer; }
 .gambit-attach:hover { color:var(--text-1); background:var(--accent-bg,var(--bg-hover)); }
+/* Voice (speech-to-text) button sits right beside Send; 26px to match the attach button. */
+.gambit-voice { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:26px; height:26px; padding:0; border:0; border-radius:var(--shape-radius-btn,5px); color:var(--text-2); background:var(--bg-hover); cursor:pointer; transition:background 0.12s, color 0.12s; }
+.gambit-voice:hover:not(:disabled) { color:var(--text-1); background:var(--accent-bg,var(--bg-hover)); }
+.gambit-voice:disabled { opacity:0.55; cursor:default; }
+.gambit-voice:disabled svg { animation:gambit-voice-spin 1s linear infinite; }
+@keyframes gambit-voice-spin { to { transform:rotate(360deg); } }
+/* Recording bar: × (discard) · live waveform · ↑ (confirm & transcribe).
+   Compact so the waveform hugs the two buttons instead of stretching the
+   whole footer width; centred in the free space left of the send button. */
+.gambit-voice-bar { display:flex; align-items:center; gap:8px; flex:0 0 auto; margin-left:auto; height:30px; padding-left:2px; }
+.gambit-voice-bar-cancel, .gambit-voice-bar-confirm { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:26px; height:26px; padding:0; border:0; border-radius:50%; cursor:pointer; transition:background 0.12s, color 0.12s, transform 0.08s; }
+.gambit-voice-bar-cancel { color:var(--text-2); background:var(--bg-hover); }
+.gambit-voice-bar-cancel:hover { color:var(--text-1); background:color-mix(in srgb,var(--red,#e5484d) 18%,var(--bg-hover)); }
+.gambit-voice-bar-confirm { color:var(--bg-terminal,#fff); background:var(--accent,#C4956A); }
+.gambit-voice-bar-confirm:hover { filter:brightness(1.12); transform:translateY(-1px); }
+.gambit-voice-bar-confirm:active { transform:translateY(0); filter:brightness(0.95); }
+/* Fixed-width strip: the bars always sit tight between × and ↑ regardless of
+   how wide the footer is. ~28 bars × 3px + gaps ≈ 132px. */
+.gambit-voice-wave { display:flex; align-items:center; justify-content:space-between; flex:0 0 auto; width:132px; height:26px; overflow:hidden; }
+.gambit-voice-wave-bar { flex:0 0 auto; width:3px; height:100%; border-radius:999px; background:var(--accent,#C4956A); transform:scaleY(0.06); transform-origin:center; will-change:transform; }
+.gambit-voice-wave-bar:nth-child(3n) { opacity:0.75; }
+.gambit-voice-wave-bar:nth-child(4n) { opacity:0.55; }
 .gambit-footer--attach .gambit-workspace { margin-right:0; }
 .gambit-footer--attach:not(.gambit-footer--capabilities) .gambit-attach { margin-right:auto; }
 .gambit-capabilities { display:flex; align-items:center; gap:5px; min-width:0; margin-right:auto; overflow:hidden; }
@@ -398,30 +420,28 @@
 .gambit-capability.is-browser { --capability-color:#b59cce; }
 [data-mode="light"] .gambit-capability.is-browser { --capability-color:#7a6095; }
 
+/* Send button matches the neighbouring voice button: same 26×26 size, the
+   same --bg-hover fill and --text-2 glyph colour, and the same corner radius.
+   It stays a quiet icon button rather than a filled accent circle so the
+   composer footer reads as one consistent row. */
 .gambit-send {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     padding: 0;
-    background: var(--accent, #C4956A);
+    background: var(--bg-hover);
     border: none;
-    /* Pill var is 9999px in soft/glass (→ circle), 4px in slab, 0 in sharp/panel.
-       So the send button is round on soft and square on hard-edged themes. */
-    border-radius: var(--shape-radius-pill, 50%);
-    /* Icon colour = the deep terminal-area background, so the glyph reads
-       as a piece of the workspace surface sitting on the accent fill.
-       Glass shape overrides this back to #fff + adds a specular inset
-       (see global.css) — translucent glass fills wash a deep glyph out
-       against variable wallpaper, so glass keeps white. */
-    color: var(--bg-terminal, #fff);
+    border-radius: var(--shape-radius-btn, 5px);
+    color: var(--text-2);
     cursor: pointer;
-    transition: background 0.12s, transform 0.08s, opacity 0.12s, filter 0.12s;
+    transition: background 0.12s, color 0.12s, transform 0.08s, opacity 0.12s, filter 0.12s;
 }
 
 .gambit-send:hover:not(.gambit-send--empty) {
-    filter: brightness(1.12);
+    color: var(--text-1);
+    background: var(--accent-bg, var(--bg-hover));
     transform: translateY(-1px);
 }
 
@@ -441,7 +461,8 @@
    next to the button. The button gets a subtle amber tint so the user's
    eye moves to it without a modal or toast. Auto-clears after 2.5s. */
 .gambit-send--failed {
-    background: #d97757 !important;
+    background: color-mix(in srgb, #d97757 24%, var(--bg-hover));
+    color: #d97757;
 }
 
 .gambit-send-hint {

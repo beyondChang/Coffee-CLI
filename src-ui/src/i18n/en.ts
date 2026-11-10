@@ -492,6 +492,13 @@ Delete this note whenever you're ready, and start your first task.`,
   'gambit.worktree_detached': "The main checkout is not on a branch; switch to the branch to merge into first",
   'gambit.worktree_merge_failed': 'Merge failed: {error}',
   'gambit.send_empty_hint': 'Type a message or paste an image first (Ctrl+V)',
+  'gambit.voice': 'Speech to text',
+  'gambit.voice_stop': 'Stop recording',
+  'gambit.voice_failed_hint': 'Voice input is unavailable',
+  'gambit.voice_cancel': 'Discard recording',
+  'gambit.voice_listening_hint': 'Listening…',
+  'gambit.voice_failed_reason': 'Voice input failed: {error}',
+  'gambit.voice_no_input': 'No voice detected',
 
   // Conversation display and annual activity.
   'conversation.reasoning': 'Thinking process',

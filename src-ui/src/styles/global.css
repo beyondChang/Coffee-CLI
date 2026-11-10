@@ -2876,7 +2876,6 @@ html.is-windows[data-frost="frost"] #root {
    rgb(from var(--accent) r g b / a) is relative-color syntax; engines that
    don't support it drop the background declaration and fall back to the
    base solid --accent (the safe non-glass look), never to broken. */
-[data-shape="glass"] .gambit-send,
 [data-shape="glass"] .task-fab-simple {
     color: #fff;
     background: rgb(from var(--accent, #c4956a) r g b / 0.45);

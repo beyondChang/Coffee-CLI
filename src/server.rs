@@ -1812,6 +1812,7 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::agent::agent_save_model,
             crate::agent_voice::agent_get_voice_model,
             crate::agent_voice::agent_save_voice_model,
+            crate::agent_voice::agent_transcribe,
             crate::agent::agent_get_english_delegation,
             crate::agent::agent_set_english_delegation,
             crate::agent::agent_get_conversation,

@@ -487,6 +487,13 @@ export const ru = {
   'gambit.worktree_detached': "Основная копия не на ветке; сначала переключитесь на целевую ветку",
   'gambit.worktree_merge_failed': 'Не удалось слить: {error}',
   'gambit.send_empty_hint': 'Сначала введите сообщение или вставьте изображение (Ctrl+V)',
+  'gambit.voice': 'Ввод голосом',
+  'gambit.voice_stop': 'Остановить запись',
+  'gambit.voice_failed_hint': 'Ввод голосом недоступен',
+  'gambit.voice_cancel': 'Отменить запись',
+  'gambit.voice_listening_hint': 'Слушаю…',
+  'gambit.voice_failed_reason': 'Ошибка ввода голосом: {error}',
+  'gambit.voice_no_input': 'Голос не обнаружен',
 
   'conversation.reasoning': 'Ход рассуждений',
   'conversation.thinking': 'Размышляет…',

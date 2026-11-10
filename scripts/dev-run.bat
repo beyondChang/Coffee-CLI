@@ -38,12 +38,14 @@ if defined MSVC_BIN (
     --override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
 )
 
-rem --- build the debug binary on first run ------------------------------------
-if not exist "%ROOT%\target\debug\coffee-cli.exe" (
-  echo [dev] building backend, this takes a while on first run...
-  cargo build
-  if errorlevel 1 goto :fail
-)
+rem --- build the debug binary on every run ------------------------------------
+rem Always rebuild so backend edits are never silently skipped (cargo is
+rem incremental: a no-op change is a few seconds). If the previous run left the
+rem app open, the final link fails with "Access is denied" because the exe is
+rem locked — close the running Coffee CLI first.
+echo [dev] building backend...
+cargo build
+if errorlevel 1 goto :fail
 
 rem --- make sure the vite dev server is up ------------------------------------
 netstat -ano | findstr /r /c:":5173 .*LISTENING" >nul 2>&1

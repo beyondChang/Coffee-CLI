@@ -489,6 +489,13 @@ export const ja = {
   'gambit.worktree_detached': "メインのチェックアウトがブランチ上にありません。先にマージ先のブランチに切り替えてください",
   'gambit.worktree_merge_failed': 'マージに失敗しました: {error}',
   'gambit.send_empty_hint': 'メッセージを入力するか画像を貼り付けてください (Ctrl+V)',
+  'gambit.voice': '音声入力',
+  'gambit.voice_stop': '録音を停止',
+  'gambit.voice_failed_hint': '音声入力は利用できません',
+  'gambit.voice_cancel': '録音を破棄',
+  'gambit.voice_listening_hint': '聞き取り中…',
+  'gambit.voice_failed_reason': '音声入力に失敗しました: {error}',
+  'gambit.voice_no_input': '音声が検出されませんでした',
 
 
   'conversation.reasoning': '思考プロセス',
