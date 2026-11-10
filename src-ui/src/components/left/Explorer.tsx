@@ -38,6 +38,9 @@ export interface CtxMenuState {
   // view shouldn't mutate the agent's just-edited files. Hides
   // cut/copy/paste/rename/delete + the relative-path entry.
   compact?: boolean;
+  // Right-clicked empty space in the tree: only offer creating entries in
+  // `absolutePath` (the root being browsed).
+  blank?: boolean;
 }
 
 // Module-level clipboard: survives menu close/open cycles
@@ -119,6 +122,26 @@ export function ContextMenu({ menu, onClose }: { menu: CtxMenuState; onClose: ()
     menu.onRename?.();
   };
 
+  /** Create an empty file / folder in the clicked directory (or the tree root
+   *  when the click landed on blank space), picking a free default name. */
+  const handleCreate = async (directory: boolean) => {
+    const dir = menu.isDir || menu.blank ? menu.absolutePath : menu.absolutePath.replace(/[\\/][^\\/]+$/, '');
+    const base = directory ? t('menu.new_folder_name') : 'untitled.txt';
+    for (let attempt = 1; attempt <= 50; attempt++) {
+      const suffix = attempt === 1 ? '' : `-${attempt}`;
+      const name = base.replace(/(\.[^.]+)?$/, match => suffix + match);
+      try {
+        await commands.fsCreate(`${dir}/${name}`, directory);
+        dispatchFsRefresh(dir);
+        onClose();
+        return;
+      } catch (e) {
+        if (attempt === 50) console.error('[Explorer] create failed:', e);
+      }
+    }
+    onClose();
+  };
+
   const handleShowInFolder = async () => {
     onClose();
     try {
@@ -157,8 +180,42 @@ export function ContextMenu({ menu, onClose }: { menu: CtxMenuState; onClose: ()
          : { left: menu.x })
   };
 
+  const createItems = (
+    <>
+      <button className="ctx-menu-item" onClick={() => handleCreate(false)}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="12" x2="12" y2="18"/>
+          <line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        {t('menu.new_file')}
+      </button>
+      <button className="ctx-menu-item" onClick={() => handleCreate(true)}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          <line x1="12" y1="11" x2="12" y2="17"/>
+          <line x1="9" y1="14" x2="15" y2="14"/>
+        </svg>
+        {t('menu.new_folder')}
+      </button>
+    </>
+  );
+
+  if (menu.blank) {
+    return createPortal(
+      <div className="ctx-menu" ref={menuRef} style={style} role="menu">
+        {createItems}
+      </div>,
+      document.body,
+    );
+  }
+
   return createPortal(
     <div className="ctx-menu" ref={menuRef} style={style}>
+      {/* Creating entries comes first: it is the action people reach for when
+          they right-click a folder. */}
+      {menu.isDir && !menu.compact && <>{createItems}<div className="ctx-menu-divider" /></>}
       {/* Primary action: open in OS default — most-used, sits at the top */}
       <button className="ctx-menu-item" onClick={handleOpen}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

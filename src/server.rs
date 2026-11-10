@@ -635,6 +635,25 @@ fn require_unused_destination(path: &std::path::Path) -> Result<(), String> {
     }
 }
 
+/// Create an empty file or a directory. The parent must already exist, so a
+/// typo can never scatter folders outside the workspace.
+#[tauri::command]
+fn fs_create(path: String, directory: bool) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    let name = p.file_name().ok_or("Invalid path")?;
+    let parent = p.parent().ok_or("No parent directory")?
+        .canonicalize()
+        .map_err(|e| format!("Invalid parent directory: {e}"))?;
+    let dest = parent.join(name);
+    validate_fs_depth(&dest)?;
+    if dest.exists() { return Err("Already exists".into()); }
+    if directory {
+        std::fs::create_dir(&dest).map_err(|e| format!("Create folder failed: {e}"))
+    } else {
+        std::fs::File::create(&dest).map(|_| ()).map_err(|e| format!("Create file failed: {e}"))
+    }
+}
+
 /// Write UTF-8 text back to an existing file. Backs the in-place editor for
 /// text files opened in the centre pane; the path must already exist, so a
 /// typo can never create a stray file.
@@ -1829,6 +1848,7 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             list_directory,
             read_text_file,
             fs_write_text,
+            fs_create,
             show_in_folder,
             fs_delete,
             fs_rename,

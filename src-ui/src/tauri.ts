@@ -346,6 +346,7 @@ export const commands = {
 
   // File system operations
   fsWriteText: (path: string, content: string) => invoke<void>('fs_write_text', { path, content }),
+  fsCreate: (path: string, directory: boolean) => invoke<void>('fs_create', { path, directory }),
   fsDelete: (path: string) => invoke<void>('fs_delete', { path }),
   fsRename: (path: string, newName: string) => invoke<void>('fs_rename', { path, newName }),
   fsPaste: (action: string, srcPath: string, targetDir: string) =>

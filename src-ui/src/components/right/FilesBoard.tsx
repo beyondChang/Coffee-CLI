@@ -107,7 +107,15 @@ export function FilesBoard() {
   }
 
   return (
-    <div className="right-files-host">
+    <div
+      className="right-files-host"
+      // Right-clicking blank space offers creating entries in the browsed root.
+      onContextMenu={event => {
+        if (!folderPath) return;
+        event.preventDefault();
+        setCtxMenu({ x: event.clientX, y: event.clientY, absolutePath: folderPath.replace(/\\/g, '/'), relativePath: '', isDir: true, blank: true });
+      }}
+    >
       <div className="right-files-head">
         <span className={`right-files-path${searching ? ' is-searching' : ''}`}>
           {searching ? (
