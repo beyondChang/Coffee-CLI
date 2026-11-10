@@ -10,6 +10,7 @@ import { isMaskTintTheme } from '../../lib/personalization';
 import { bindAutoHideScrollbar } from '../../lib/auto-hide-scrollbar';
 import { clipboardWrite } from '../../lib/clipboard';
 import { beginExplorerDrag } from '../../lib/explorer-drag';
+import { consumePendingRename, onPendingRename, requestRename } from '../../lib/pending-rename';
 import { getFileIconSrc } from '../../lib/file-icons';
 import { useFileStats, useDirtyDirs } from '../../lib/git-status';
 import { commands, onSelfUpdateProgress } from '../../tauri';
@@ -132,6 +133,9 @@ export function ContextMenu({ menu, onClose }: { menu: CtxMenuState; onClose: ()
       const name = base.replace(/(\.[^.]+)?$/, match => suffix + match);
       try {
         await commands.fsCreate(`${dir}/${name}`, directory);
+        // The row for the new entry mounts after the refresh, so park the
+        // rename request first — it opens its own input when it appears.
+        requestRename(`${dir}/${name}`);
         dispatchFsRefresh(dir);
         onClose();
         return;
@@ -410,6 +414,14 @@ export function BrowserDirNode({ name, dirPath, icon, onCtxMenu }: { name: strin
   }, [dirPath, open]);
 
   useEffect(() => { if (renaming) renameInputRef.current?.select(); }, [renaming]);
+  useEffect(() => {
+    // Deferred a frame so the new row is laid out before its input mounts.
+    let cancelled = false;
+    const check = () => { if (!cancelled && consumePendingRename(dirPath)) setRenaming(true); };
+    const frame = window.requestAnimationFrame(check);
+    const off = onPendingRename(check);
+    return () => { cancelled = true; window.cancelAnimationFrame(frame); off(); };
+  }, [dirPath]);
 
   const commitRename = async () => {
     if (renameVal.trim() && renameVal !== name) {
@@ -510,6 +522,14 @@ export function BrowserFileNode({ entry, parentDirPath, onCtxMenu }: {
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (renaming) renameInputRef.current?.select(); }, [renaming]);
+  useEffect(() => {
+    // Deferred a frame so the new row is laid out before its input mounts.
+    let cancelled = false;
+    const check = () => { if (!cancelled && consumePendingRename(entry.path)) setRenaming(true); };
+    const frame = window.requestAnimationFrame(check);
+    const off = onPendingRename(check);
+    return () => { cancelled = true; window.cancelAnimationFrame(frame); off(); };
+  }, [entry.path]);
 
   const commitRename = async () => {
     if (renameVal.trim() && renameVal !== entry.name) {
