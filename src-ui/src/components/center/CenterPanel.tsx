@@ -1257,8 +1257,12 @@ export function CenterPanel() {
           const task = orchestration.tasks.find(task => task.sessionId === session.id);
           const worker = task?.detached ? undefined : task;
           const title = task?.title || (session.tool === 'muse' ? baseTitle : session.pinnedTitle || session.toolTitle?.trim() || baseTitle);
+          // Only a busy tab shows the status indicator. An idle tab shows a
+          // plain close button, and a tab waiting on the user keeps a steady
+          // (non-blinking) dot so the request for approval still reads.
           const showAgentStatus = supportsAgentStatus(session.tool)
-            && (['claude', 'codex', 'kimicode', 'omp', 'dsh'].includes(session.tool ?? '') || session.agentStatus !== undefined);
+            && (['claude', 'codex', 'kimicode', 'omp', 'dsh'].includes(session.tool ?? '') || session.agentStatus !== undefined)
+            && (session.agentStatus === 'working' || session.agentStatus === 'wait_input');
           return (
             <div
               key={session.id}

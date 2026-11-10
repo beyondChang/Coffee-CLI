@@ -192,6 +192,8 @@
 
 .chrome-tab:hover .tab-status-grid {
   opacity: 0;
+  /* Stop the blink on hover so the close button underneath stays visible. */
+  animation: none;
 }
 
 .tab-status-dot {
@@ -201,7 +203,8 @@
   animation: tab-status-wave 1.2s ease-in-out infinite;
 }
 
-/* idle — Wave-Double — green */
+/* idle — the grid is not rendered at all (a plain close button reads as
+   "nothing running"), these rules stay for the static Linux dot only. */
 .status-idle .tab-status-dot { box-shadow: 0 0 3px #34d39988; }
 .status-idle .tab-status-dot:nth-child(1) { animation-delay: 0s; }
 .status-idle .tab-status-dot:nth-child(2) { animation-delay: 0.15s; }
@@ -213,8 +216,15 @@
 .status-idle .tab-status-dot:nth-child(8) { animation-delay: 0.15s; }
 .status-idle .tab-status-dot:nth-child(9) { animation-delay: 0.3s; }
 
-/* working — Snake-CW — Claude orange (matches the "Thinking..." color in Claude Code CLI output) */
-.status-working .tab-status-dot { box-shadow: 0 0 3px #D9775788; }
+/* working — the grid blinks as one unit in Claude orange (the "Thinking..."
+   colour of Claude Code CLI output). Steady dots would compete with the close
+   button; a slow pulse reads as "busy" from across the tab strip. */
+.status-working .tab-status-dot { box-shadow: 0 0 3px #D9775788; animation: none; }
+.status-working.tab-status-grid { animation: tab-status-blink 1.15s ease-in-out infinite; }
+@keyframes tab-status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
 .status-working .tab-status-dot:nth-child(1) { animation-delay: 0s; }
 .status-working .tab-status-dot:nth-child(2) { animation-delay: 0.15s; }
 .status-working .tab-status-dot:nth-child(3) { animation-delay: 0.3s; }
@@ -225,9 +235,10 @@
 .status-working .tab-status-dot:nth-child(8) { animation-delay: 0.75s; }
 .status-working .tab-status-dot:nth-child(9) { animation-delay: 0.6s; }
 
-/* wait_input — Ripple — blue. Claude is blocked on a permission prompt
-   ("approve / deny" dialog or similar); user must intervene. */
-.status-waiting .tab-status-dot { box-shadow: 0 0 3px #60a5fa88; }
+/* wait_input — steady blue. Claude is blocked on a permission prompt
+   ("approve / deny" dialog or similar); user must intervene, so the dot
+   stays lit without blinking. */
+.status-waiting .tab-status-dot { box-shadow: 0 0 3px #60a5fa88; animation: none; }
 .status-waiting .tab-status-dot:nth-child(1) { animation-delay: 0.3s; }
 .status-waiting .tab-status-dot:nth-child(2) { animation-delay: 0.15s; }
 .status-waiting .tab-status-dot:nth-child(3) { animation-delay: 0.3s; }
