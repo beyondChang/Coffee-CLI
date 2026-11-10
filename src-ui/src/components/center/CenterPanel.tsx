@@ -1573,44 +1573,6 @@ export function CenterPanel() {
                       );
                     })()}
 
-                    {/* "Can't detect?" help link - for users whose PATH was
-                        garbled by an English-only AI terminal tool: CJK /
-                        non-ASCII path segments become mojibake so `where`
-                        can't resolve the binary and the card stays greyed.
-                        Hover reveals the cause + 3 fixes. Sits between the
-                        pinned cards; tiny + muted so it
-                        doesn't compete with the cards. Tooltip is a themed
-                        data-tip pill (same pattern as the heatmap / commit
-                        subject tooltips), not a native title=. */}
-                    <div className="detect-help">
-                      <span
-                        className="detect-help-trigger"
-                        data-tip={t('launchpad.detect_help_tip')}
-                      >
-                        {t('launchpad.detect_help_trigger')}
-                      </span>
-                      {/* "Switch model" — external link to EchoBird, our
-                          sister project for switching/comparing AI models.
-                          Sits next to "Can't detect?" in the same muted
-                          footer row. Tooltip explains where it goes; click
-                          opens via commands.openUrl (system browser, NOT an
-                          in-app webview — we don't do in-app viewers, see
-                          feedback_no_in_app_file_viewers). Same data-tip pill
-                          pattern as the detect-help trigger. */}
-                      <a
-                        className="switch-model-trigger"
-                        href="https://echobird.ai/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-tip={t('launchpad.switch_model_tip')}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          commands.openUrl('https://echobird.ai/').catch(() => {});
-                        }}
-                      >
-                        {t('launchpad.switch_model_trigger')}
-                      </a>
-                    </div>
 
                     {/* ─── Remote Terminal Connection Form ─── */}
                     {showRemoteForm && (
