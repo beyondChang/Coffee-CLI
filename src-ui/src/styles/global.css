@@ -3196,6 +3196,22 @@ html.is-windows[data-frost="frost"] #root {
     display: none;
 }
 
+/* Character Flow and Basalt paint one backdrop across the WHOLE window, so
+   every chrome surface has to stay transparent. The generic chrome rule above
+   (#root .titlebar / .panel-left / .panel-right) carries id specificity and
+   therefore outranks the [data-shape="carbon"] transparent overrides further
+   down; it repaints an opaque plate on top of the z-index:-1 character canvas
+   and leaves the effect visible only in the centre column. Match that
+   specificity here so the backdrop reads through the titlebar and both rails
+   again. Non-background shapes keep the lifted chrome surface. */
+html[data-background] #root .titlebar,
+html[data-background] #root .panel-left,
+html[data-background] #root .panel-right {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
 .character-background,
 .character-background canvas {
     position: absolute;
