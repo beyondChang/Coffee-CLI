@@ -121,6 +121,7 @@ export const ko = {
   "tools.memory.discard_reload": "버리고 다시 불러오기",
   "tools.title": "Agent 설정",
   "usage.title": "사용 통계",
+  "usage.nav": "통계",
   'automation.title': '자동 작업',
   'automation.new': "새 자동화",
   'automation.permission_note': "자동화는 선택한 앱을 열고 프롬프트를 보내며, 그동안 작업을 승인할 사람이 없습니다. 먼저 해당 앱에서 자동 실행 권한을 켜세요(Claude의 권한 확인 건너뛰기, Codex의 전체 액세스 등). 그렇지 않으면 승인 대기에서 멈춥니다.",

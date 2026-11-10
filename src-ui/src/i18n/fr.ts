@@ -121,6 +121,7 @@ export const fr = {
   "tools.memory.discard_reload": "Abandonner et recharger",
   "tools.title": "Configuration des agents",
   "usage.title": "Statistiques d’utilisation",
+  "usage.nav": "Statistiques",
   'automation.title': 'Tâches automatiques',
   'automation.new': "Nouvelle automatisation",
   'automation.permission_note': "Une automatisation ouvre l’app choisie et envoie son message sans personne pour approuver les actions. Activez d’abord les permissions automatiques dans cette app (ignorer les permissions dans Claude, accès complet dans Codex), sinon l’exécution s’arrête à la première approbation.",

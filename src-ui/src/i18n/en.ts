@@ -119,6 +119,7 @@ export const en = {
   "tools.memory.discard_reload": "Discard and reload",
   "tools.title": "Agent configuration",
   'usage.title': 'Usage statistics',
+  'usage.nav': 'Statistics',
   'automation.title': 'Auto tasks',
   'automation.new': "New automation",
   'automation.permission_note': "An automation opens the chosen app and sends its prompt with nobody there to approve actions. Turn on automatic permissions in that app first (Claude’s skip-permissions mode, Codex full access), or the run stops at the first approval.",

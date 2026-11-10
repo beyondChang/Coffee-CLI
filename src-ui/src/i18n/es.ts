@@ -121,6 +121,7 @@ export const es = {
   "tools.memory.discard_reload": "Descartar y recargar",
   "tools.title": "Configuración de agentes",
   "usage.title": "Estadísticas de uso",
+  "usage.nav": "Estadísticas",
   'automation.title': 'Tareas automáticas',
   'automation.new': "Nueva automatización",
   'automation.permission_note': "Una automatización abre la app elegida y envía su mensaje sin nadie que apruebe acciones. Activa antes los permisos automáticos en esa app (omitir permisos en Claude, acceso total en Codex) o la ejecución se detendrá en la primera aprobación.",

@@ -326,6 +326,19 @@ export function SettingsModal() {
               {s.label}
             </button>
           ))}
+          {/* Usage statistics moved here from the left panel. It is a full
+              centre-column page, so opening it dismisses this modal rather
+              than rendering inside the settings content column. */}
+          <button
+            type="button"
+            className="settings-rail-item"
+            onClick={() => { finishScaleDrag(); dispatch({ type: 'SET_USAGE_OPEN', open: true }); }}
+          >
+            <span className="settings-rail-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3v18h18M8 16v-5M13 16V5M18 16V9" /></svg>
+            </span>
+            {t('usage.nav')}
+          </button>
           {version && (
             <div className="settings-rail-version">
               <span className="settings-rail-version-num">v{version}</span>

@@ -121,6 +121,7 @@ export const de = {
   "tools.memory.discard_reload": "Verwerfen und neu laden",
   "tools.title": "Agent-Konfiguration",
   "usage.title": "Nutzungsstatistik",
+  "usage.nav": "Statistik",
   'automation.title': 'Automatische Aufgaben',
   'automation.new': "Neue Automation",
   'automation.permission_note': "Eine Automation öffnet die gewählte App und sendet ihren Prompt, ohne dass jemand Aktionen freigibt. Schalte vorher in der App automatische Berechtigungen ein (bei Claude Berechtigungen überspringen, bei Codex Vollzugriff), sonst bleibt der Lauf bei der ersten Freigabe stehen.",
