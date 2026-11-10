@@ -53,7 +53,7 @@ import CLAUDE_DATA_URL from '../../icons-inline/claude.svg?inline';
 import CODEX_SVG from '../../icons-inline/codex.svg?raw';
 import MIMOCODE_DATA_URL from '../../icons-inline/mimocode.png?inline';
 import HERMES_DATA_URL from '../../icons-inline/hermes.png?inline';
-// Coffee Agent uses the desktop app icon (Windows source, rounded corners baked in).
+// Super Assistant uses the desktop app icon (Windows source, rounded corners baked in).
 import COFFEE_AGENT_DATA_URL from '../../icons-inline/coffee-agent.png?inline';
 import OPENCODE_DATA_URL from '../../icons-inline/opencode.png?inline';
 // Kimi Code (PNG squircle) — fixed-color brand mark, ?inline data URI.
@@ -396,7 +396,7 @@ export function HistoryBoard() {
       if (added && cwd && !added.has(key)) continue;
       let group = groups.get(key);
       if (!group) {
-        group = { key, name: session.tool === 'coffee-agent' ? 'Coffee Agent' : projectName(cwd, session.tool), cwd, sessions: [] };
+        group = { key, name: session.tool === 'coffee-agent' ? t('agent.sidebar.super_assistant') : projectName(cwd, session.tool), cwd, sessions: [] };
         groups.set(key, group);
       }
       group.sessions.push(session);
@@ -412,7 +412,7 @@ export function HistoryBoard() {
       }
     }
     return all;
-  }, [availableSessions, projectScope, projectFolders]);
+  }, [availableSessions, projectScope, projectFolders, t]);
   const openSessions = useMemo(() => new Set(state.terminals.flatMap(tab => tab.resumeToken ? [`${tab.tool}:${tab.resumeToken}`] : [])), [state.terminals]);
   // Pi names neither its terminal nor its desktop session on its own, so an open Pi tab takes
   // the name this list shows for its conversation once the session appears in history.
@@ -443,9 +443,9 @@ export function HistoryBoard() {
   const matchesQuery = useCallback((session: SavedSession, query: string) => {
     const q = query.trim().replace(/\s+/g, ' ').toLowerCase();
     const name = renamed[`${session.tool ?? ''}:${session.id}`] ?? session.name ?? '';
-    const tool = session.tool === 'coffee-agent' ? 'Coffee Agent' : getToolName(session.tool);
+    const tool = session.tool === 'coffee-agent' ? t('agent.sidebar.super_assistant') : getToolName(session.tool);
     return [name, session.tool === 'openclaw' ? '' : session.cwd ?? '', projectName(session.cwd ?? '', session.tool), tool].some(value => value.toLowerCase().includes(q));
-  }, [renamed]);
+  }, [renamed, t]);
   const [debouncedQuery, setDebouncedQuery] = useState('');
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(sessionSearchQuery), 150);
@@ -745,7 +745,7 @@ export function HistoryBoard() {
             </div>
             {preview?.key === sessionKey && !isRenaming && createPortal(<div id={previewId} className="history-card-preview" role="tooltip" style={{ left: preview.left, top: preview.top }}>
               <div className="history-card-preview-title">{displayName}</div>
-              <div className="history-card-meta"><span className="history-card-tool-wrap">{getToolIcon(session.tool)}<span className="history-card-meta-text">{(needsAttention || isUnread) && <span className="history-card-preview-status">{t(needsAttention ? 'history.needs_attention' : 'history.unread_reply')} &middot; </span>}{session.tool === 'coffee-agent' ? 'Coffee Agent' : projectName(session.cwd, session.tool)} &middot; {dateStr} {session.turn_count ? ` · ${(t('task.messages') || '{count} messages').replace('{count}', session.turn_count.toString())}` : ''}</span></span></div>
+              <div className="history-card-meta"><span className="history-card-tool-wrap">{getToolIcon(session.tool)}<span className="history-card-meta-text">{(needsAttention || isUnread) && <span className="history-card-preview-status">{t(needsAttention ? 'history.needs_attention' : 'history.unread_reply')} &middot; </span>}{session.tool === 'coffee-agent' ? t('agent.sidebar.super_assistant') : projectName(session.cwd, session.tool)} &middot; {dateStr} {session.turn_count ? ` · ${(t('task.messages') || '{count} messages').replace('{count}', session.turn_count.toString())}` : ''}</span></span></div>
             </div>, document.body)}
           </div>
             {workers.length > 0 && <div className="history-workers" onPointerDown={event => event.stopPropagation()}>
@@ -768,26 +768,27 @@ export function HistoryBoard() {
 
   return (
     <>
-      {/* Search + layout sit above the list, which is the only part that
-          scrolls (see .explorer-content in Explorer.css). */}
+      {/* Search + layout share one row above the list, which is the only part
+          that scrolls (see .explorer-content in Explorer.css). */}
       <div className="history-head">
-      <button type="button" className="history-search-trigger" onClick={openSearch}>
-        {/* Lucide search; license in /icons/LICENSE-lucide.txt. */}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
-        <span>{t('history.search')}</span>
-      </button>
       <div className="history-layout-toggle">
         <span>{layout === 'tool' ? getToolName(toolFilter) : t(layout === 'list' ? 'history.list' : 'history.projects')}</span>
-        <button type="button" ref={layoutBtnRef} className={`history-layout-menu-btn${layoutMenu ? ' open' : ''}`} aria-label={t('history.layout')} aria-haspopup="menu" aria-expanded={!!layoutMenu} onClick={() => {
-          if (layoutMenu) { setLayoutMenu(null); return; }
-          const r = layoutBtnRef.current?.getBoundingClientRect();
-          // A tool chosen earlier stays listed even after it leaves the favourites.
-          const favorites = favoriteTools(), tools = toolFilter && !favorites.includes(toolFilter) ? [...favorites, toolFilter] : favorites;
-          if (r) setLayoutMenu({ right: Math.max(0, window.innerWidth - r.right), top: r.bottom + 4, tools });
-        }}>
-          {/* Lucide list-filter; license in /icons/LICENSE-lucide.txt. */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M7 12h10M10 18h4" /></svg>
-        </button>
+        <div className="history-head-actions">
+          <button type="button" className="history-search-trigger" aria-label={t('history.search')} title={t('history.search')} onClick={openSearch}>
+            {/* Lucide search; license in /icons/LICENSE-lucide.txt. */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
+          </button>
+          <button type="button" ref={layoutBtnRef} className={`history-layout-menu-btn${layoutMenu ? ' open' : ''}`} aria-label={t('history.layout')} aria-haspopup="menu" aria-expanded={!!layoutMenu} onClick={() => {
+            if (layoutMenu) { setLayoutMenu(null); return; }
+            const r = layoutBtnRef.current?.getBoundingClientRect();
+            // A tool chosen earlier stays listed even after it leaves the favourites.
+            const favorites = favoriteTools(), tools = toolFilter && !favorites.includes(toolFilter) ? [...favorites, toolFilter] : favorites;
+            if (r) setLayoutMenu({ right: Math.max(0, window.innerWidth - r.right), top: r.bottom + 4, tools });
+          }}>
+            {/* Lucide list-filter; license in /icons/LICENSE-lucide.txt. */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M7 12h10M10 18h4" /></svg>
+          </button>
+        </div>
       </div>
       </div>
       {layoutMenu && createPortal(
@@ -933,7 +934,7 @@ export function HistoryBoard() {
       <div className="history-search-results" id={searchId + '-results'} ref={searchResultsRef} role="listbox" aria-label={t('explorer.tab.history')}>
         {searchResults.map((session, index) => <button type="button" tabIndex={-1} key={session.tool + ':' + session.id} id={searchId + '-result-' + index} className="history-search-result" role="option" aria-selected={selectedSearchIndex === index} onMouseEnter={() => setSearchSelection(index)} onClick={() => openSearchResult(session)}>
           {getToolIcon(session.tool)}
-          <span><strong>{renamed[session.tool + ':' + session.id] ?? session.name}</strong><small>{session.tool === 'coffee-agent' ? 'Coffee Agent' : projectName(session.cwd ?? '', session.tool)}</small></span>
+          <span><strong>{renamed[session.tool + ':' + session.id] ?? session.name}</strong><small>{session.tool === 'coffee-agent' ? t('agent.sidebar.super_assistant') : projectName(session.cwd ?? '', session.tool)}</small></span>
         </button>)}
         {searchHasMore && <div ref={searchSentinelRef} className="history-search-sentinel" />}
         {!searchResults.length && <div className="history-search-empty"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5" /></svg><span>{t(isLoading ? 'diff.loading' : 'menu.no_recent')}</span></div>}

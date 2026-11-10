@@ -91,12 +91,23 @@ try {
   assert.equal(await page.locator('[data-fixture-view][data-visible="true"]:visible').count(), 4, 'all visible views remain active for scrolling and rendering');
   await page.getByRole('button', { name: 'Usage statistics', exact: true }).click();
   await page.getByRole('region', { name: 'Usage statistics', exact: true }).waitFor();
-  const navigationStyles = await page.evaluate(() => ['.explorer-tabs .explorer-new-session', '.explorer-usage', '.history-search-trigger'].map(selector => {
+  const navigationStyles = await page.evaluate(() => ['.explorer-tabs .explorer-new-session', '.explorer-usage'].map(selector => {
     const button = document.querySelector(selector), style = getComputedStyle(button), icon = button.querySelector('svg').getBoundingClientRect();
     return { font: style.font, padding: style.padding, iconX: icon.x, iconWidth: icon.width, iconHeight: icon.height };
   }));
   assert.deepEqual(navigationStyles[1], navigationStyles[0], 'statistics use the same typography and icon alignment as New session');
-  assert.deepEqual(navigationStyles[1], navigationStyles[2], 'statistics use the same typography and icon alignment as Search');
+  // Search is now an icon-only action beside the layout filter on the label row.
+  const searchAction = await page.evaluate(() => {
+    const button = document.querySelector('.history-search-trigger'), filter = document.querySelector('.history-layout-menu-btn');
+    const icon = button.querySelector('svg').getBoundingClientRect(), filterIcon = filter.querySelector('svg').getBoundingClientRect();
+    return { text: button.textContent.trim(), label: button.getAttribute('aria-label'), onLabelRow: !!button.closest('.history-layout-toggle'), iconX: icon.x, filterX: filterIcon.x, iconWidth: icon.width, iconHeight: icon.height };
+  });
+  assert.equal(searchAction.text, '', 'search action shows no label text');
+  assert.ok(searchAction.label, 'icon-only search keeps an accessible name');
+  assert.equal(searchAction.onLabelRow, true, 'search sits on the section label row');
+  assert.ok(searchAction.iconX < searchAction.filterX, 'search sits left of the layout filter');
+  assert.equal(searchAction.iconWidth, 16, 'search icon keeps the navigation icon size');
+  assert.equal(searchAction.iconHeight, 16);
   assert.equal(await page.locator('[data-fixture-view]:visible').count(), 0, 'statistics hide native surfaces without ending their sessions');
   assert.equal(await page.locator('.gambit').count(), 0, 'statistics do not leave the composer over the charts');
   await row('Claude desktop task').click(); await count(4);
