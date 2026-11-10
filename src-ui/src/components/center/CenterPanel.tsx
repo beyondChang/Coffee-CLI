@@ -1494,13 +1494,12 @@ export function CenterPanel() {
         {toolSettingsOpen && createPortal(
           <div className="tool-settings-overlay" onMouseDown={event => { if (event.target === event.currentTarget) closeToolSettings(); }}>
             <div className="tool-settings-modal" role="dialog" aria-modal="true" aria-label={t('tools.title')} tabIndex={-1} ref={toolSettingsDialogRef}>
-              <div className="tool-settings-modal-header">
-                <span className="tool-settings-modal-title">{t('tools.title')}</span>
-                <button type="button" className="tool-settings-modal-close" aria-label={t('settings.close')} onClick={closeToolSettings}>
+              <ToolSettingsPage active={toolSettingsOpen}
+                title={<span className="tool-settings-modal-title">{t('tools.title')}</span>}
+                actions={<button type="button" className="tool-settings-modal-close" aria-label={t('settings.close')} onClick={closeToolSettings}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                </button>
-              </div>
-              <ToolSettingsPage active={toolSettingsOpen} tools={AGENT_CATALOG.filter(item => pinnedItems.includes(`agent:${item.key}`)).map(item => ({ value: item.key as string, label: item.label, icon: item.icon, installed: item.key === 'terminal' || toolsInstalled[item.key ?? ''] !== false }))} count={pinnedItems.length} limit={MAX_PINS}>
+                </button>}
+                tools={AGENT_CATALOG.filter(item => pinnedItems.includes(`agent:${item.key}`)).map(item => ({ value: item.key as string, label: item.label, icon: item.icon, installed: item.key === 'terminal' || toolsInstalled[item.key ?? ''] !== false }))} count={pinnedItems.length} limit={MAX_PINS}>
           {[true, false].map(enabled => {
             const items = AGENT_CATALOG.filter(item => item.type === 'ai-cli' && pinnedItems.includes(`agent:${item.key}`) === enabled);
             return items.length > 0 ? <Fragment key={String(enabled)}>

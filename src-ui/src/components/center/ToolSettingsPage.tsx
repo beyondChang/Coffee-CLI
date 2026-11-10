@@ -6,8 +6,9 @@ import { ToolControlPanel } from './ToolControlPanel';
 import { ToolOrchestrationPanel } from './ToolOrchestrationPanel';
 import './ToolSettingsPage.css';
 
-export function ToolSettingsPage({ active, tools, count, limit, children }: {
-  active: boolean; tools: { value: string; label: string; icon: ReactNode; installed?: boolean }[]; count: number; limit: number; children: ReactNode;
+export function ToolSettingsPage({ active, tools, count, limit, title, actions, children }: {
+  active: boolean; tools: { value: string; label: string; icon: ReactNode; installed?: boolean }[]; count: number; limit: number;
+  title?: ReactNode; actions?: ReactNode; children: ReactNode;
 }) {
   const t = useT(), id = useId();
   const [tab, setTab] = useState<'selection' | 'memory' | 'orchestration' | 'skills' | 'computer' | 'browser'>('selection');
@@ -30,8 +31,11 @@ export function ToolSettingsPage({ active, tools, count, limit, children }: {
     return () => { observer.disconnect(); if (frame !== undefined) cancelAnimationFrame(frame); };
   }, [active, tab, count, limit, t]);
   const tabs = ['selection', 'memory', 'orchestration', 'skills', 'computer', 'browser'] as const;
-  return <section className={`tool-settings-page${tab === 'memory' ? ' tool-settings-page--memory' : tab === 'skills' ? ' tool-settings-page--skills' : ''}`} aria-label={t('tools.title')} style={active ? undefined : { display: 'none' }}>
-    <div className="tool-settings-inner">
+  // The tab strip shares the dialog header row with the title instead of
+  // occupying its own row above the panels.
+  return <>
+    <div className="tool-settings-modal-header">
+      {title}
       <span ref={tabList} className="tool-settings-tabs" role="tablist" aria-label={t('tools.title')}>
         <span ref={indicator} className="tool-settings-indicator" aria-hidden="true" />
         {tabs.map((key, index) => <button type="button" key={key} id={`${id}-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`${id}-panel-${key}`} tabIndex={tab === key ? 0 : -1} onClick={() => setTab(key)} onKeyDown={event => {
@@ -41,9 +45,14 @@ export function ToolSettingsPage({ active, tools, count, limit, children }: {
           setTab(tabs[next]); document.getElementById(`${id}-tab-${tabs[next]}`)?.focus();
         }}>{t(`tools.tab.${key}`)}{key === 'selection' && <span className="tool-settings-tab-count"> {count}/{limit}</span>}</button>)}
       </span>
-      {tabs.map(key => <div key={key} id={`${id}-panel-${key}`} role="tabpanel" aria-labelledby={`${id}-tab-${key}`} className="tool-settings-panel" hidden={tab !== key}>
-        {key === 'selection' ? (active && tab === 'selection' ? children : null) : key === 'memory' ? <ToolMemoryPanel active={active && tab === 'memory'} tools={tools} /> : key === 'orchestration' ? <ToolOrchestrationPanel active={active && tab === key} tools={tools} /> : key === 'skills' ? <ToolSkillsPanel active={active && tab === 'skills'} tools={tools} /> : <ToolControlPanel kind={key} active={active && tab === key} tools={tools} />}
-      </div>)}
+      {actions}
     </div>
-  </section>;
+    <section className={`tool-settings-page${tab === 'memory' ? ' tool-settings-page--memory' : tab === 'skills' ? ' tool-settings-page--skills' : ''}`} aria-label={t('tools.title')} style={active ? undefined : { display: 'none' }}>
+      <div className="tool-settings-inner">
+        {tabs.map(key => <div key={key} id={`${id}-panel-${key}`} role="tabpanel" aria-labelledby={`${id}-tab-${key}`} className="tool-settings-panel" hidden={tab !== key}>
+          {key === 'selection' ? (active && tab === 'selection' ? children : null) : key === 'memory' ? <ToolMemoryPanel active={active && tab === 'memory'} tools={tools} /> : key === 'orchestration' ? <ToolOrchestrationPanel active={active && tab === key} tools={tools} /> : key === 'skills' ? <ToolSkillsPanel active={active && tab === 'skills'} tools={tools} /> : <ToolControlPanel kind={key} active={active && tab === key} tools={tools} />}
+        </div>)}
+      </div>
+    </section>
+  </>;
 }
