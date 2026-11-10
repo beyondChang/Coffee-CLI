@@ -238,6 +238,11 @@
   overflow: hidden;
   pointer-events: none;
 }
+/* Preview mode: the layer is the only child, so it scrolls on its own. */
+.file-viewer-highlight.is-static {
+  overflow: auto;
+  pointer-events: auto;
+}
 .file-viewer-highlight-inner {
   width: max-content;
   min-width: 100%;
@@ -310,6 +315,11 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
+}
+/* Preview mode: the layer is the only child, so it scrolls on its own. */
+.file-viewer-highlight.is-static {
+  overflow: auto;
+  pointer-events: auto;
 }
 .file-viewer-highlight-inner {
   width: max-content;

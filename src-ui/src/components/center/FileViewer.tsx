@@ -25,8 +25,6 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 const isMarkdown = (path: string) => /\.(md|markdown|mdx)$/i.test(path);
 const isHtml = (path: string) => /\.(html?|xhtml)$/i.test(path);
-/** Files that get the 预览 / 编辑 switch — rendered markup, editable text. */
-const hasPreview = (path: string) => isMarkdown(path) || isHtml(path);
 const isImage = (path: string) => /\.(png|jpe?g|gif|webp|bmp|svg|ico|avif)$/i.test(path);
 
 /** Above this size we skip tokenizing — a multi-megabyte grammar pass would
@@ -135,10 +133,9 @@ function TextViewer({ path }: { path: string }) {
   const pending = useRef<{ path: string; text: string; disk: string } | null>(null);
   const history = useRef<{ path: string; entries: string[]; index: number; stamp: number }>({ path, entries: [], index: -1, stamp: 0 });
   const current = loaded && loaded.path === path ? loaded : null;
-  const previewable = hasPreview(path);
-  // Markdown / HTML keep the 预览 · 编辑 switch; every other text file opens
-  // straight into the editor — there is nothing to preview it as.
-  const editing = previewable && mode.path === path && mode.value === 'edit';
+  // Every text file offers 预览 · 编辑: markdown renders, HTML mounts a
+  // sandboxed iframe, code shows its highlighted read-only layer.
+  const editing = mode.path === path && mode.value === 'edit';
   const text = buffer && buffer.path === path ? buffer.text : current?.text ?? '';
 
   useEffect(() => {
@@ -232,37 +229,32 @@ function TextViewer({ path }: { path: string }) {
 
   return (
     <div className={`file-viewer${editing ? ' is-editing' : ''}`}>
-      {previewable ? (
-        <div className="file-viewer-bar">
-          <span className={`file-viewer-save${saveState === 'error' ? ' is-error' : ''}`} role="status" title={saveState === 'error' ? saveError : undefined}>{status}</span>
-          <span className="file-viewer-switch" role="group" aria-label={t('file.preview')}>
-            <button type="button" aria-pressed={!editing} onClick={() => setMode({ path, value: 'preview' })}>{t('file.preview')}</button>
-            <button type="button" aria-pressed={editing} onClick={() => setMode({ path, value: 'edit' })}>{t('file.edit')}</button>
-          </span>
-        </div>
-      ) : status ? (
-        // Text files have no switch; the strip only reports the autosave.
-        <div className="file-viewer-bar">
-          <span className={`file-viewer-save${saveState === 'error' ? ' is-error' : ''}`} role="status" title={saveState === 'error' ? saveError : undefined}>{status}</span>
-        </div>
-      ) : null}
+      <div className="file-viewer-bar">
+        <span className={`file-viewer-save${saveState === 'error' ? ' is-error' : ''}`} role="status" title={saveState === 'error' ? saveError : undefined}>{status}</span>
+        <span className="file-viewer-switch" role="group" aria-label={t('file.preview')}>
+          <button type="button" aria-pressed={!editing} onClick={() => setMode({ path, value: 'preview' })}>{t('file.preview')}</button>
+          <button type="button" aria-pressed={editing} onClick={() => setMode({ path, value: 'edit' })}>{t('file.edit')}</button>
+        </span>
+      </div>
 
-      {!previewable ? (
-        // Code and plain text: syntax colours underneath, an invisible
-        // textarea on top so the caret, selection and IME all behave.
-        <CodeEditor path={path} text={text} tokens={tokenized?.path === path ? tokenized.lines : null} onChange={change} onKeyDown={editorKeys} />
-      ) : editing ? (
-        <textarea
-          className="file-viewer-editor"
-          value={text}
-          spellCheck={false}
-          wrap="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          aria-label={path}
-          onChange={event => change(event.target.value)}
-          onKeyDown={editorKeys}
-        />
+      {editing ? (
+        markdown || html ? (
+          <textarea
+            className="file-viewer-editor"
+            value={text}
+            spellCheck={false}
+            wrap="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            aria-label={path}
+            onChange={event => change(event.target.value)}
+            onKeyDown={editorKeys}
+          />
+        ) : (
+          // Code: syntax colours underneath, an invisible textarea on top so
+          // the caret, selection and IME all behave.
+          <CodeEditor path={path} text={text} tokens={tokenized?.path === path ? tokenized.lines : null} onChange={change} onKeyDown={editorKeys} />
+        )
       ) : markdown ? (
         <div className="file-viewer-markdown" role="document" aria-label={path}>
           <MarkdownContent content={text} />
@@ -271,7 +263,9 @@ function TextViewer({ path }: { path: string }) {
         // Local HTML only: scripts stay disabled (empty sandbox), so a preview
         // can never reach into the app, while inline styles still render.
         <iframe className="file-viewer-html" sandbox="" srcDoc={text} title={path} />
-      ) : null}
+      ) : (
+        <CodeEditor path={path} text={text} tokens={tokenized?.path === path ? tokenized.lines : null} readOnly />
+      )}
     </div>
   );
 }
@@ -279,15 +273,37 @@ function TextViewer({ path }: { path: string }) {
 /** Highlighted read-only layer + transparent textarea on top. Both layers use
  *  the same font metrics and integer line-height, so the caret sits exactly on
  *  the coloured glyphs; scrolling the textarea translates the layer behind. */
-function CodeEditor({ path, text, tokens, onChange, onKeyDown }: {
+function CodeEditor({ path, text, tokens, onChange, onKeyDown, readOnly = false }: {
   path: string;
   text: string;
   tokens: LineTokens[] | null;
-  onChange: (value: string) => void;
-  onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onChange?: (value: string) => void;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  readOnly?: boolean;
 }) {
   const highlight = useRef<HTMLDivElement>(null);
   const rows = tokens ?? text.split('\n').map(line => [{ content: line, color: undefined }]);
+  if (readOnly) {
+    // Preview: the same coloured rows, just scrollable and with no caret.
+    return (
+      <div className="file-viewer-edit">
+        <div className="file-viewer-highlight is-static">
+          <div className="file-viewer-highlight-inner">
+            {rows.map((line, index) => (
+              <div className="file-viewer-row" key={index}>
+                <span className="file-viewer-lineno">{index + 1}</span>
+                <span className="file-viewer-line">
+                  {line.length ? line.map((token, i) => (
+                    <span key={i} style={token.color ? { color: token.color } : undefined}>{token.content}</span>
+                  )) : '\u00a0'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="file-viewer-edit">
       <div className="file-viewer-highlight" aria-hidden="true">
@@ -312,7 +328,7 @@ function CodeEditor({ path, text, tokens, onChange, onKeyDown }: {
         autoCapitalize="off"
         autoCorrect="off"
         aria-label={path}
-        onChange={event => onChange(event.target.value)}
+        onChange={event => onChange?.(event.target.value)}
         onKeyDown={onKeyDown}
         onScroll={event => {
           const layer = highlight.current;
