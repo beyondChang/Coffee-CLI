@@ -75,8 +75,9 @@
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--shape-radius-panel, 16px);
-  background-color: var(--bg-app);
-  background-image: linear-gradient(var(--bg-panel), var(--bg-panel));
+  /* Fully opaque in every shape: glass/carbon/monogram must not wash this
+     text-dense dialog out or let the session list bleed through. */
+  background: var(--bg-panel);
   color: var(--text-2);
   box-shadow: 0 12px 48px #0004;
   overflow: hidden;

@@ -2742,13 +2742,12 @@ html.is-windows[data-frost="frost"] #root {
     transform: none;
 }
 
-/* Floating popups + modals — ctx-menu (right-click + lang +
-   theme), tool-config-modal (per-agent launch settings),
-   Same faint-white-wash + 1px-white-outline + top-edge highlight
-   + outer drop shadow combo, so every floating overlay sits on
-   the same Liquid-Glass tier above the panels. */
-[data-shape="glass"] .ctx-menu,
-[data-shape="glass"] .history-search-dialog {
+/* Floating popups — ctx-menu (right-click + lang + theme) and
+   tool-config-modal (per-agent launch settings) share the faint-white-wash
+   + 1px-white-outline + top-edge highlight + outer drop shadow combo.
+   The session search dialog is deliberately excluded: it is text-dense and
+   stays fully opaque (see .history-search-dialog in HistoryBoard.css). */
+[data-shape="glass"] .ctx-menu {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.14);
     backdrop-filter: var(--glass-blur);
@@ -2756,17 +2755,6 @@ html.is-windows[data-frost="frost"] #root {
     box-shadow:
         inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
         0 12px 40px rgba(0, 0, 0, 0.40);
-}
-/* The directory-filter dropdown floats over the text-dense session list, so
-   the shared 6%-white wash above is too transparent — the card text behind
-   bleeds through and reads as "below text on top of the menu" (reported on
-   glass/frost; carbon/monogram were fine because they already swap in a
-   smoked theme fill). Give it the same smoked fill, kept on the glass tier
-   with its frosted blur. Frost normalizes to data-shape="glass", so this
-   covers frost too. */
-[data-shape="glass"] .history-search-dialog {
-    background: color-mix(in oklab, var(--bg-app) 76%, transparent);
-    background-image: none;
 }
 
 /* Per-tool config modal (gear icon on each card in the full
@@ -3250,13 +3238,12 @@ html.is-windows[data-frost="frost"] #root {
 
 /* Floating menus (theme/settings popover, right-click menus) drop to a
    smoked translucent fill so the carbon mesh reads behind them while the
-   items stay legible. No blur — keeps carbon's static/zero-cost rule. */
+   items stay legible. No blur — keeps carbon's static/zero-cost rule.
+   The session search dialog is excluded so it stays fully opaque. */
 [data-shape="carbon"] .ctx-menu,
 [data-shape="monogram"] .ctx-menu,
 [data-shape="carbon"] .term-ctx-menu,
-[data-shape="monogram"] .term-ctx-menu,
-[data-shape="carbon"] .history-search-dialog,
-[data-shape="monogram"] .history-search-dialog {
+[data-shape="monogram"] .term-ctx-menu {
     background-color: color-mix(in oklab, var(--bg-app) 76%, transparent) !important;
     background-image: none !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
