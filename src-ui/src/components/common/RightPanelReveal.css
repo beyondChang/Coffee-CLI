@@ -4,25 +4,24 @@
   position: fixed;
   top: 48px;
   right: 0;
-  z-index: 30;
+  z-index: 45;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 40px;
+  width: 22px;
+  height: 46px;
   padding: 0;
   border: 1px solid var(--border);
   border-right: 0;
   border-radius: var(--shape-radius-btn, 6px) 0 0 var(--shape-radius-btn, 6px);
   background: var(--bg-panel);
-  color: var(--text-3);
+  color: var(--text-2);
   cursor: default;
-  opacity: 0;
-  transform: translateX(6px);
-  transition: opacity 0.16s ease, transform 0.16s ease, color 0.16s ease;
+  opacity: 0.72;
+  transition: opacity 0.16s ease, color 0.16s ease, background 0.16s ease;
 }
 
-.right-panel-reveal svg { width: 12px; height: 12px; }
+.right-panel-reveal svg { width: 13px; height: 13px; }
 
 /* A wider invisible hit area so the handle is easy to catch at the edge. */
 .right-panel-reveal::before {
@@ -34,8 +33,8 @@
 .right-panel-reveal:hover,
 .right-panel-reveal:focus-visible {
   opacity: 1;
-  transform: none;
   color: var(--text-1);
+  background: var(--bg-hover);
 }
 .right-panel-reveal:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
 
