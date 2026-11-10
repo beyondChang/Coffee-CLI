@@ -635,6 +635,7 @@ export const ru = {
   'agent.sidebar.disconnected': 'Нет подключённых каналов сообщений',
   'agent.sidebar.open_settings': '{status}; открыть настройки сообщений',
   'agent.sidebar.super_assistant': 'Суперпомощник',
+  'agent.chat.weixin_connection': 'Подключение WeChat',
 
   'claude.launch.choose_directory': 'Выбрать папку',
   'claude.launch.conversation_short': 'Приложение',

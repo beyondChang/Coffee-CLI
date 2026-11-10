@@ -635,6 +635,7 @@ Supprimez cette note quand vous voulez et commencez votre première tâche.`,
   'agent.sidebar.disconnected': 'Aucun canal de messagerie connecté',
   'agent.sidebar.open_settings': '{status} ; ouvrir les paramètres de messagerie',
   'agent.sidebar.super_assistant': 'Super assistant',
+  'agent.chat.weixin_connection': 'Connexion WeChat',
 
   'claude.launch.choose_directory': 'Choisir un dossier',
   'claude.launch.conversation_short': 'Bureau',

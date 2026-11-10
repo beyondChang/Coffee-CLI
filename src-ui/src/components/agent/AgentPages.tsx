@@ -86,8 +86,8 @@ function PageFrame({ page, children }: { page: AgentPage; children: ReactNode })
 
 function AgentChatPage() {
   const t = useT();
-  const { state } = useAppState();
-  const { conversationId, messages, hasOlder, loadingOlder, running, activity, error } = useAgentClient();
+  const { state, dispatch } = useAppState();
+  const { conversationId, messages, hasOlder, loadingOlder, running, activity, error, channels } = useAgentClient();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draftKey = conversationId || 'desktop';
   const draft = drafts[draftKey] ?? '';
@@ -195,6 +195,15 @@ function AgentChatPage() {
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{t('agent.chat.new')}
   </button>;
 
+  // Mirrors the bottom-left channel status: clicking opens the same message
+  // settings dialog; the dot is red until WeChat is connected, then green.
+  const weixinConnected = channels?.status.weixin === 'connected';
+  const weixinLabel = `${t('agent.chat.weixin_connection')} · ${t(weixinConnected ? 'agent.channels.status.connected' : 'agent.channels.status.disconnected')}`;
+  const weixinBadge = <button type="button" className="agent-weixin-status" aria-label={weixinLabel} title={weixinLabel} onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'config' })}>
+    <span>{t('agent.chat.weixin_connection')}</span>
+    <span className={`agent-weixin-dot${weixinConnected ? ' is-connected' : ''}`} aria-hidden="true" />
+  </button>;
+
   return <PageFrame page="agent">
     <div className={`conversation-view agent-chat-surface${navigationItems.length > 1 ? ' agent-chat-surface--has-navigation' : ''}`}>
     {navigationItems.length > 1 && state.agentPageActive === 'agent' && <ConversationNavigation items={navigationItems} scrollRef={threadRef} onJump={jumpToMessage} />}
@@ -227,7 +236,7 @@ function AgentChatPage() {
       onClose={() => {}} onSend={send} running={running}
       onCancel={cancelling ? undefined : () => void cancel()}
       sendFailedHint={t('agent.chat.send_failed')}
-      workspaceName="Coffee Agent" worktreeControl={newChat}
+      workspaceName="Coffee Agent" channelBadge={weixinBadge} worktreeControl={newChat}
       leftPanelHidden={state.leftPanelHidden} rightPanelHidden={state.rightPanelHidden}
     />}
   </PageFrame>;

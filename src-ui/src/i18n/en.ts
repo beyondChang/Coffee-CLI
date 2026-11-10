@@ -641,6 +641,7 @@ Delete this note whenever you're ready, and start your first task.`,
   'agent.sidebar.disconnected': 'No messaging channels connected',
   'agent.sidebar.open_settings': '{status}; open message settings',
   'agent.sidebar.super_assistant': 'Super Assistant',
+  'agent.chat.weixin_connection': 'WeChat link',
 
   'claude.launch.choose_directory': 'Select directory',
   'claude.launch.conversation_short': 'Desktop',

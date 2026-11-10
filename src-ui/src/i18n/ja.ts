@@ -638,6 +638,7 @@ export const ja = {
   'agent.sidebar.disconnected': 'メッセージチャネル未接続',
   'agent.sidebar.open_settings': '{status}、メッセージ設定を開く',
   'agent.sidebar.super_assistant': 'スーパーアシスタント',
+  'agent.chat.weixin_connection': 'WeChat 接続',
   'claude.launch.choose_directory': 'フォルダーを選択',
   'claude.launch.conversation_short': 'デスクトップ',
   'claude.launch.terminal_short': '端末',

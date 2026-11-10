@@ -635,6 +635,7 @@ Lösch diesen Zettel, wann du willst, und starte deine erste Aufgabe.`,
   'agent.sidebar.disconnected': 'Keine Nachrichtenkanäle verbunden',
   'agent.sidebar.open_settings': '{status}; Nachrichteneinstellungen öffnen',
   'agent.sidebar.super_assistant': 'Super-Assistent',
+  'agent.chat.weixin_connection': 'WeChat-Verbindung',
 
   'claude.launch.choose_directory': 'Ordner wählen',
   'claude.launch.conversation_short': 'Desktop',

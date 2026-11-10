@@ -635,6 +635,7 @@ Borra esta nota cuando quieras y empieza tu primera tarea.`,
   'agent.sidebar.disconnected': 'No hay canales de mensajería conectados',
   'agent.sidebar.open_settings': '{status}; abrir ajustes de mensajes',
   'agent.sidebar.super_assistant': 'Súper asistente',
+  'agent.chat.weixin_connection': 'Conexión WeChat',
 
   'claude.launch.choose_directory': 'Elegir carpeta',
   'claude.launch.conversation_short': 'Escritorio',

@@ -635,6 +635,7 @@ Apague esta nota quando quiser e comece a sua primeira tarefa.`,
   'agent.sidebar.disconnected': 'Nenhum canal de mensagens conectado',
   'agent.sidebar.open_settings': '{status}; abrir configurações de mensagens',
   'agent.sidebar.super_assistant': 'Superassistente',
+  'agent.chat.weixin_connection': 'Conexão WeChat',
 
   'claude.launch.choose_directory': 'Escolher pasta',
   'claude.launch.conversation_short': 'Desktop',

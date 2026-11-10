@@ -81,6 +81,9 @@ interface GambitProps {
   browser?: boolean;
   /** Controls beside the target label: the worktree switch for desktop conversations, New chat for Coffee Agent. */
   worktreeControl?: React.ReactNode;
+  /** Optional channel-connection badge rendered immediately after the target
+   *  label (Coffee Agent uses it for the WeChat link status). */
+  channelBadge?: React.ReactNode;
 }
 
 // Matches any absolute image path inside the compose draft — both our
@@ -150,6 +153,7 @@ function GambitImpl({
   computer,
   browser,
   worktreeControl,
+  channelBadge,
 }: GambitProps) {
   const t = useT();
   // Desktop conversations own their composer controls and send prompts verbatim.
@@ -848,6 +852,7 @@ function GambitImpl({
             <span className="gambit-workspace-name">{workspaceName}</span>
           </span>
         )}
+        {channelBadge}
         {worktreeControl}
         {claude && <ClaudeComposerControls sessionId={sessionId} draft={draft} onDraftChange={onDraftChange} keyHandler={claudeKeyHandler} quota={usageMeter}>{capabilitiesStatus}</ClaudeComposerControls>}
         {codex && <CodexComposerControls key={sessionId} sessionId={sessionId} draft={draft} onDraftChange={onDraftChange} keyHandler={claudeKeyHandler} submitHandler={codexSubmitHandler} quota={usageMeter}>{capabilitiesStatus}</CodexComposerControls>}
