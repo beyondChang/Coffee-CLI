@@ -78,10 +78,11 @@
 .settings-rail-icon { display: flex; opacity: 0.85; }
 .settings-rail-icon svg { width: 16px; height: 16px; }
 
-/* App version pinned to the bottom of the rail. */
+/* App version pinned to the bottom of the rail, centered across its width. */
 .settings-rail-version {
   margin-top: auto;
   padding: 10px 12px 4px;
+  text-align: center;
   font-size: var(--type-caption);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
