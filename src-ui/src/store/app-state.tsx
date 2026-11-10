@@ -212,7 +212,7 @@ export interface AppState {
   // Personalization settings modal (opened by the titlebar gear). App-level
   // so the titlebar gear and the App-mounted modal share one flag.
   settingsOpen: boolean;
-  /** The settings page's section: one of SettingsModal's sections, or 'agent' for Coffee Agent. */
+  /** The settings page's section: one of SettingsModal's sections, or 'agent' for Super Assistant. */
   settingsSection: string;
 
   // Gambit compose-box send key. true → Enter sends (Shift/Ctrl/Cmd+Enter =
@@ -324,7 +324,7 @@ type Action =
 /** The "new session" launchpad is a tab whose tool has not been chosen yet.
  *  It owns the whole workspace: no side panel, no compose box. */
 export function isLaunchpadActive(state: AppState): boolean {
-  // A Coffee Agent / file / utility page takes over the centre column while
+  // A Super Assistant / file / utility page takes over the centre column while
   // the untouched chooser stays the active terminal behind it. Only suppress
   // panels when the chooser is what the user is actually looking at —
   // otherwise its right-panel handle disappears and TOGGLE_RIGHT_PANEL is
@@ -352,7 +352,7 @@ function splitForSession(state: AppState, id: string, targetId: string, edge: Sp
 }
 
 function reducer(state: AppState, action: Action): AppState {
-  // Coffee Agent's configuration lives in settings; its old tab opens that section instead.
+  // Super Assistant's configuration lives in settings; its old tab opens that section instead.
   if (action.type === 'OPEN_AGENT_PAGE' && action.page === 'config') return { ...state, settingsOpen: true, settingsSection: 'agent', usageOpen: false, toolSettingsOpen: false, automationsOpen: false };
   if ((state.usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen) && !(action.type === 'LAUNCH_TERMINAL_TOOL' && action.background) && ['ADD_TERMINAL', 'LAUNCH_TERMINAL_TOOL', 'SET_ACTIVE_TERMINAL', 'OPEN_AGENT_PAGE', 'OPEN_SESSION_SPLIT', 'OPEN_FILE', 'SET_FILE_TAB_ACTIVE'].includes(action.type)) state = { ...state, usageOpen: false, toolSettingsOpen: false, settingsOpen: false, automationsOpen: false };
   switch (action.type) {

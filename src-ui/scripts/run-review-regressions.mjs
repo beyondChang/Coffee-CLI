@@ -432,7 +432,7 @@ assert.equal(manualLaunches[0].id, 'launchpad');
 assert.equal(manualLaunches[0].tool, 'claude');
 assert.equal(manualLaunches[0].cwd, 'E:\\tmp');
 assert.deepEqual(rememberedFolders, [['claude', 'E:\\tmp']], 'the launch is remembered as this tool\'s last folder');
-console.log('OK: actual tool-card folder selection uses the same launch action as Coffee Agent and remembers the tool\'s folder');
+console.log('OK: actual tool-card folder selection uses the same launch action as Super Assistant and remembers the tool\'s folder');
 
 // Exercise the actual history-card click: a directoryless Coffee conversation
 // must open its Agent page, while native history still resumes a real CLI tab.
@@ -470,7 +470,7 @@ console.log('OK: actual tool-card folder selection uses the same launch action a
   assert.equal(coffee.cwd, '');
   assert.equal(coffee.session_token, null);
   const matchesQuery = evaluate(matches, {
-    useCallback: callback => callback, renamed: {},
+    useCallback: callback => callback, renamed: {}, t: () => 'Super Assistant',
     projectName: () => '', getToolName: tool => tool,
   });
   const allHistories = evaluate(filter, {
@@ -493,7 +493,7 @@ console.log('OK: actual tool-card folder selection uses the same launch action a
   assert.equal(actions.at(-1).session.toolTitle, 'History title', 'a reopened tab starts under its history title');
   assert.equal(actions.at(-1).session.pinnedTitle, 'My name', 'the name the user gave it outranks later tool titles');
   const filtered = evaluate(filter, {
-    useMemo: callback => callback(), availableSessions: [coffee], debouncedQuery: 'Coffee Agent', matchesQuery,
+    useMemo: callback => callback(), availableSessions: [coffee], debouncedQuery: 'Super Assistant', matchesQuery,
   });
   assert.equal(filtered.length, 1);
   console.log('OK: mixed timestamps show Coffee history on the first page, reopen the Agent, and preserve native CLI resume');

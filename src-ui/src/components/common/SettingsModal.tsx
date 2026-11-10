@@ -122,7 +122,7 @@ export function SettingsModal() {
   const { state } = useAppState();
   const dispatch = useAppDispatch();
   const t = useT();
-  // Held in app state so other places can open a section (Coffee Agent's channel status opens 'agent').
+  // Held in app state so other places can open a section (Super Assistant's channel status opens 'agent').
   // Wallpaper, sound and shortcuts were sections of their own; a request for one opens the section that holds it now.
   const requested = state.settingsSection === 'wallpaper' ? 'appearance' : state.settingsSection === 'sound' || state.settingsSection === 'gambit' ? 'general' : state.settingsSection;
   const section: Section = SECTION_IDS.includes(requested as Section) ? requested as Section : 'general';

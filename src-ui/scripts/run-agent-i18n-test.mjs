@@ -64,7 +64,7 @@ const context = {
 runInNewContext(compiled.outputFiles[0].text, context);
 const api = module.exports;
 const keys = Object.keys(api.dictionaries.en).filter(key => key.startsWith('agent.')).sort();
-assert.ok(keys.length > 0, 'Coffee Agent must have its own translations');
+assert.ok(keys.length > 0, 'Super Assistant must have its own translations');
 const placeholders = text => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
 const escaped = text => renderToStaticMarkup(React.createElement('span', null, text)).slice(6, -7);
 
@@ -78,7 +78,7 @@ for (const [language, dictionary] of Object.entries(api.dictionaries)) {
   context.__agentTestState.currentLang = language;
   context.__agentTestState.settingsOpen = true;
   context.__agentTestState.settingsSection = 'agent';
-  // Coffee Agent's configuration is the settings page's Agent section.
+  // Super Assistant's configuration is the settings page's Agent section.
   const settings = renderToStaticMarkup(React.createElement(api.AgentSettings));
   for (const key of ['agent.settings.help', 'agent.model.title', 'agent.model.provider', 'agent.modes.title', 'agent.delegation.title', 'agent.modes.sentinel.title', 'agent.modes.project_manager.title', 'agent.modes.expert_config.title', 'agent.channels.title']) {
     assert.ok(settings.includes(escaped(dictionary[key])), `${language}: settings did not render ${key}`);
@@ -128,4 +128,4 @@ for (const language of ['en', 'zh-CN', 'ja']) {
   assert.equal(api.formatAgentMessage('Agent 请求未完成：请先在 Agent 配置中填写模型 ID', translate), translate('agent.chat.incomplete', { error: translate('agent.error.model_required') }));
   assert.equal(api.formatAgentMessage('Read E:\\MyProject and report in Chinese.', translate), 'Read E:\\MyProject and report in Chinese.');
 }
-console.log(`OK: Coffee Agent rendering, ${keys.length} translation keys in 11 languages, placeholders, help links, and live activity language changes`);
+console.log(`OK: Super Assistant rendering, ${keys.length} translation keys in 11 languages, placeholders, help links, and live activity language changes`);

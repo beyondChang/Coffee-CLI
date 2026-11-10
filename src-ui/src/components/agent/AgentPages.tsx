@@ -15,7 +15,7 @@ import '../center/ConversationView.css';
 import '../common/SettingsModal.css';
 import './AgentPages.css';
 
-/** Coffee Agent's configuration shows as a section of the settings page. */
+/** Super Assistant's configuration shows as a section of the settings page. */
 const agentSettingsShown = (open: boolean, section: string) => open && section === 'agent';
 
 function AgentSelect<Value extends string>({ value, options, onChange, label, className = '' }: {
@@ -602,7 +602,7 @@ function AgentHelpModal({ onClose }: { onClose: () => void }) {
   </dialog>, document.body);
 }
 
-/** Coffee Agent's model, work modes and channels: the "Coffee Agent" section of the settings page. */
+/** Super Assistant's model, work modes and channels: the "Super Assistant" section of the settings page. */
 export function AgentSettings() {
   const t = useT();
   const { state } = useAppState();
@@ -613,7 +613,7 @@ export function AgentSettings() {
   return <><div className="agent-settings-scroll"><div className="agent-settings-content"><AgentModelSection helpButton={helpButton} /><AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
 }
 
-/** A Coffee Agent tab: the conversation. Its configuration moved into the settings page. */
+/** A Super Assistant tab: the conversation. Its configuration moved into the settings page. */
 export function AgentPages({ page }: { page: AgentPage }) {
   return page === 'agent' ? <AgentChatPage /> : null;
 }

@@ -493,7 +493,7 @@ fn git_commit_files_blocking(repo_root: String, hash: String) -> Vec<GitFileEntr
     commit_files(&repo_root, &hash)
 }
 
-/// Bounded, local-only evidence for Coffee Agent. No fetch or repository writes.
+/// Bounded, local-only evidence for Super Assistant. No fetch or repository writes.
 pub(crate) fn project_snapshot(folder: &str) -> serde_json::Value {
     use serde_json::json;
     let observed_at = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;

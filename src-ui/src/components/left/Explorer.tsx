@@ -652,7 +652,7 @@ export function Explorer() {
         </button>
       </div>
 
-      {/* The Coffee Agent conversation entry sits directly under New session.
+      {/* The Super Assistant conversation entry sits directly under New session.
           Its channel status and settings gear remain in the bottom row. */}
       <button type="button" className="explorer-new-session explorer-usage" aria-label={t('agent.sidebar.super_assistant')} aria-pressed={state.agentPageActive === 'agent'} onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'agent' })}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 14H6l-4 3V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" /><path d="M10 8h10a2 2 0 0 1 2 2v12l-4-3h-8a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /></svg>
@@ -671,7 +671,7 @@ export function Explorer() {
       </div>
 
       {/* The bottom status row was removed: settings lives in the titlebar,
-          and the WeChat link badge lives in the Coffee Agent composer. */}
+          and the WeChat link badge lives in the Super Assistant composer. */}
     </div>
   );
 }

@@ -79,10 +79,10 @@ interface GambitProps {
   orchestration?: boolean;
   computer?: boolean;
   browser?: boolean;
-  /** Controls beside the target label: the worktree switch for desktop conversations, New chat for Coffee Agent. */
+  /** Controls beside the target label: the worktree switch for desktop conversations, New chat for Super Assistant. */
   worktreeControl?: React.ReactNode;
   /** Optional channel-connection badge rendered immediately after the target
-   *  label (Coffee Agent uses it for the WeChat link status). */
+   *  label (Super Assistant uses it for the WeChat link status). */
   channelBadge?: React.ReactNode;
 }
 

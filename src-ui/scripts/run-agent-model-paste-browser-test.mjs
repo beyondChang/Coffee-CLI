@@ -113,6 +113,6 @@ try {
   await page.evaluate(() => { document.querySelector('.agent-settings-content').style.width = '380px'; });
   await pasteButtonsSitInsideFields(200);
   await page.screenshot({ path: join(directory, 'narrow.png') });
-  console.log('OK: Coffee Agent model fields paste from buttons inside the fields, use the shared right-click menu, and keep the API key as optional plain text');
+  console.log('OK: Super Assistant model fields paste from buttons inside the fields, use the shared right-click menu, and keep the API key as optional plain text');
   console.log(`Screenshots: ${directory}`);
 } finally { await browser.close(); server.close(); }

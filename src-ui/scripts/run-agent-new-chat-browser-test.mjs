@@ -50,7 +50,7 @@ try {
   await button.waitFor();
   assert.equal(await button.evaluate(el => el.parentElement.classList.contains('gambit-footer')), true, 'New chat lives in the composer footer');
   const [box, label, send] = await Promise.all([button.boundingBox(), page.locator('.gambit-workspace').boundingBox(), page.locator('.gambit-send').boundingBox()]);
-  assert.ok(box.x >= label.x + label.width && box.x - (label.x + label.width) <= 10, `New chat sits right beside the Coffee Agent label: ${JSON.stringify({ box, label })}`);
+  assert.ok(box.x >= label.x + label.width && box.x - (label.x + label.width) <= 10, `New chat sits right beside the Super Assistant label: ${JSON.stringify({ box, label })}`);
   assert.ok(Math.abs(box.y + box.height / 2 - (label.y + label.height / 2)) < 1 && Math.abs(box.height - label.height) < 1, 'New chat matches the label row and height');
   assert.ok(send.x - (box.x + box.width) > 200, 'the send button stays at the far right');
   await page.screenshot({ path: join(directory, 'new-chat.png') });
@@ -63,6 +63,6 @@ try {
   assert.equal(await page.evaluate(() => window.started), 1);
   assert.equal(await button.count(), 0, 'the fresh chat shows the welcome view without the button');
   assert.deepEqual(errors, []);
-  console.log('OK: Coffee Agent New chat appears only with messages, sits beside the composer label, waits for a running reply and opens a fresh chat');
+  console.log('OK: Super Assistant New chat appears only with messages, sits beside the composer label, waits for a running reply and opens a fresh chat');
   console.log(`Screenshots: ${directory}`);
 } finally { await browser.close(); server.close(); }

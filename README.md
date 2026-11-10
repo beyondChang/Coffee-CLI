@@ -65,7 +65,7 @@ Muse Code launches `muse` in your selected directory. Its session history and he
 
 ### Desktop & Terminal Modes
 
-**Claude Code and Codex CLI** offer `Desktop / Terminal` tabs on their launch cards. Desktop is the default for new installations; saved preferences are preserved. Desktop mode displays conversations, tool activity, permission/input cards, and conversation navigation while staying connected to the native background session. Coffee Agent can read and operate that same desktop-mode session without opening a separate terminal.
+**Claude Code and Codex CLI** offer `Desktop / Terminal` tabs on their launch cards. Desktop is the default for new installations; saved preferences are preserved. Desktop mode displays conversations, tool activity, permission/input cards, and conversation navigation while staying connected to the native background session. Super Assistant can read and operate that same desktop-mode session without opening a separate terminal.
 
 ---
 
@@ -112,7 +112,7 @@ The Coffee CLI app ships with a fully localized UI in 11 languages — menus, di
 
 | Feature | Description |
 |---|---|
-| **Desktop Conversations** | Claude Code and Codex CLI support Desktop or Terminal launch modes, with native background sessions and same-session Coffee Agent control |
+| **Desktop Conversations** | Claude Code and Codex CLI support Desktop or Terminal launch modes, with native background sessions and same-session Super Assistant control |
 | **Multi-Tab Sessions** | Run multiple agents side by side, each with its own independent process and context |
 | **Session History** | Every session auto-saved and searchable; resume any conversation from where you left off |
 | **Built-In File Explorer** | Browse your workspace, copy paths, drag references directly into your prompt |
@@ -201,7 +201,7 @@ Muse Code 目前支持在所选目录启动 `muse`，暂未接入 Coffee CLI 的
 
 ### 桌面式与终端式
 
-**Claude Code 和 Codex CLI** 的启动卡片提供 `Desktop / Terminal` 切换。新安装默认使用 Desktop，已有用户的选择会保留。桌面式支持对话、工具执行、权限/输入卡片和对话导航，并持续连接原生后台会话。Coffee Agent 也能读取和操作同一个桌面式后台会话，无需另开终端。
+**Claude Code 和 Codex CLI** 的启动卡片提供 `Desktop / Terminal` 切换。新安装默认使用 Desktop，已有用户的选择会保留。桌面式支持对话、工具执行、权限/输入卡片和对话导航，并持续连接原生后台会话。超级助手也能读取和操作同一个桌面式后台会话，无需另开终端。
 
 ### 为谁而生？
 

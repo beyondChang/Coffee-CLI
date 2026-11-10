@@ -1,4 +1,4 @@
-//! Bounded project evidence and identity-scoped project notes for Coffee Agent.
+//! Bounded project evidence and identity-scoped project notes for Super Assistant.
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{fs, io::Read, path::{Path, PathBuf}, sync::Mutex, time::{SystemTime, UNIX_EPOCH}};

@@ -246,7 +246,7 @@ impl Store {
                 continue;
             }
             let id = uuid::Uuid::new_v4().to_string();
-            tx.execute("INSERT INTO conversations(id,route,title,updated_at,active) VALUES(?1,?2,'Coffee Agent',?3,?4)",
+            tx.execute("INSERT INTO conversations(id,route,title,updated_at,active) VALUES(?1,?2,'Super Assistant',?3,?4)",
                 params![id, route, path.metadata().ok().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis() as i64).unwrap_or_else(now_ms),
                     !tx.query_row("SELECT EXISTS(SELECT 1 FROM conversations WHERE route=?1 AND active=1)", [route], |r| r.get::<_, bool>(0)).map_err(|e| e.to_string())?]).map_err(|e| e.to_string())?;
             for message in messages {
@@ -264,7 +264,7 @@ impl Store {
                 .map_err(|e| e.to_string())?;
                 if role == "user" {
                     tx.execute(
-                        "UPDATE conversations SET title=?2 WHERE id=?1 AND title='Coffee Agent'",
+                        "UPDATE conversations SET title=?2 WHERE id=?1 AND title='Super Assistant'",
                         params![id, title(text)],
                     )
                     .map_err(|e| e.to_string())?;

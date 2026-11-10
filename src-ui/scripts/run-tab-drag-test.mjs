@@ -118,7 +118,7 @@ test('a counter-zoomed titlebar keeps the dragged tab under the pointer', () => 
   assert.deepEqual(f.actions, [{ type: 'REORDER_TAB', tabId: 'agent:config', beforeId: 'one' }]);
 });
 
-test('Coffee Agent drags right through terminals and message settings', () => {
+test('Super Assistant drags right through terminals and message settings', () => {
   const f = fixture(['one', 'agent:agent', 'two', 'agent:config']);
   f.down('agent:agent'); f.move(500);
   assert.deepEqual(native(f.api.getTabDragStyle('two', 2)), { transform: 'translateX(-100px)' });

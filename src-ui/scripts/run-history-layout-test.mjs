@@ -15,7 +15,7 @@ const context = vm.createContext({
   getToolName: tool => ({ claude: 'Claude Code', codex: 'Codex CLI', openclaw: 'OpenClaw' }[tool] ?? tool),
   hidden: new Set(['claude:hidden']), pinned: new Set(['codex:pinned']),
   renamed: { 'claude:renamed': 'Custom session title' },
-  orchestration: { tasks: [] }, state: { terminals: [] }, projectExtras: new Map(), openSessions: new Set(), PROJECT_PREVIEW: 5, toolFilter: '', projectScope: 'all', projectFolders: [],
+  orchestration: { tasks: [] }, state: { terminals: [] }, projectExtras: new Map(), openSessions: new Set(), PROJECT_PREVIEW: 5, toolFilter: '', projectScope: 'all', projectFolders: [], t: () => 'Super Assistant',
 });
 function evaluate(name) {
   assert.ok(expressions.has(name), `Missing actual ${name}`);
@@ -44,7 +44,7 @@ assert.deepEqual(Array.from(coffee.sessions, session => session.id), ['recent', 
 assert.equal(context.projects.some(group => group.name === '/one/shared'), true);
 assert.equal(context.projects.some(group => group.name === '/two/shared'), true);
 assert.equal(context.projects.filter(group => ['App', 'app'].includes(group.name)).length, 2, 'case-sensitive Unix directories stay distinct');
-assert.equal(context.projects.find(group => group.sessions[0].id === 'agent').name, 'Coffee Agent');
+assert.equal(context.projects.find(group => group.sessions[0].id === 'agent').name, 'Super Assistant');
 assert.equal(context.projects.find(group => group.sessions[0].id === 'claw').name, 'OpenClaw');
 // Added folders only: the launchpad's folders, even without sessions; other folders leave, folderless groups stay.
 const everyProject = context.projects;
@@ -53,7 +53,7 @@ const added = evaluate('projects');
 assert.deepEqual(Array.from(added.find(group => group.cwd.toLowerCase().includes('coffee')).sessions, s => s.id), ['recent', 'same-project', 'renamed'], 'a folder matches however its path is written');
 assert.equal(added.find(group => group.name === 'Fresh').sessions.length, 0, 'an added folder shows before its first session');
 assert.equal(added.some(group => group.name === 'EchoBird' || group.name === '/one/shared'), false, 'folders never added stay out');
-assert.equal(added.some(group => group.name === 'Coffee Agent') && added.some(group => group.name === 'OpenClaw'), true, 'sessions without a folder keep their group');
+assert.equal(added.some(group => group.name === 'Super Assistant') && added.some(group => group.name === 'OpenClaw'), true, 'sessions without a folder keep their group');
 context.projectScope = 'all'; context.projectFolders = [];
 context.projects = everyProject;
 context.collapsedProjects = new Set([coffee.key]);
@@ -98,7 +98,7 @@ assert.equal(matches(original.at(-1), '  CUSTOM session  '), true);
 assert.equal(matches(original.at(-1), 'renamed'), false, 'search follows custom titles');
 assert.equal(matches(original[4], '/one/shared'), true, 'search includes full project paths');
 assert.equal(matches(original[3], 'codex cli'), true);
-assert.equal(matches(original[8], 'coffee agent'), true);
+assert.equal(matches(original[8], 'super assistant'), true);
 assert.equal(matches(original[9], 'internal/workspace'), false, 'directoryless tools do not expose internal workspaces');
 assert.equal(matches(original[0], 'no such conversation'), false);
 console.log('OK: hidden/pinned sessions, stable cache, directory grouping, duplicate names, case-sensitive paths, directoryless tools, collapse/toggle, renamed title and project/tool search');
@@ -209,7 +209,7 @@ assert.equal(context.state.terminals.length, 2, 'splitting a live row reuses its
 reset();
 await openHistory({ ...saved, tool: 'coffee-agent', session_token: null });
 assert.equal(context.agentOpened, saved.id);
-assert.equal(context.state.terminals.length, 0, 'Coffee Agent keeps its existing page-based open flow');
+assert.equal(context.state.terminals.length, 0, 'Super Assistant keeps its existing page-based open flow');
 console.log('OK: repeat/rapid history opens, hidden/closed tabs, cross-tool identity, live native IDs, live row activation/split reuse, draft/process preservation, lookup failure and Agent flow');
 
 context.setPreview = () => {};

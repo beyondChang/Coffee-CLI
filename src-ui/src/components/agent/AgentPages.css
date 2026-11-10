@@ -125,7 +125,7 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
 .agent-channel-summary-label:hover, .agent-sidebar-button:hover { background: var(--bg-hover); }
 .agent-sidebar-button svg { width: 18px; height: 18px; }
 
-/* WeChat link badge beside the Coffee Agent composer's target label.
+/* WeChat link badge beside the Super Assistant composer's target label.
    Give it the same filled chip as the workspace label and New chat so the
    three controls read as one group instead of a floating piece of text. */
 .agent-weixin-status { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; height: 26px; margin-right: auto; padding: 4px 7px; border: 0; border-radius: var(--shape-radius-btn, 5px); background: var(--bg-hover); color: var(--text-2); font: var(--type-caption)/16px var(--font, system-ui); white-space: nowrap; cursor: pointer; }

@@ -300,16 +300,16 @@ try {
   await page.reload();await page.locator('.history-card').first().waitFor();
   assert.equal(await page.locator('.history-layout-toggle > span').textContent(),piName,'the chosen tool is remembered');
   await page.evaluate(()=>{localStorage.setItem('cc-history-layout','list');localStorage.removeItem('coffee_pinned_items');});
-  // Coffee Agent conversations carry the desktop app icon, never the animated title-bar logo.
+  // Super Assistant conversations carry the desktop app icon, never the animated title-bar logo.
   for (const layout of ['projects','list']) {
     await page.evaluate(layout=>localStorage.setItem('cc-history-layout',layout),layout);
     await page.goto(`http://127.0.0.1:${server.address().port}/?toolIcons=1&agent=1`);
     const agentCard=page.locator('.history-card').filter({has:page.locator('.history-card-title',{hasText:/^Daily plan$/})});
     const agentIcon=agentCard.locator('.history-card-tool-icon');
     await agentIcon.locator('img').waitFor();
-    assert.deepEqual(await agentIcon.locator('img').evaluate(img=>new Promise(resolve=>{const done=()=>resolve([img.src.startsWith('data:image/png'),img.naturalWidth,img.naturalHeight]);img.complete?done():img.onload=done;})),[true,64,64],`${layout}: Coffee Agent shows the 64px desktop app icon`);
-    assert.equal(await agentIcon.locator('svg, animate').count(),0,`${layout}: the Coffee Agent icon is the static image, not the animated logo`);
-    assert.equal(await agentIcon.evaluate(el=>{const i=el.getBoundingClientRect(),t=el.nextElementSibling.getBoundingClientRect();return i.height===14&&Math.abs(i.top+i.height/2-t.top-t.height/2)<1}),true,`${layout}: the Coffee Agent icon aligns with its title`);
+    assert.deepEqual(await agentIcon.locator('img').evaluate(img=>new Promise(resolve=>{const done=()=>resolve([img.src.startsWith('data:image/png'),img.naturalWidth,img.naturalHeight]);img.complete?done():img.onload=done;})),[true,64,64],`${layout}: Super Assistant shows the 64px desktop app icon`);
+    assert.equal(await agentIcon.locator('svg, animate').count(),0,`${layout}: the Super Assistant icon is the static image, not the animated logo`);
+    assert.equal(await agentIcon.evaluate(el=>{const i=el.getBoundingClientRect(),t=el.nextElementSibling.getBoundingClientRect();return i.height===14&&Math.abs(i.top+i.height/2-t.top-t.height/2)<1}),true,`${layout}: the Super Assistant icon aligns with its title`);
     await agentCard.screenshot({path:join(directory,`coffee-agent-${layout}.png`)});
   }
   await page.evaluate(()=>localStorage.setItem('cc-history-layout','list'));

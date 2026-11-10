@@ -20,7 +20,7 @@ const api = vm.runInNewContext(compile(
 ), { localStorage: { setItem() {} } });
 
 // The untouched "new session" chooser can remain the active terminal while a
-// Coffee Agent / file / utility page owns the centre column. While it was
+// Super Assistant / file / utility page owns the centre column. While it was
 // still reported as "active", App.tsx unmounted the right panel, its edge
 // handle was hidden and TOGGLE_RIGHT_PANEL was ignored: the panel could never
 // be shown on those pages.
@@ -32,7 +32,7 @@ const chooser = {
 };
 
 assert.equal(api.isLaunchpadActive(chooser), true, 'the chooser tab owns the workspace');
-assert.equal(api.isLaunchpadActive({ ...chooser, agentPageActive: 'agent' }), false, 'the Coffee Agent page is not the chooser');
+assert.equal(api.isLaunchpadActive({ ...chooser, agentPageActive: 'agent' }), false, 'the Super Assistant page is not the chooser');
 assert.equal(api.isLaunchpadActive({ ...chooser, fileTabActive: true }), false, 'a file viewer is not the chooser');
 assert.equal(api.isLaunchpadActive({ ...chooser, usageOpen: true }), false, 'a utility page is not the chooser');
 // Tool settings is a floating modal now, so the chooser behind it still owns
@@ -42,7 +42,7 @@ assert.equal(api.isLaunchpadActive({ ...chooser, automationsOpen: true }), false
 assert.equal(api.isLaunchpadActive({ ...chooser, terminals: [{ id: 'chooser', tool: 'claude' }] }), false, 'a real terminal is not the chooser');
 
 assert.equal(api.reducer({ ...chooser, agentPageActive: 'agent' }, { type: 'TOGGLE_RIGHT_PANEL' }).rightPanelHidden, false,
-  'the right panel must open while the Coffee Agent page is visible');
+  'the right panel must open while the Super Assistant page is visible');
 assert.equal(api.reducer(chooser, { type: 'TOGGLE_RIGHT_PANEL' }).rightPanelHidden, true,
   'the chooser still refuses a sidebar');
 
