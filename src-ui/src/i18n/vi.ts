@@ -306,6 +306,7 @@ export const vi = {
   'file.save_failed': 'Lưu thất bại',
   'file.error': 'Không đọc được tệp này',
   'right.panel.label': 'Bảng bên phải',
+  'panel.open_right': 'Mở bảng bên phải',
   'launchpad.open_folder': 'Mở thư mục',
   'launchpad.pick_folder': 'Chọn thư mục dự án',
   'launchpad.remote': 'Từ xa',

@@ -304,6 +304,7 @@ export const ja = {
   'file.save_failed': '保存に失敗しました',
   'file.error': 'このファイルを読み取れませんでした',
   'right.panel.label': '右パネル',
+  'panel.open_right': '右パネルを開く',
   'launchpad.open_folder': 'フォルダを開く',
   'launchpad.pick_folder': 'プロジェクトフォルダを選択',
   'launchpad.remote': 'リモート',

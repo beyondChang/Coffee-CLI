@@ -304,6 +304,7 @@ export const pt = {
   'file.save_failed': 'Falha ao guardar',
   'file.error': 'Não foi possível ler este ficheiro',
   'right.panel.label': 'Painel direito',
+  'panel.open_right': 'Abrir painel direito',
   'launchpad.open_folder': 'Abrir pasta',
   'launchpad.pick_folder': 'Escolher pasta do projeto',
   'launchpad.remote': 'Remoto',

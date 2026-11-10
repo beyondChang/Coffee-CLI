@@ -50,7 +50,6 @@ export function TitleBar() {
   // toggle. Removing the window-edge move trades a non-standard "trim
   // collapsed window" effect for zero flicker — the right call.
   const toggleLeft  = () => dispatch({ type: 'TOGGLE_LEFT_PANEL' });
-  const toggleRight = () => dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
   const activeTab = state.terminals.find(t => t.id === state.activeTerminalId);
   const claudeComposerLocked = isConversationSession(activeTab) && !state.agentPageActive && !state.fileTabActive;
   const gambitOpen = claudeComposerLocked || state.gambitOpen;
@@ -154,18 +153,8 @@ export function TitleBar() {
           </svg>
           <span className="titlebar-hotkey-hint">{hk.gambit}</span>
         </button>
-        <button
-          className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted${state.rightPanelHidden ? '' : ' is-active'}`}
-          onClick={toggleRight}
-          aria-label={`Toggle right panel (${hk.right})`}
-          aria-pressed={!state.rightPanelHidden}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter">
-            <rect x="3" y="3" width="18" height="18" />
-            <line x1="15" y1="4" x2="15" y2="20" />
-          </svg>
-          <span className="titlebar-hotkey-hint">{hk.right}</span>
-        </button>
+        {/* The right-panel toggle moved to a hover strip on the centre pane's
+            right edge (RightPanelReveal), so the chrome group stays short. */}
         {/* Personalization settings — gear opens the consolidated modal that
             replaced the old left-panel theme/language popovers. It joins the
             configured titlebar display mode, except "hidden" intentionally

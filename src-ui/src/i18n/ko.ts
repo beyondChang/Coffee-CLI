@@ -304,6 +304,7 @@ export const ko = {
   'file.save_failed': '저장 실패',
   'file.error': '파일을 읽을 수 없습니다',
   'right.panel.label': '오른쪽 패널',
+  'panel.open_right': '오른쪽 패널 열기',
   'launchpad.open_folder': '폴더 열기',
   'launchpad.pick_folder': '프로젝트 폴더 선택',
   'launchpad.remote': '원격',

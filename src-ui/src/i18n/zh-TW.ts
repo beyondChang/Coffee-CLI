@@ -304,6 +304,7 @@ export const zhTW = {
   'file.save_failed': '儲存失敗',
   'file.error': '無法讀取此檔案',
   'right.panel.label': '右側面板',
+  'panel.open_right': '開啟右側面板',
   'launchpad.open_folder': '開啟資料夾',
   'launchpad.pick_folder': '選擇專案目錄',
   'launchpad.remote': '遠端',

@@ -304,6 +304,7 @@ export const fr = {
   'file.save_failed': "Échec de l'enregistrement",
   'file.error': 'Impossible de lire ce fichier',
   'right.panel.label': 'Panneau droit',
+  'panel.open_right': 'Ouvrir le panneau droit',
   'launchpad.open_folder': 'Ouvrir un dossier',
   'launchpad.pick_folder': 'Choisir un dossier de projet',
   'launchpad.remote': 'Distant',

@@ -304,6 +304,7 @@ export const de = {
   'file.save_failed': 'Speichern fehlgeschlagen',
   'file.error': 'Datei konnte nicht gelesen werden',
   'right.panel.label': 'Rechtes Panel',
+  'panel.open_right': 'Rechtes Panel öffnen',
   'launchpad.open_folder': 'Ordner öffnen',
   'launchpad.pick_folder': 'Projektordner wählen',
   'launchpad.remote': 'Remote',

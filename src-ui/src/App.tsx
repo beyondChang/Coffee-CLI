@@ -21,6 +21,7 @@ import { CenterPanel } from './components/center/CenterPanel';
 import { ActiveGambit } from './components/center/ActiveGambit';
 import { AgentBridge } from './components/agent/AgentBridge';
 import { RightPanel } from './components/right/Compiler';
+import { RightPanelReveal } from './components/common/RightPanelReveal';
 import { GitStatusProvider } from './lib/git-status';
 import './styles/global.css';
 
@@ -556,6 +557,10 @@ export function App() {
           status events, etc.) and can be dragged freely across the whole
           app window. Internally reads the active tab's gambit state. */}
       <ActiveGambit />
+
+      {/* Reopen handle for the right panel — a hover strip at the centre
+          pane's top-right corner, since that toggle left the titlebar. */}
+      {!state.settingsOpen && <RightPanelReveal />}
 
       {/* Personalization settings — centered modal opened by the titlebar
           gear. App-level overlay (gated on state.settingsOpen) so it floats
