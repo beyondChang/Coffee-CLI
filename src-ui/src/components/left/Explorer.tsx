@@ -1,7 +1,6 @@
-import { ChannelConnectionSummary } from '../agent/AgentPages';
 // Explorer.tsx — Left panel: file tree synced from terminal CWD
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppState } from '../../store/app-state';
 import type { IconTheme } from '../../store/app-state';
@@ -14,12 +13,10 @@ import { isAudioFile, openAudioPlayer } from '../../lib/audio-player';
 import { consumePendingRename, onPendingRename, requestRename } from '../../lib/pending-rename';
 import { getFileIconSrc } from '../../lib/file-icons';
 import { useFileStats, useDirtyDirs } from '../../lib/git-status';
-import { commands, onSelfUpdateProgress } from '../../tauri';
-import { IS_WINDOWS } from '../../lib/platform';
+import { commands } from '../../tauri';
 import type { DirEntryInfo } from '../../tauri';
 import { HistoryBoard } from '../right/HistoryBoard';
 import './Explorer.css';
-import { fetchLatestManifest, isNewerVersion } from '../../lib/update-manifest';
 
 
 // Snapshot lifecycle and the `+N -M` map live in lib/git-status.tsx so every
@@ -616,119 +613,20 @@ export function Explorer() {
   const { state, dispatch } = useAppState();
   const t = useT();
 
-  // Update check
-  const [hasUpdate, setHasUpdate] = useState(false);
-  // The brand (title + the self-update button) renders here but DISPLAYS
-  // in the titlebar's left slot via portal — so it keeps all its Explorer-local
-  // self-update state untouched, and hides together with the left panel (this
-  // component unmounts when the panel is hidden, which is exactly what we want:
-  // no need to relocate the brand to the centre). Slot resolves after mount.
+  // The brand (title) renders here but DISPLAYS in the titlebar's left slot
+  // via portal; it hides together with the left panel because this component
+  // unmounts when the panel is hidden. Slot resolves after mount.
   const [brandSlot, setBrandSlot] = useState<HTMLElement | null>(null);
+  // The titlebar slot only exists after mount, so resolving it once into state
+  // is the intended portal wiring.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setBrandSlot(document.getElementById('titlebar-brand-slot')); }, []);
-  useEffect(() => {
-    const checkUpdate = async () => {
-      try {
-        const { getVersion } = await import('@tauri-apps/api/app');
-        // Domestic mirrors and the website are asked together; the newest
-        // version any of them reports wins (see lib/update-manifest.ts).
-        const [local, remote] = await Promise.all([getVersion(), fetchLatestManifest()]);
-        if (remote && isNewerVersion(remote.version, local)) setHasUpdate(true);
-      } catch { /* offline or fetch failed — silent */ }
-    };
-    checkUpdate();
-  }, []);
-
-  // In-app self-update. Click the logo's update icon → a circular ring fills
-  // as the installer downloads into the Downloads folder. Windows then runs
-  // the wizard and the app exits; macOS opens the DMG and Linux opens the
-  // folder, and the app keeps running. On failure fall back to the page.
-  const [installing, setInstalling] = useState(false);
-  const [installPct, setInstallPct] = useState(0);
-  const [installPhase, setInstallPhase] = useState<
-    'speed_test' | 'downloading' | 'launching' | 'downloaded' | 'error' | null
-  >(null);
-  const handleSelfUpdate = useCallback(async () => {
-    if (installing) return;
-    setInstalling(true);
-    setInstallPhase('speed_test');
-    setInstallPct(0);
-    let unlisten: (() => void) | undefined;
-    try {
-      unlisten = await onSelfUpdateProgress((p) => {
-        setInstallPhase(p.status);
-        setInstallPct(p.percent);
-      });
-      await commands.downloadAndInstallUpdate();
-      // Windows: the installer launched and the app is about to exit, so
-      // leave the ring until the window goes away. macOS / Linux keep
-      // running with the DMG or Downloads folder open: reset the button.
-      if (!IS_WINDOWS) {
-        setInstalling(false);
-        setInstallPhase(null);
-        setInstallPct(0);
-      }
-    } catch {
-      commands.openUrl('https://coffeecli.com');
-      setInstalling(false);
-      setInstallPhase(null);
-      setInstallPct(0);
-    } finally {
-      unlisten?.();
-    }
-  }, [installing]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!scrollRef.current) return;
     return bindAutoHideScrollbar(scrollRef.current);
   }, []);
-
-  // The update download sits in the sidebar's bottom row, left of settings, where most desktop apps keep it.
-  const updateButton = hasUpdate ? (
-    <button
-      className={`agent-sidebar-button update-check-btn update-available${installing ? ' is-installing' : ''}`}
-      onClick={handleSelfUpdate}
-      disabled={installing}
-      aria-label="Update Coffee CLI"
-    >
-      {installing ? (
-        <svg
-          className={`update-ring${installPhase === 'speed_test' ? ' spin' : ''}`}
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-        >
-          <circle className="update-ring-track" cx="12" cy="12" r="9" fill="none" strokeWidth="2.6" />
-          <circle
-            className="update-ring-progress"
-            cx="12"
-            cy="12"
-            r="9"
-            fill="none"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-            transform="rotate(-90 12 12)"
-            strokeDasharray={
-              installPhase === 'speed_test'
-                ? `${2 * Math.PI * 9 * 0.25} ${2 * Math.PI * 9}`
-                : 2 * Math.PI * 9
-            }
-            strokeDashoffset={
-              installPhase === 'speed_test'
-                ? 0
-                : 2 * Math.PI * 9 * (1 - installPct / 100)
-            }
-          />
-        </svg>
-      ) : (
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-      )}
-    </button>
-  ) : null;
 
   return (
     <div className="panel panel-left explorer-panel" data-icon-theme={state.iconTheme}>
@@ -776,10 +674,8 @@ export function Explorer() {
       </div>
       </div>
 
-      <ChannelConnectionSummary update={updateButton} />
-
-      {/* Theme + language pickers now live in the titlebar-gear SettingsModal
-          (App-level), not here. */}
+      {/* The bottom status row was removed: settings lives in the titlebar,
+          and the WeChat link badge lives in the Coffee Agent composer. */}
     </div>
   );
 }
