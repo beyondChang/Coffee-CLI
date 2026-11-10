@@ -318,6 +318,7 @@ export const es = {
   'panel.close_left': 'Cerrar panel izquierdo',
   'panel.close_right': 'Cerrar panel derecho',
   'launchpad.open_folder': 'Abrir carpeta',
+  'launchpad.tagline': 'Explora lo inexplorado',
   'launchpad.pick_folder': 'Elige una carpeta de proyecto',
   'launchpad.remote': 'Remoto',
   'launchpad.detect_help_trigger': "¿No se detecta?",

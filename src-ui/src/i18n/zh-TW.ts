@@ -318,6 +318,7 @@ export const zhTW = {
   'panel.close_left': '關閉左側面板',
   'panel.close_right': '關閉右側面板',
   'launchpad.open_folder': '開啟資料夾',
+  'launchpad.tagline': '探索未至之境',
   'launchpad.pick_folder': '選擇專案目錄',
   'launchpad.remote': '遠端',
   'launchpad.detect_help_trigger': "識別不到?",

@@ -318,6 +318,7 @@ export const ru = {
   'panel.close_left': 'Закрыть левую панель',
   'panel.close_right': 'Закрыть правую панель',
   'launchpad.open_folder': 'Открыть папку',
+  'launchpad.tagline': 'Исследуй неизведанное',
   'launchpad.pick_folder': 'Выберите папку проекта',
   'launchpad.remote': 'Удалённо',
   'launchpad.detect_help_trigger': "Не определяется?",

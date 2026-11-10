@@ -318,6 +318,7 @@ export const ja = {
   'panel.close_left': '左パネルを閉じる',
   'panel.close_right': '右パネルを閉じる',
   'launchpad.open_folder': 'フォルダを開く',
+  'launchpad.tagline': '未踏の境地へ',
   'launchpad.pick_folder': 'プロジェクトフォルダを選択',
   'launchpad.remote': 'リモート',
   'launchpad.detect_help_trigger': "検出できない?",

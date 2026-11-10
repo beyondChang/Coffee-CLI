@@ -318,6 +318,7 @@ export const de = {
   'panel.close_left': 'Linkes Panel schließen',
   'panel.close_right': 'Rechtes Panel schließen',
   'launchpad.open_folder': 'Ordner öffnen',
+  'launchpad.tagline': 'Erkunde das Unbetretene',
   'launchpad.pick_folder': 'Projektordner wählen',
   'launchpad.remote': 'Remote',
   'launchpad.detect_help_trigger': "Nicht erkannt?",

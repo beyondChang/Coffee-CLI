@@ -320,6 +320,7 @@ export const vi = {
   'panel.close_left': 'Đóng bảng bên trái',
   'panel.close_right': 'Đóng bảng bên phải',
   'launchpad.open_folder': 'Mở thư mục',
+  'launchpad.tagline': 'Khám phá miền chưa tới',
   'launchpad.pick_folder': 'Chọn thư mục dự án',
   'launchpad.remote': 'Từ xa',
   'launchpad.detect_help_trigger': "Không nhận diện?",

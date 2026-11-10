@@ -318,6 +318,7 @@ export const fr = {
   'panel.close_left': 'Fermer le panneau gauche',
   'panel.close_right': 'Fermer le panneau droit',
   'launchpad.open_folder': 'Ouvrir un dossier',
+  'launchpad.tagline': "Explorez l'inconnu",
   'launchpad.pick_folder': 'Choisir un dossier de projet',
   'launchpad.remote': 'Distant',
   'launchpad.detect_help_trigger': "Non détecté ?",

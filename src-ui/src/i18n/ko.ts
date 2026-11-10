@@ -318,6 +318,7 @@ export const ko = {
   'panel.close_left': '왼쪽 패널 닫기',
   'panel.close_right': '오른쪽 패널 닫기',
   'launchpad.open_folder': '폴더 열기',
+  'launchpad.tagline': '미지의 영역으로',
   'launchpad.pick_folder': '프로젝트 폴더 선택',
   'launchpad.remote': '원격',
   'launchpad.detect_help_trigger': "인식 안 됨?",

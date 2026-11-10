@@ -318,6 +318,7 @@ export const en = {
   'panel.close_left': 'Close left panel',
   'panel.close_right': 'Close right panel',
   'launchpad.open_folder': 'Open Folder',
+  'launchpad.tagline': 'Explore the untrodden',
   'launchpad.pick_folder': 'Choose a project folder',
   'launchpad.remote': 'Remote',
   'launchpad.detect_help_trigger': "Can't detect?",

@@ -433,6 +433,54 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
   padding: 32px;
 }
 
+.launchpad-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 28px;
+}
+
+.launchpad-hero-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+}
+
+.launchpad-hero-tagline {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--type-body);
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  text-align: center;
+}
+
+.launchpad-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 28px;
+}
+
+.launchpad-hero-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+}
+
+.launchpad-hero-tagline {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--type-body);
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  text-align: center;
+}
+
 .launchpad-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

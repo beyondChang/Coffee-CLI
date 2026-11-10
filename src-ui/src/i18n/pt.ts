@@ -318,6 +318,7 @@ export const pt = {
   'panel.close_left': 'Fechar painel esquerdo',
   'panel.close_right': 'Fechar painel direito',
   'launchpad.open_folder': 'Abrir pasta',
+  'launchpad.tagline': 'Explore o inexplorado',
   'launchpad.pick_folder': 'Escolher pasta do projeto',
   'launchpad.remote': 'Remoto',
   'launchpad.detect_help_trigger': "Não detectado?",

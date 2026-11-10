@@ -318,6 +318,7 @@ export const zhCN = {
   'panel.close_left': '关闭左侧面板',
   'panel.close_right': '关闭右侧面板',
   'launchpad.open_folder': '打开文件夹',
+  'launchpad.tagline': '探索未至之境',
   'launchpad.pick_folder': '选择项目目录',
   'launchpad.remote': '远程',
   'launchpad.detect_help_trigger': "识别不到?",

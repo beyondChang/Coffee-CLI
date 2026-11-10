@@ -1516,6 +1516,18 @@ export function CenterPanel() {
             )}
                 <div className="launchpad-page">
                   <div className="launchpad-inner">
+                    {/* Brand moment above the chooser: the app mark plus the
+                        one-line tagline, so an empty tab still feels designed. */}
+                    <div className="launchpad-hero">
+                      <img className="launchpad-hero-icon" src="/favicon.svg" alt="" aria-hidden="true" />
+                      <p className="launchpad-hero-tagline">{t('launchpad.tagline')}</p>
+                    </div>
+                    {/* Brand moment above the chooser: the app mark plus the
+                        one-line tagline, so an empty tab still feels designed. */}
+                    <div className="launchpad-hero">
+                      <img className="launchpad-hero-icon" src="/favicon.svg" alt="" aria-hidden="true" />
+                      <p className="launchpad-hero-tagline">{t('launchpad.tagline')}</p>
+                    </div>
                     {(() => {
                       const pinnedAgents = AGENT_CATALOG.filter(a => pinnedItems.includes(`agent:${a.key}`));
 
