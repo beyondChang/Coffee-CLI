@@ -1688,7 +1688,6 @@ fn download_installer(
             write(&buf[..n], &mut downloaded, &mut last_pct)?;
         }
     }
-    drop(write);
     file.sync_all().map_err(|e| format!("flush temp file failed: {e}"))?;
     drop(file);
     let digest = format!("{:x}", hasher.finalize());
