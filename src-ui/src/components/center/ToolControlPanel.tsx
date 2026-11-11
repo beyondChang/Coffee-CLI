@@ -13,7 +13,7 @@ const errors: Record<string, I18nKey> = {
 };
 
 export function ToolControlPanel({ kind, active, tools }: {
-  kind: 'computer' | 'browser'; active: boolean; tools: { value: string; label: string; icon: ReactNode; installed?: boolean }[];
+  kind: 'computer'; active: boolean; tools: { value: string; label: string; icon: ReactNode; installed?: boolean }[];
 }) {
   const t = useT();
   const [status, setStatus] = useState<ToolControlStatus>();
@@ -37,25 +37,23 @@ export function ToolControlPanel({ kind, active, tools }: {
     finally { setPending(null); }
   };
   const agents = tools.slice(0, 6);
-  const install = kind === 'browser' && status?.installed === false;
-  const actionLabel = t(!status && error ? 'tools.memory.reload' : install ? 'skills.install' : 'control.check');
+  const actionLabel = t(!status && error ? 'tools.memory.reload' : 'control.check');
   return <div className="tool-control" aria-busy={busy || (!status && !error)}>
     <div className="tool-control-runtime">
-      <span className="tool-control-symbol" aria-hidden="true">{kind === 'computer'
-        ? <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="5" width="24" height="17" rx="3" /><path d="M16 22v5m-6 0h12M9 10h7m-7 4h4" /></svg>
-        : <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="16" cy="16" r="12" /><ellipse cx="16" cy="16" rx="5" ry="12" /><path d="M4 16h24M6 10h20M6 22h20" /></svg>}</span>
+      <span className="tool-control-symbol" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="5" width="24" height="17" rx="3" /><path d="M16 22v5m-6 0h12M9 10h7m-7 4h4" /></svg>
+      </span>
       <div className="tool-control-summary">
-        <strong>{kind === 'computer' ? 'Computer Use' : 'Browser Use'}</strong>
-        <p>{t(kind === 'computer' ? 'control.computer_description' : 'control.browser_description')}</p>
+        <strong>Computer Use</strong>
+        <p>{t('control.computer_description')}</p>
       </div>
-      <span className={`tool-control-state${status?.ready ? ' is-ready' : ''}`} role="status">{!status ? '' : !status.supported ? t('control.unsupported') : checked && status.ready ? t('control.available') : status.installed ? t(kind === 'computer' ? 'control.builtin' : 'control.installed') : t('control.not_installed')}</span>
-      <button type="button" className={`tool-memory-button tool-control-action${install ? ' tool-memory-save' : ''}`} aria-label={actionLabel} aria-busy={pending === 'runtime'} disabled={busy || (!status && !error) || status?.supported === false} onClick={() => { void run(() => !status ? commands.getToolControl(kind) : install ? commands.installBrowserControl() : commands.checkToolControl(kind), 'runtime', !!status); }}>
+      <span className={`tool-control-state${status?.ready ? ' is-ready' : ''}`} role="status">{!status ? '' : !status.supported ? t('control.unsupported') : checked && status.ready ? t('control.available') : status.installed ? t('control.builtin') : t('control.not_installed')}</span>
+      <button type="button" className="tool-memory-button tool-control-action" aria-label={actionLabel} aria-busy={pending === 'runtime'} disabled={busy || (!status && !error) || status?.supported === false} onClick={() => { void run(() => !status ? commands.getToolControl(kind) : commands.checkToolControl(kind), 'runtime', !!status); }}>
         <span style={pending === 'runtime' ? { visibility: 'hidden' } : undefined}>{actionLabel}</span>
         {pending === 'runtime' && <span className="tool-control-spinner" aria-hidden="true" />}
       </button>
     </div>
     {error && <p className="tool-memory-notice" role="alert">{t(error)}</p>}
-    {status?.supported && status.installed && kind === 'browser' && !status.browser && <p className="tool-memory-notice" role="status">{t('control.browser_missing')}</p>}
     <div className="tool-control-agents">
       {agents.map(tool => {
         const agent = status?.agents.find(agent => agent.tool === tool.value) ?? { supported: false, enabled: false, conflict: false };

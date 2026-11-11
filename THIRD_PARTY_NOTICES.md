@@ -59,13 +59,17 @@ Copyright (c) 2026 Lovecast Inc.
 The complete license is in `licenses/computer-use-windows.txt` and is extracted
 beside the helper when it runs.
 
-## Optional browser control runtime
+## Browser control runtime
 
-Browser control downloads the unmodified `agent-browser` v0.39.4 runtime on
-demand. It is licensed under Apache-2.0. The complete license is in
-`licenses/agent-browser.txt` and is saved beside the downloaded runtime.
+Browser control is provided by ego lite, an optional runtime that Coffee CLI
+does not bundle or redistribute. Coffee CLI only discovers the installed
+runtime, copies its `ego-browser` Skill into the Skills directory of each
+supported CLI, and writes a short default instruction into that CLI's global
+instruction file. The Skill keeps the license of the ego lite distribution that
+provided it; see the runtime's own documentation for its terms.
 
-Source: https://github.com/vercel-labs/agent-browser
+ego lite is a trademark of its respective owner. The name identifies the
+optional runtime Coffee CLI supports; Coffee CLI is not endorsed by it.
 
 ## Service names
 

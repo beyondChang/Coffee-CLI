@@ -1020,6 +1020,13 @@ fn tier_terminal_start_blocking(
     };
 
     let mut args = args;
+    // ego lite: when the user opted in, the browser command runs without a
+    // per-call approval. Only the `ego-browser` prefix is allowed — nothing
+    // else about the CLI's approval policy changes.
+    if tool.as_deref() == Some("claude") && crate::ego_lite::command_allowed("claude") {
+        args.push("--allowedTools".into());
+        args.push("Bash(ego-browser:*)".into());
+    }
     let native_token = if tool.as_deref() == Some("claude") {
         terminal::claude_launch_token(&mut args, launch_config.command.trim().is_empty())
     } else {
@@ -1900,8 +1907,13 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::tool_skills::check_tool_skill_updates,
             crate::tool_control::get_tool_control,
             crate::tool_control::check_tool_control,
-            crate::tool_control::install_browser_control,
             crate::tool_control::set_tool_control,
+            crate::ego_lite::get_ego_status,
+            crate::ego_lite::install_ego_skill,
+            crate::ego_lite::remove_ego_skill,
+            crate::ego_lite::set_ego_instruction,
+            crate::ego_lite::set_ego_permission,
+            crate::ego_lite::cleanup_legacy_browser,
             crate::orchestration::orchestration_get,
             crate::orchestration::orchestration_set_agent,
             crate::orchestration::orchestration_set_mode,

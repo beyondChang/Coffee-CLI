@@ -10,14 +10,26 @@ const project=fileURLToPath(new URL('..', import.meta.url)),directory=await mkdt
 const antigravitySvg=await readFile(join(project,'src/icons-inline/antigravity.svg'),'utf8');
 const mock=`
 window.calls=[];const agents=()=>[{tool:'claude',supported:true,enabled:false,conflict:false},{tool:'codex',supported:true,enabled:false,conflict:false},{tool:'cursor',supported:true,enabled:false,conflict:false},{tool:'copilot',supported:true,enabled:false,conflict:false},{tool:'antigravity',supported:true,enabled:false,conflict:true,issue:'configuration'},{tool:'pi',supported:false,enabled:false,conflict:false}];
-window.controlStatus={computer:{supported:true,installed:true,ready:true,browser:null,agents:agents()},browser:{supported:true,installed:false,ready:false,browser:null,agents:agents()}};
+window.controlStatus={computer:{supported:true,installed:true,ready:true,browser:null,agents:agents()}};
+window.egoStatus={supported:true,installed:true,version:'0.6.2.8',skillPath:'C:/ego/ego-skills/ego-browser',skillVersion:'2.2.0',agents:[
+{tool:'claude',supported:true,skill:'missing',instruction:false,instructionSupported:true,permission:'prompt'},
+{tool:'codex',supported:true,skill:'managed',instruction:true,instructionSupported:true,permission:'unsupported'},
+{tool:'cursor',supported:true,skill:'missing',instruction:false,instructionSupported:false,permission:'unsupported'},
+{tool:'copilot',supported:true,skill:'modified',instruction:false,instructionSupported:false,permission:'unsupported',issue:'modified'},
+{tool:'antigravity',supported:true,skill:'missing',instruction:false,instructionSupported:false,permission:'unsupported'},
+{tool:'pi',supported:true,skill:'missing',instruction:false,instructionSupported:false,permission:'unsupported'}],legacy:['codex']};
 window.team={enabled:false,agents:[],tasks:[],revision:0};window.teamCalls=[];
 export const commands={
 async orchestrationGet(){window.teamCalls.push('get');const value=structuredClone(window.team);if(window.delayTeamRead)await new Promise(resolve=>window.resolveTeamRead=resolve);return value},async orchestrationSetMode(mode){window.teamCalls.push({mode});window.team.mode=mode;window.team.revision++;return structuredClone(window.team)},async orchestrationSetAgent(tool,enabled){window.teamCalls.push({tool,enabled});if(window.delayTeam)await new Promise(resolve=>window.resolveTeam=resolve);if(window.failTeam)throw 'write failed';window.team.agents=window.team.agents.filter(id=>id!==tool);if(enabled)window.team.agents.push(tool);window.team.enabled=window.team.agents.length>0;window.team.revision++;return structuredClone(window.team)},
 async getToolControl(kind){window.calls.push({type:'read',kind});const value=structuredClone(window.controlStatus[kind]);if(window.delayRead===kind)await new Promise(resolve=>window.resolveRead=resolve);if(window.failRead===kind)throw 'control_read';return value},
 async checkToolControl(kind){window.calls.push({type:'check',kind});if(window.delayCheck)await new Promise(resolve=>window.resolveCheck=resolve);if(window.failCheck)throw 'control_unavailable';return structuredClone(window.controlStatus[kind])},
-async installBrowserControl(){window.calls.push({type:'install'});if(window.delayInstall)await new Promise(resolve=>window.resolveInstall=resolve);window.controlStatus.browser.installed=true;return structuredClone(window.controlStatus.browser)},
 async setToolControl(kind,tool,enabled){window.calls.push({type:'set',kind,tool,enabled});if(window.delaySet)await new Promise(resolve=>window.resolveSet=resolve);if(window.failSet)throw 'control_conflict';window.controlStatus[kind].agents.find(agent=>agent.tool===tool).enabled=enabled;return structuredClone(window.controlStatus[kind])},
+async getEgoStatus(){window.calls.push({type:'ego-read'});const value=structuredClone(window.egoStatus);if(window.delayEgoRead)await new Promise(resolve=>window.resolveEgoRead=resolve);if(window.failEgoRead)throw 'ego_read';return value},
+async installEgoSkill(tool){window.calls.push({type:'ego-install',tool:tool??null});if(window.delayEgoInstall)await new Promise(resolve=>window.resolveEgoInstall=resolve);if(window.failEgoInstall)throw 'ego_conflict';const targets=tool?[tool]:window.egoStatus.agents.map(agent=>agent.tool);for(const target of targets){const agent=window.egoStatus.agents.find(agent=>agent.tool===target);if(agent&&agent.skill==='missing')agent.skill='installed';}return structuredClone(window.egoStatus)},
+async removeEgoSkill(tool){window.calls.push({type:'ego-remove',tool});const agent=window.egoStatus.agents.find(agent=>agent.tool===tool);if(agent&&agent.skill==='installed')agent.skill='missing';return structuredClone(window.egoStatus)},
+async setEgoInstruction(tool,enabled){window.calls.push({type:'ego-instruction',tool,enabled});if(window.delayEgoInstruction)await new Promise(resolve=>window.resolveEgoInstruction=resolve);const agent=window.egoStatus.agents.find(agent=>agent.tool===tool);if(agent)agent.instruction=enabled;return structuredClone(window.egoStatus)},
+async setEgoPermission(tool,enabled){window.calls.push({type:'ego-permission',tool,enabled});for(const agent of window.egoStatus.agents){if(agent.permission!=='unsupported')agent.permission=enabled?'allowed':'prompt';}return structuredClone(window.egoStatus)},
+async cleanupLegacyBrowser(){window.calls.push({type:'ego-cleanup'});window.egoStatus.legacy=[];return structuredClone(window.egoStatus)},
 async getToolSkills(){return {supported:true,skills:[]}},async searchToolSkills(){return []}};`;
 await build({stdin:{loader:'tsx',resolveDir:project,contents:`
 import React from 'react';import {createRoot} from 'react-dom/client';
@@ -25,7 +37,9 @@ import {ToolSettingsPage} from './src/components/center/ToolSettingsPage';
 import {InlineSvgIcon} from './src/components/InlineSvgIcon';
 import './src/styles/global.css';import './src/components/center/CenterPanel.css';
 const tools=[{value:'claude',label:'Claude Code'},{value:'codex',label:'Codex CLI'},{value:'cursor',label:'Cursor'},{value:'copilot',label:'Copilot CLI'},{value:'antigravity',label:'Antigravity CLI',installed:false},{value:'pi',label:'Pi'},{value:'kiro',label:'Kiro'}].map(item=>({...item,icon:item.value==='antigravity'?<InlineSvgIcon markup={${JSON.stringify(antigravitySvg)}}/>:<span>{item.label[0]}</span>}));
-createRoot(document.getElementById('root')).render(<div className="main-content panel-center" style={{position:'absolute',inset:0}}><span className="library-item" style={{display:'none'}}>reference</span><ToolSettingsPage active tools={tools} count={6} limit={6}><div className="library-item">selection</div></ToolSettingsPage></div>);`
+// The settings page is a modal in the app; the overlay and modal wrappers
+// decide whether the page covers the header tab strip.
+createRoot(document.getElementById('root')).render(<div className="main-content panel-center" style={{position:'absolute',inset:0}}><span className="library-item" style={{display:'none'}}>reference</span><div className="tool-settings-overlay"><div className="tool-settings-modal" role="dialog" aria-modal="true" aria-label="应用配置"><ToolSettingsPage active title={<span className="tool-settings-modal-title">应用配置</span>} tools={tools} count={6} limit={6}><div className="library-item">selection</div></ToolSettingsPage></div></div></div>);`
 },bundle:true,jsx:'automatic',loader:{'.svg':'text','.png':'dataurl'},outfile:join(directory,'fixture.js'),logLevel:'silent',external:['/fonts/*','/monogram.svg', '/backgrounds/*'],plugins:[{name:'native-boundary',setup(b){
 b.onResolve({filter:/\/tauri$/},a=>({path:a.path,namespace:'fixture'}));b.onResolve({filter:/\/store\/app-state$/},a=>({path:a.path,namespace:'fixture'}));
 b.onLoad({filter:/.*/,namespace:'fixture'},a=>({loader:'js',contents:a.path.endsWith('/tauri')?mock:'export function useAppLanguage(){return "zh-CN"}'}));}}]});
@@ -43,19 +57,16 @@ const tab=name=>page.getByRole('tab',{name,exact:true}),agent=name=>page.getByRo
 assert.equal(await page.getByRole('tab').count(),6);assert.deepEqual(await page.evaluate(()=>window.calls),[]);
 assert.deepEqual(await page.getByRole('tab').allTextContents(),['常用 6/6','主记忆','多智能体编排','技能','电脑控制','浏览器控制']);
 assert.deepEqual(await page.evaluate(()=>window.teamCalls),[],'orchestration reads only when opened');
-await page.evaluate(()=>{window.delayRead='browser';window.resolveRead=null});
-await tab('浏览器控制').click();await page.waitForFunction(()=>!!window.resolveRead);
-assert.equal(await page.getByRole('switch').count(),6,'first browser read reserves all favorite cards immediately');
-assert.equal(await agent('Claude Code').isDisabled(),true,'unknown configuration cannot be toggled');
-const browserDemoTop=(await page.locator('.control-demo').boundingBox()).y;
-await tab('常用 6/6').click();await page.evaluate(()=>{window.delayRead=null;window.resolveRead()});
-await page.waitForFunction(()=>document.querySelector('[aria-labelledby$="-tab-browser"] .tool-control-action')?.textContent.includes('安装'));
-await page.evaluate(()=>{window.delayRead='browser';window.resolveRead=null});
-await tab('浏览器控制').click();await page.waitForFunction(()=>!!window.resolveRead);
-assert.equal(await page.getByRole('switch').count(),6,'returning to browser control retains its cards during refresh');
-assert.equal(await page.getByRole('button',{name:'安装',exact:true}).count(),1,'a read completed while hidden populates the retained page');
-assert.ok(Math.abs((await page.locator('.control-demo').boundingBox()).y-browserDemoTop)<1,'browser status arrival does not move the demonstration');
-await page.evaluate(()=>{window.delayRead=null;window.resolveRead()});await tab('常用 6/6').click();
+await page.evaluate(()=>{window.delayEgoRead=true;window.resolveEgoRead=null});
+await tab('浏览器控制').click();await page.waitForFunction(()=>!!window.resolveEgoRead);
+assert.equal(await page.getByRole('switch').count(),7,'the ego panel reserves every agent card and the allowance switch immediately');
+assert.equal(await agent('Claude Code').isDisabled(),true,'an unknown configuration cannot be toggled');
+await page.evaluate(()=>{window.delayEgoRead=false;window.resolveEgoRead()});await panel.getByText('已安装',{exact:false}).waitFor();
+await tab('常用 6/6').click();await page.evaluate(()=>{window.delayEgoRead=true;window.resolveEgoRead=null});
+await tab('浏览器控制').click();await page.waitForFunction(()=>!!window.resolveEgoRead);
+assert.equal(await page.getByRole('switch').count(),7,'returning to browser control retains its cards during refresh');
+await page.evaluate(()=>{window.delayEgoRead=false;window.resolveEgoRead()});
+await tab('常用 6/6').click();
 await page.evaluate(()=>window.calls=[]);
 await tab('多智能体编排').click();await agent('Claude Code').waitFor();await page.waitForFunction(()=>!document.querySelector('.orchestration-config [role="switch"]').disabled);
 assert.equal(await agent('Claude Code').getAttribute('aria-checked'),'false');assert.equal(await page.locator('.orchestration-config .tool-control-agent:not(.orchestration-role)').count(),6);
@@ -123,7 +134,8 @@ await agent('Claude Code').focus();await page.keyboard.press('Space');await page
 const themedHeadings=()=>page.evaluate(()=>{
  const panel=document.querySelector('[role="tabpanel"]:not([hidden]) .tool-control');
  const accent=getComputedStyle(panel.querySelector('.tool-control-symbol')).color;
- return getComputedStyle(panel.querySelector('.tool-control-summary strong')).color===accent&&getComputedStyle(panel.querySelector('.control-demo-heading > span')).color===accent;
+ const demo=panel.querySelector('.control-demo-heading > span');
+ return getComputedStyle(panel.querySelector('.tool-control-summary strong')).color===accent&&(!demo||getComputedStyle(demo).color===accent);
 });
 assert.equal(await themedHeadings(),true,'runtime and demo headings use the dark theme accent');
 assert.deepEqual(await page.evaluate(()=>window.calls.filter(call=>call.type==='read')),[{type:'read',kind:'computer'}]);
@@ -146,7 +158,7 @@ assert.equal(await agent('Claude Code').getAttribute('aria-busy'),'true');assert
 assert.equal(await page.locator('.tool-control-runtime .tool-control-spinner').count(),0);assert.equal(await checkButton.getAttribute('aria-busy'),'false');
 assert.equal(await checkButton.locator('span').innerText(),'检测','agent changes leave the runtime action label unchanged');
 await page.screenshot({path:join(directory,'agent-pending.png')});
-await tab('浏览器控制').click();await page.getByRole('button',{name:'安装',exact:true}).waitFor();
+await tab('浏览器控制').click();await page.getByRole('button',{name:'为所有 Agent 安装技能',exact:true}).waitFor();
 assert.deepEqual(await agent('Antigravity CLI').locator('..').locator('.tool-control-agent-icon').screenshot(),computerIcon,'both control pages paint the same icon while the other page is hidden');
 assert.equal(await page.evaluate(()=>{
  const definitions=[...document.querySelectorAll('.tool-control-agent-icon svg [id]')];
@@ -159,25 +171,28 @@ await page.evaluate(()=>{window.delaySet=false;window.resolveSet()});
 await tab('电脑控制').click();await page.waitForFunction(()=>document.querySelector('[role="tabpanel"]:not([hidden]) [role="switch"]').getAttribute('aria-checked')==='true');
 await page.waitForTimeout(250);await page.screenshot({path:join(directory,'computer-dark.png')});
 await page.evaluate(()=>window.failSet=true);await agent('Claude Code').click();await page.getByRole('alert').waitFor();assert.equal(await agent('Claude Code').getAttribute('aria-checked'),'true');assert.equal(await agent('Claude Code').locator('..').locator('.tool-control-spinner').count(),0);await page.evaluate(()=>window.failSet=false);
-await tab('浏览器控制').click();assert.equal(await agent('Claude Code').isDisabled(),true);await page.evaluate(()=>window.delayInstall=true);await page.getByRole('button',{name:'安装',exact:true}).click();await page.waitForFunction(()=>!!window.resolveInstall);
-assert.equal(await page.getByRole('button',{name:'安装',exact:true}).locator('.tool-control-spinner').isVisible(),true);
-assert.equal(await page.locator('.tool-control-agent > .tool-control-spinner').count(),0);
-await page.evaluate(()=>{window.delayInstall=false;window.resolveInstall()});assert.equal(await agent('Antigravity CLI').isDisabled(),true);
-await page.getByText('请先安装 Chrome，然后重新检测。',{exact:true}).waitFor();assert.equal(await page.locator('[role="tabpanel"]:not([hidden])').getByText('可用',{exact:true}).count(),0);assert.equal(await agent('Claude Code').isDisabled(),true);
-await page.evaluate(()=>{window.controlStatus.browser.ready=true;window.controlStatus.browser.browser='Edge';window.failCheck=true});await page.getByRole('button',{name:'检测',exact:true}).click();await page.getByRole('alert').waitFor();
-await page.evaluate(()=>window.failCheck=false);await page.getByRole('button',{name:'检测',exact:true}).click();await page.locator('[role="tabpanel"]:not([hidden])').getByText('可用',{exact:true}).waitFor();await agent('Codex CLI').click();await page.waitForFunction(()=>window.controlStatus.browser.agents[1].enabled);
-assert.equal(await agent('Claude Code').getAttribute('aria-checked'),'false');
+await tab('浏览器控制').click();await page.getByRole('button',{name:'为所有 Agent 安装技能',exact:true}).waitFor();
+await page.getByText('个 Agent 仍保留已下线的 agent-browser 配置。',{exact:false}).waitFor();
+await page.getByRole('button',{name:'清理旧配置',exact:true}).click();await page.waitForFunction(()=>window.egoStatus.legacy.length===0);
+assert.equal(await page.evaluate(()=>window.calls.filter(call=>call.type==='ego-cleanup').length),1,'the retired agent-browser entries are removed on request');
+await agent('Claude Code').click();await page.waitForFunction(()=>window.egoStatus.agents[0].skill==='installed');
+assert.equal(await agent('Claude Code').getAttribute('aria-checked'),'true','the agent switch installs the Skill and writes the default instruction');
+assert.equal(await page.evaluate(()=>window.calls.filter(call=>call.type==='ego-install').length),1);
+assert.equal(await page.evaluate(()=>window.calls.filter(call=>call.type==='ego-instruction').length),1);
+await page.getByRole('switch',{name:'免确认执行 ego-browser 命令',exact:true}).click();await page.waitForFunction(()=>window.egoStatus.agents[0].permission==='allowed');
+assert.equal(await page.evaluate(()=>window.calls.filter(call=>call.type==='ego-permission').length),1,'the allowance switch only covers the ego-browser prefix');
+assert.equal(await agent('Copilot CLI').isDisabled(),true,'a locally edited Skill is never overwritten');
 await page.evaluate(()=>{window.controlStatus.computer.agents[1].conflict=true;window.controlStatus.computer.agents[1].issue='conflict'});await tab('电脑控制').click();await agent('Codex CLI').locator('..').getByText('暂不可用',{exact:true}).waitFor();
 assert.match(await agent('Codex CLI').locator('..').locator('[data-tip]').getAttribute('aria-label'),/coffee-computer-use/);assert.equal(await agent('Codex CLI').isDisabled(),true);
 await page.evaluate(()=>{window.controlStatus.computer.agents[1].conflict=false;window.delaySet=true;window.resolveSet=null;window.resolveRead=null;window.delayRead='computer'});await agent('Claude Code').click();await page.waitForFunction(()=>!!window.resolveSet);
 await tab('浏览器控制').click();await tab('电脑控制').click();await page.waitForFunction(()=>!!window.resolveRead);
 await page.evaluate(()=>{window.delaySet=false;window.resolveSet()});await page.waitForFunction(()=>document.querySelector('[role="tabpanel"]:not([hidden]) [role="switch"]').getAttribute('aria-checked')==='false');await page.evaluate(()=>{window.delayRead=null;window.resolveRead()});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
 assert.equal(await agent('Claude Code').getAttribute('aria-checked'),'false');
-await page.evaluate(()=>{window.failRead='browser';window.delayRead='browser';window.resolveRead=null});await tab('浏览器控制').click();await page.waitForFunction(()=>!!window.resolveRead);
+await page.evaluate(()=>{window.failEgoRead=true;window.delayEgoRead=true;window.resolveEgoRead=null});await tab('浏览器控制').click();await page.waitForFunction(()=>!!window.resolveEgoRead);
 assert.equal(await agent('Codex CLI').getAttribute('aria-checked'),'true','browser refresh retains confirmed enabled agents');assert.equal(await agent('Codex CLI').isDisabled(),false);
-await page.evaluate(()=>{window.delayRead=null;window.resolveRead()});await page.getByRole('alert').waitFor();
-assert.equal(await page.getByRole('switch').count(),6,'failed background refresh cannot remove cached cards');assert.equal(await agent('Codex CLI').getAttribute('aria-checked'),'true','failed refresh preserves the last confirmed choice');
-await page.evaluate(()=>window.failRead=null);await tab('电脑控制').click();await tab('浏览器控制').click();await page.getByRole('alert').waitFor({state:'hidden'});
+await page.evaluate(()=>{window.delayEgoRead=null;window.resolveEgoRead()});await page.getByRole('alert').waitFor();
+assert.equal(await page.getByRole('switch').count(),7,'failed background refresh cannot remove cached cards');assert.equal(await agent('Codex CLI').getAttribute('aria-checked'),'true','failed refresh preserves the last confirmed choice');
+await page.evaluate(()=>window.failEgoRead=null);await tab('电脑控制').click();await tab('浏览器控制').click();await page.getByRole('alert').waitFor({state:'hidden'});
 await page.evaluate(()=>{document.documentElement.dataset.mode='light';document.documentElement.dataset.theme='mint';document.documentElement.dataset.shape='slate'});await tab('浏览器控制').click();await page.waitForTimeout(250);await page.screenshot({path:join(directory,'browser-light.png')});
 assert.equal(await themedHeadings(),true,'heading colors follow a changed light theme');
 await page.setViewportSize({width:440,height:720});assert.equal(await page.locator('.tool-settings-page').evaluate(el=>el.scrollWidth>el.clientWidth),false);
@@ -199,9 +214,9 @@ assert.equal(await demo.locator('.control-demo-list-item').count(),3);
 assert.ok(Number(await demo.locator('.control-demo-list-item-2').evaluate(el=>getComputedStyle(el).opacity))>.99);
 await page.screenshot({path:join(directory,'demo-computer-complete.png')});await demo.screenshot({path:join(directory,'demo-wide.png')});
 await page.getByRole('button',{name:'播放演示',exact:true}).click();assert.equal(await demo.getAttribute('data-paused'),'false');
-await tab('浏览器控制').click();await demo.scrollIntoViewIfNeeded();await page.getByRole('button',{name:'暂停演示',exact:true}).click();
-await phase(7700);assert.ok(Number(await demo.locator('.control-demo-act').evaluate(el=>getComputedStyle(el).opacity))>.99,'operation step is shown with browser search results');assert.ok(Number(await demo.locator('.control-demo-search-result').evaluate(el=>getComputedStyle(el).opacity))>.99);
-await page.screenshot({path:join(directory,'demo-browser-search.png')});
+await tab('浏览器控制').click();await page.waitForTimeout(120);
+assert.equal(await page.locator('.control-demo').count(),0,'the browser panel shows the ego lite runtime instead of the demonstration');
+await tab('电脑控制').click();await demo.scrollIntoViewIfNeeded();
 await phase(12000);assert.ok(Number(await demo.locator('.control-demo-result').evaluate(el=>getComputedStyle(el).opacity))>.99);
 await page.screenshot({path:join(directory,'demo-browser-complete.png')});
 await page.setViewportSize({width:440,height:840});
@@ -210,7 +225,7 @@ await demo.scrollIntoViewIfNeeded();await page.screenshot({path:join(directory,'
 await page.emulateMedia({reducedMotion:'reduce'});
 assert.equal(await demo.evaluate(el=>el.getAnimations({subtree:true}).length),0,'reduced motion uses a static completed demonstration');
 assert.equal(await demo.locator('.control-demo-result').isVisible(),true);
-assert.equal(await page.evaluate(()=>window.calls.filter(call=>call.type==='set'||call.type==='install').length),await page.evaluate(count=>window.calls.slice(0,count).filter(call=>call.type==='set'||call.type==='install').length,callsBeforeDemo),'demo playback does not install or operate tools');
+assert.equal(await page.evaluate(()=>window.calls.filter(call=>['set','ego-install','ego-instruction','ego-permission','ego-cleanup'].includes(call.type)).length),await page.evaluate(({count,types})=>window.calls.slice(0,count).filter(call=>types.includes(call.type)).length,{count:callsBeforeDemo,types:['set','ego-install','ego-instruction','ego-permission','ego-cleanup']}),'demo playback does not install or operate tools');
 await page.emulateMedia({reducedMotion:'no-preference'});
 await page.setViewportSize({width:1080,height:950});await tab('多智能体编排').click();await demo.scrollIntoViewIfNeeded();
 assert.equal(await page.locator('.control-demo').count(),1,'only the active orchestration demonstration is mounted');
@@ -250,8 +265,8 @@ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await demo.evalua
 assert.equal(await demo.locator('.team-demo-summary').isVisible(),true);assert.equal(await page.evaluate(()=>window.teamCalls.filter(call=>typeof call==='object').length),teamWrites,'demonstration never starts real workers or changes configuration');
 await page.emulateMedia({reducedMotion:'no-preference'});
 await page.setViewportSize({width:1080,height:1000});await tab('技能').click();await tab('Claude Code').click();await page.getByText('暂无技能',{exact:true}).waitFor();
-const emptyGeometry=await page.locator('.skills-empty').evaluate(element=>{const rect=element.getBoundingClientRect(),panel=document.querySelector('.tool-settings-page').getBoundingClientRect(),range=document.createRange();range.selectNodeContents(element);const text=range.getBoundingClientRect();return {bottom:rect.bottom,expected:panel.bottom-32,center:(rect.top+rect.bottom)/2,textCenter:(text.top+text.bottom)/2}});
-assert.ok(Math.abs(emptyGeometry.bottom-emptyGeometry.expected)<2,'empty skills fill the available page height');assert.ok(Math.abs(emptyGeometry.center-emptyGeometry.textCenter)<2,'empty text is vertically centered');
+const emptyGeometry=await page.locator('.skills-empty').evaluate(element=>{const rect=element.getBoundingClientRect(),page=document.querySelector('.tool-settings-page').getBoundingClientRect(),inner=document.querySelector('.tool-settings-page--skills .tool-settings-inner').getBoundingClientRect(),range=document.createRange();range.selectNodeContents(element);const text=range.getBoundingClientRect();return {bottom:rect.bottom,page:page.bottom,inner:inner.bottom,center:(rect.top+rect.bottom)/2,textCenter:(text.top+text.bottom)/2}});
+assert.ok(Math.abs(emptyGeometry.bottom-emptyGeometry.inner)<4,`empty skills fill the available page height (${JSON.stringify(emptyGeometry)})`);assert.ok(Math.abs(emptyGeometry.center-emptyGeometry.textCenter)<2,'empty text is vertically centered');
 assert.deepEqual(errors,[]);
 console.log('OK: six themed tabs, retained control state, stable first-load geometry, hidden-page completion, background refresh failures, explicit installation, per-agent switches, serialization, late-read protection, themes, isolated SVG masks and demo motion');console.log('Screenshots: '+directory);
 }finally{await browser.close();await new Promise(r=>server.close(r))}

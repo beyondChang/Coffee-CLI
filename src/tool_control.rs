@@ -1,12 +1,8 @@
 use serde::Serialize;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
-use std::{fs, io::{Read, Write}, path::{Path, PathBuf}, process::{Command, Stdio}, sync::Mutex, time::Duration};
+use std::{fs, io::{Read, Write}, path::{Path, PathBuf}, process::{Command, Stdio}, sync::Mutex};
 
 static CONFIG_LOCK: Mutex<()> = Mutex::new(());
-static INSTALL_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-const BROWSER_VERSION: &str = "0.39.4";
-const BROWSER_LICENSE: &str = include_str!("../licenses/agent-browser.txt");
 
 pub(crate) fn root() -> Result<PathBuf, String> {
     Ok(dirs::home_dir().ok_or("control_read")?.join(".coffee-cli/control"))
@@ -73,7 +69,9 @@ fn config_path_in(tool: &str, home: &Path, env: impl Fn(&str) -> Option<std::ffi
 }
 
 fn key(kind: &str) -> Result<&'static str, String> {
-    match kind { "computer" => Ok("coffee-computer-use"), "browser" => Ok("coffee-browser-use"), _ => Err("control_unsupported".into()) }
+    // The browser capability moved to ego lite (`src/ego_lite.rs`); only the
+    // desktop capability still rides on an MCP server entry.
+    match kind { "computer" => Ok("coffee-computer-use"), _ => Err("control_unsupported".into()) }
 }
 
 fn spec(exe: &Path, kind: &str, tool: &str) -> Value {
@@ -114,11 +112,11 @@ fn opencode_major() -> Option<u64> {
     loop {
         match child.try_wait() {
             Ok(Some(exit)) if exit.success() => break,
-            Ok(None) if started.elapsed() < Duration::from_secs(3) => std::thread::sleep(Duration::from_millis(30)),
+            Ok(None) if started.elapsed() < std::time::Duration::from_secs(3) => std::thread::sleep(std::time::Duration::from_millis(30)),
             _ => { let _ = child.kill(); let _ = child.wait(); return None; }
         }
     }
-    let text = receiver.recv_timeout(Duration::from_millis(100)).ok()?;
+    let text = receiver.recv_timeout(std::time::Duration::from_millis(100)).ok()?;
     let pattern = regex::Regex::new(r"(?m)^\s*(?:opencode[ :v]*)?v?(\d+)\.").ok()?;
     let major = pattern.captures(&text)?.get(1)?.as_str().parse().ok()?;
     let _ = MAJOR.set(major);
@@ -201,7 +199,26 @@ fn edit(text: Option<&str>, tool: &str, name: &str, expected: &Value, enabled: b
     }
 }
 
-fn save(path: &Path, original: Option<&str>, content: &str, storage: &Path) -> Result<(), String> {
+/// Drop one MCP server entry whatever it holds. Used to retire a capability
+/// that no longer exists without touching the other servers or the comments.
+fn remove(text: Option<&str>, tool: &str, name: &str) -> Result<String, String> {
+    if tool == "codex" {
+        let mut document = text.unwrap_or("").parse::<toml_edit::DocumentMut>().map_err(|_| "control_read")?;
+        if let Some(servers) = document.get_mut("mcp_servers").and_then(|item| item.as_table_like_mut()) { servers.remove(name); }
+        Ok(document.to_string())
+    } else {
+        let original = text.filter(|text| !text.trim_start_matches('\u{feff}').trim().is_empty()).unwrap_or("{\n}\n");
+        let value = json_config(original)?;
+        let path = server_path(tool, &value)?;
+        let root = jsonc_parser::cst::CstRootNode::parse(original.trim_start_matches('\u{feff}'), &jsonc_parser::ParseOptions::default()).map_err(|_| "control_read")?;
+        let mut object = root.object_value().ok_or("control_read")?;
+        for part in &path { object = object.object_value_or_create(part).ok_or("control_read")?; }
+        if let Some(property) = object.get(name) { property.remove(); }
+        Ok(format!("{}{root}", if original.starts_with('\u{feff}') { "\u{feff}" } else { "" }))
+    }
+}
+
+pub(crate) fn save(path: &Path, original: Option<&str>, content: &str, storage: &Path) -> Result<(), String> {
     plain_path(path)?; plain_path(storage)?;
     if read(path)?.as_deref() != original { return Err("control_conflict".into()); }
     fs::create_dir_all(path.parent().ok_or("control_write")?).map_err(|_| "control_write")?;
@@ -233,113 +250,28 @@ pub(crate) fn hidden(command: &mut Command) -> &mut Command {
     command
 }
 
-fn wait_quiet(command: &mut Command, timeout: Duration) -> Result<(), String> {
-    let mut child = hidden(command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()))
-        .spawn().map_err(|_| "control_unavailable")?;
-    let started = std::time::Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(exit)) => return if exit.success() { Ok(()) } else { Err("control_unavailable".into()) },
-            Ok(None) if started.elapsed() < timeout => std::thread::sleep(Duration::from_millis(30)),
-            _ => { let _ = child.kill(); let _ = child.wait(); return Err("control_unavailable".into()); }
-        }
-    }
+/// Whether a CLI configuration still carries one MCP server entry.
+pub(crate) fn has_mcp_entry(tool: &str, name: &str) -> Result<bool, String> {
+    let path = config_path(tool)?;
+    Ok(entry(read(&path)?.as_deref(), tool, name)?.is_some())
 }
 
-struct BrowserLease(fs::File);
-impl Drop for BrowserLease {
-    fn drop(&mut self) {
-        // Duplicated or briefly inherited handles must not extend this connection's lease.
-        let _ = self.0.unlock();
-    }
-}
-
-fn browser_slot(directory: &Path) -> Result<(BrowserLease, PathBuf, usize), String> {
-    plain_path(directory)?;
-    fs::create_dir_all(directory).map_err(|_| "control_write")?;
-    // A held OS file lock binds each persistent profile to one live MCP connection.
-    for index in 0..64 {
-        let lock_path = directory.join(format!("{index}.lock"));
-        plain_path(&lock_path)?;
-        let file = fs::OpenOptions::new().create(true).truncate(false).read(true).write(true).open(lock_path).map_err(|_| "control_write")?;
-        match file.try_lock() {
-            Ok(()) => { let lease = BrowserLease(file); let profile = directory.join(index.to_string()); plain_path(&profile)?; return Ok((lease, profile, index)); }
-            Err(std::fs::TryLockError::WouldBlock) => continue,
-            Err(_) => return Err("control_write".into()),
-        }
-    }
-    Err("All browser profiles are in use".into())
-}
-
-fn browser_asset() -> Result<(&'static str, &'static str), String> {
-    match (std::env::consts::OS, std::env::consts::ARCH) {
-        ("windows", "x86_64" | "aarch64") => Ok(("agent-browser-win32-x64.exe", "be19a109a004f84c367d7913c22b8046390b3e0e5241f9f6c7e83c7bacd22aae")),
-        ("macos", "aarch64") => Ok(("agent-browser-darwin-arm64", "0317ce35172905c775c25b393914bc259701a464877aab9753ec8896f6e38bf7")),
-        ("macos", "x86_64") => Ok(("agent-browser-darwin-x64", "21522a8ec34063fa294b0c928ad03d3485f1821ebe22f9da2b47b89963f731af")),
-        ("linux", "x86_64") => Ok(("agent-browser-linux-x64", "aa82c8ee81a38b8ad9ba61af02ced6dcbbb8af36dd8b2b479384177f8aa077a6")),
-        ("linux", "aarch64") => Ok(("agent-browser-linux-arm64", "922b60dbd9f5c8b5c0f39b453bfe8cbf61b83abd487344028a508e8c4dca7883")),
-        _ => Err("control_unsupported".into()),
-    }
-}
-
-fn browser_runtime() -> Result<PathBuf, String> { Ok(root()?.join("browser").join(BROWSER_VERSION).join(browser_asset()?.0)) }
-
-fn browser_command(runtime: &Path) -> Result<Command, String> {
-    browser_command_in(runtime, &root()?)
-}
-
-fn browser_command_in(runtime: &Path, directory: &Path) -> Result<Command, String> {
-    let config = directory.join("browser-config.json");
-    plain_path(&config)?;
-    fs::create_dir_all(directory).map_err(|_| "control_write")?;
-    if fs::read(&config).ok().as_deref() != Some(b"{}") {
-        let temp = directory.join(format!(".browser-config-{}.tmp", uuid::Uuid::new_v4()));
-        fs::write(&temp, "{}").map_err(|_| "control_write")?;
-        if crate::agent::replace_file(&temp, &config).is_err() { let _ = fs::remove_file(temp); return Err("control_write".into()); }
-    }
-    let sockets = directory.join("browser-sessions");
-    plain_path(&sockets)?;
-    fs::create_dir_all(&sockets).map_err(|_| "control_write")?;
-    let mut command = Command::new(runtime);
-    for (name, _) in std::env::vars_os() {
-        if name.to_string_lossy().to_ascii_uppercase().starts_with("AGENT_BROWSER_") { command.env_remove(name); }
-    }
-    command.current_dir(directory).env("AGENT_BROWSER_CONFIG", config).env("AGENT_BROWSER_SOCKET_DIR", sockets);
-    Ok(command)
-}
-fn verified_runtime(path: &Path) -> bool {
-    if plain_path(path).is_err() { return false; }
-    let Ok(mut file) = fs::File::open(path) else { return false; };
-    let mut hash = Sha256::new();
-    let Ok(size) = std::io::copy(&mut Read::by_ref(&mut file).take(40_000_001), &mut hash) else { return false; };
-    size <= 40_000_000 && browser_asset().is_ok_and(|(_, expected)| format!("{:x}", hash.finalize()) == expected)
-}
-
-fn browser_executable() -> Option<PathBuf> {
-    let mut candidates = Vec::new();
-    #[cfg(windows)]
-    for (directory, executable) in [("Google/Chrome", "chrome.exe"), ("Microsoft/Edge", "msedge.exe")] {
-        for variable in ["ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"] {
-            if let Some(base) = std::env::var_os(variable) {
-                candidates.push(PathBuf::from(base).join(directory).join("Application").join(executable));
-            }
-        }
-    }
-    #[cfg(target_os = "macos")]
-    { candidates.push(PathBuf::from("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"));
-      candidates.push(PathBuf::from("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")); }
-    #[cfg(target_os = "linux")]
-    for base in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
-        for name in ["google-chrome", "chromium", "chromium-browser", "microsoft-edge", "microsoft-edge-stable"] { candidates.push(base.join(name)); }
-    }
-    candidates.into_iter().find(|path| path.is_file())
+/// Remove one MCP server entry from a CLI configuration. The other servers
+/// and the file's comments are preserved.
+pub(crate) fn remove_mcp_entry(tool: &str, name: &str) -> Result<bool, String> {
+    let path = config_path(tool)?;
+    let before = read(&path)?;
+    if entry(before.as_deref(), tool, name)?.is_none() { return Ok(false); }
+    let content = remove(before.as_deref(), tool, name)?;
+    save(&path, before.as_deref(), &content, &root()?)?;
+    Ok(true)
 }
 
 #[derive(Serialize)]
 pub struct ControlAgent { tool: String, supported: bool, enabled: bool, conflict: bool, issue: Option<&'static str> }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ControlStatus { supported: bool, installed: bool, ready: bool, browser: Option<String>, agents: Vec<ControlAgent> }
+pub struct ControlStatus { supported: bool, installed: bool, ready: bool, agents: Vec<ControlAgent> }
 
 fn agent_status(tool: &str, kind: &str, exe: &Path, contents: Result<Option<String>, String>) -> ControlAgent {
     let current = contents.and_then(|contents| {
@@ -359,16 +291,15 @@ fn agent_status(tool: &str, kind: &str, exe: &Path, contents: Result<Option<Stri
 fn status(kind: &str) -> Result<ControlStatus, String> {
     key(kind)?;
     let exe = std::env::current_exe().map_err(|_| "control_read")?;
-    let supported = if kind == "computer" { cfg!(windows) } else { browser_asset().is_ok() };
-    let installed = if kind == "computer" { supported } else { browser_runtime().is_ok_and(|path| verified_runtime(&path)) };
-    let browser = if kind == "browser" { browser_executable().map(|path| path.to_string_lossy().into_owned()) } else { None };
-    let ready = installed && (kind == "computer" || browser.is_some());
+    let supported = cfg!(windows);
+    let installed = supported;
+    let ready = installed;
     let mut agents = Vec::new();
     for descriptor in crate::tools::TOOLS {
         let tool = descriptor.id;
         agents.push(agent_status(tool, kind, &exe, config_path(tool).and_then(|path| read(&path))));
     }
-    Ok(ControlStatus { supported, installed, ready, browser, agents })
+    Ok(ControlStatus { supported, installed, ready, agents })
 }
 
 #[tauri::command]
@@ -382,36 +313,8 @@ pub async fn check_tool_control(kind: String) -> Result<ControlStatus, String> {
         let status = status(&kind)?;
         if !status.ready { return Err("control_unavailable".into()); }
         if kind == "computer" { crate::computer_control::probe()?; }
-        else { wait_quiet(browser_command(&browser_runtime()?)?.arg("--version"), Duration::from_secs(10))?; }
         Ok(status)
     }).await.map_err(|_| "control_read")?
-}
-
-#[tauri::command]
-pub async fn install_browser_control() -> Result<ControlStatus, String> {
-    let _guard = INSTALL_LOCK.lock().await;
-    let path = browser_runtime()?;
-    if !verified_runtime(&path) {
-        plain_path(&path)?;
-        let (name, expected) = browser_asset()?;
-        let client = reqwest::Client::builder().timeout(Duration::from_secs(120)).user_agent("Coffee-CLI").build().map_err(|_| "control_network")?;
-        let mut response = client.get(format!("https://github.com/vercel-labs/agent-browser/releases/download/v{BROWSER_VERSION}/{name}")).send().await.map_err(|_| "control_network")?.error_for_status().map_err(|_| "control_network")?;
-        let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(|_| "control_network")? {
-            if bytes.len() + chunk.len() > 40_000_000 { return Err("control_network".into()); }
-            bytes.extend_from_slice(&chunk);
-        }
-        if format!("{:x}", Sha256::digest(&bytes)) != expected { return Err("control_integrity".into()); }
-        fs::create_dir_all(path.parent().ok_or("control_write")?).map_err(|_| "control_write")?;
-        let license = path.with_file_name("LICENSE.txt");
-        plain_path(&license)?;
-        fs::write(license, BROWSER_LICENSE).map_err(|_| "control_write")?;
-        let temp = path.with_file_name(format!(".browser-{}.tmp", uuid::Uuid::new_v4()));
-        fs::write(&temp, bytes).map_err(|_| "control_write")?;
-        #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; fs::set_permissions(&temp, fs::Permissions::from_mode(0o755)).map_err(|_| "control_write")?; }
-        if let Err(error) = crate::agent::replace_file(&temp, &path) { let _ = fs::remove_file(temp); return Err(error); }
-    }
-    status("browser")
 }
 
 #[tauri::command]
@@ -441,24 +344,7 @@ pub fn serve(kind: &str, tool: &str) -> Result<(), String> {
         return Err("This capability is not enabled for this agent".into());
     }
     if kind == "computer" { return crate::computer_control::serve(); }
-    let runtime = browser_runtime()?;
-    if !verified_runtime(&runtime) { return Err("control_integrity".into()); }
-    let browser = browser_executable().ok_or("control_browser_missing")?;
-    let (_lease, profile, index) = browser_slot(&root()?.join("browser-profiles").join(tool))?;
-    fs::create_dir_all(&profile).map_err(|_| "control_write")?;
-    let session = format!("coffee-{tool}-{index}");
-    // A previous interrupted connection may have left its own daemon running.
-    let close = || wait_quiet(browser_command(&runtime)?.args(["--session", &session, "close"]), Duration::from_secs(10));
-    let _ = close();
-    let exit = hidden(browser_command(&runtime)?.args(["mcp", "--tools", "core"])
-        .env("AGENT_BROWSER_HEADED", "1").env("AGENT_BROWSER_PROFILE", profile)
-        .env("AGENT_BROWSER_IDLE_TIMEOUT_MS", "3600000")
-        .env("AGENT_BROWSER_EXECUTABLE_PATH", browser).env("AGENT_BROWSER_SESSION", &session)
-        .stdin(Stdio::inherit()).stdout(Stdio::inherit()).stderr(Stdio::inherit()))
-        .status();
-    let _ = close();
-    let exit = exit.map_err(|error| error.to_string())?;
-    if exit.success() { Ok(()) } else { Err(format!("Browser control exited with {exit}")) }
+    Err("The agent browser capability was removed; enable ego lite in Settings instead".into())
 }
 
 #[cfg(test)]
@@ -488,14 +374,14 @@ mod tests {
                 let original = if nested { "{\n// keep model\n\"model\":\"my-model\",\"mcp\":{\"servers\":{\"mine\":{\"type\":\"local\",\"command\":[\"custom\"]}},\"timeout\":{\"startup\":30000}},\"hooks\":[],\n}\n" }
                     else if matches!(tool,"kilo"|"opencode") { "{\n// keep model\n\"model\":\"my-model\",\"mcp\":{\"mine\":{\"type\":\"local\",\"command\":[\"custom\"]}},\"hooks\":[],\n}\n" }
                     else { "{\n// keep model\n\"model\":\"my-model\",\"mcpServers\":{\"mine\":{\"command\":\"custom\"}},\"hooks\":[],\n}\n" };
-                let expected = spec(exe, "browser", tool);
-                let added = edit(Some(original), tool, "coffee-browser-use", &expected, true).unwrap();
+                let expected = spec(exe, "computer", tool);
+                let added = edit(Some(original), tool, "coffee-computer-use", &expected, true).unwrap();
                 assert!(added.contains("// keep model"));
-                assert_eq!(entry(Some(&added), tool, "coffee-browser-use").unwrap(), Some(expected.clone()));
-                let removed = edit(Some(&added), tool, "coffee-browser-use", &expected, false).unwrap();
+                assert_eq!(entry(Some(&added), tool, "coffee-computer-use").unwrap(), Some(expected.clone()));
+                let removed = edit(Some(&added), tool, "coffee-computer-use", &expected, false).unwrap();
                 assert!(removed.contains("// keep model"));
                 assert_eq!(json_config(&removed).unwrap(), json_config(original).unwrap());
-                assert!(edit(Some(&added), tool, "coffee-browser-use", &json!({"command":"user-changed"}), false).is_err());
+                assert!(edit(Some(&added), tool, "coffee-computer-use", &json!({"command":"user-changed"}), false).is_err());
                 if matches!(tool,"kilo"|"opencode") { assert!(expected["command"].is_array()); assert!(expected.get("enabled").is_none()); }
                 if tool == "copilot" { assert_eq!(expected["type"], "local"); assert_eq!(expected["tools"], json!(["*"])); }
             }
@@ -536,13 +422,25 @@ mod tests {
     #[test]
     fn toml_comments_and_unrelated_values_survive_enable_and_disable() {
         let original = "# keep me\nmodel = \"my-model\" # selected\n[mcp_servers.mine]\ncommand = \"other\"\n";
-        let expected = spec(Path::new("/opt/coffee"), "browser", "codex");
-        let added = edit(Some(original), "codex", "coffee-browser-use", &expected, true).unwrap();
+        let expected = spec(Path::new("/opt/coffee"), "computer", "codex");
+        let added = edit(Some(original), "codex", "coffee-computer-use", &expected, true).unwrap();
         assert!(added.contains("# keep me") && added.contains("# selected"));
-        assert_eq!(entry(Some(&added), "codex", "coffee-browser-use").unwrap(), Some(expected.clone()));
-        let removed = edit(Some(&added), "codex", "coffee-browser-use", &expected, false).unwrap();
+        assert_eq!(entry(Some(&added), "codex", "coffee-computer-use").unwrap(), Some(expected.clone()));
+        let removed = edit(Some(&added), "codex", "coffee-computer-use", &expected, false).unwrap();
         assert_eq!(removed, original);
         assert!(edit(Some("model=["), "codex", "x", &expected, true).is_err());
+    }
+    #[test]
+    fn removing_a_retired_entry_keeps_the_other_servers() {
+        let original = r#"{"mcpServers":{"mine":{"command":"custom"},"coffee-browser-use":{"command":"old"}},"hooks":[]}"#;
+        let removed = remove(Some(original), "claude", "coffee-browser-use").unwrap();
+        assert!(removed.contains("\"mine\""));
+        assert!(!removed.contains("coffee-browser-use"));
+        assert_eq!(json_config(&removed).unwrap()["mcpServers"].as_object().unwrap().len(), 1);
+        let original_toml = "[mcp_servers.mine]\ncommand = \"other\"\n[mcp_servers.coffee-browser-use]\ncommand = \"old\"\n";
+        let removed_toml = remove(Some(original_toml), "codex", "coffee-browser-use").unwrap();
+        assert!(removed_toml.contains("mcp_servers.mine"));
+        assert!(!removed_toml.contains("coffee-browser-use"));
     }
     #[test]
     fn save_rejects_a_concurrent_edit() {
@@ -567,36 +465,5 @@ mod tests {
         #[cfg(unix)]
         { use std::os::unix::fs::PermissionsExt; assert_eq!(fs::metadata(backup).unwrap().permissions().mode() & 0o777, 0o600); }
         fs::remove_dir_all(base).unwrap();
-    }
-    #[test]
-    fn preparing_browser_connections_preserves_the_shared_configuration() {
-        let directory = dunce::canonicalize(std::env::temp_dir()).unwrap().join(format!("coffee-browser-config-{}", uuid::Uuid::new_v4()));
-        browser_command_in(Path::new("browser-runtime"), &directory).unwrap();
-        let config = directory.join("browser-config.json");
-        let original = fs::metadata(&config).unwrap();
-        std::thread::scope(|scope| {
-            for _ in 0..4 {
-                let directory = &directory;
-                scope.spawn(move || { for _ in 0..32 { browser_command_in(Path::new("browser-runtime"), directory).unwrap(); } });
-            }
-            for _ in 0..128 { assert_eq!(fs::read(&config).unwrap(), b"{}"); }
-        });
-        assert_eq!(fs::metadata(&config).unwrap().modified().unwrap(), original.modified().unwrap());
-        fs::remove_dir_all(directory).unwrap();
-    }
-    #[test]
-    fn parallel_connections_use_different_persistent_profiles() {
-        let directory = dunce::canonicalize(std::env::temp_dir()).unwrap().join(format!("coffee-browser-slots-{}", uuid::Uuid::new_v4()));
-        let (first, first_profile, first_index) = browser_slot(&directory).unwrap();
-        let (second, second_profile, _) = browser_slot(&directory).unwrap();
-        assert_ne!(first_profile, second_profile);
-        let duplicated_handle = first.0.try_clone().unwrap();
-        drop(first);
-        let (reused, reused_profile, reused_index) = browser_slot(&directory).unwrap();
-        assert_eq!(first_index, reused_index); assert_eq!(first_profile, reused_profile);
-        drop(duplicated_handle);
-        let (third, _, third_index) = browser_slot(&directory).unwrap();
-        assert_ne!(third_index, reused_index);
-        drop(third); drop(second); drop(reused); fs::remove_dir_all(directory).unwrap();
     }
 }

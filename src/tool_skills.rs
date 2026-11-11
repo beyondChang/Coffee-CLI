@@ -54,6 +54,14 @@ fn roots_in(tool: &str, home: &Path, env: impl Fn(&str) -> Option<std::ffi::OsSt
 }
 fn roots(tool: &str) -> Result<Vec<PathBuf>, String> { Ok(roots_in(tool, &dirs::home_dir().ok_or("skills_read")?, |key| std::env::var_os(key))) }
 
+/// Skill roots of one CLI. Empty when the CLI has no Skills directory.
+pub(crate) fn skill_roots(tool: &str) -> Result<Vec<PathBuf>, String> { roots(tool) }
+
+/// CLIs that can receive Skills. Keep in sync with the `roots_in` arms.
+pub(crate) fn skill_tools() -> &'static [&'static str] {
+    &["claude", "codex", "cursor", "copilot", "opencode", "antigravity", "qwen", "pi",
+      "hermes", "dsh", "kilo", "goose", "grok", "minimax", "codebuddy", "crush", "openclaw"]
+}
 fn linked(path: &Path) -> bool {
     fs::symlink_metadata(path).is_ok_and(|m| {
         #[cfg(windows)] { use std::os::windows::fs::MetadataExt; m.file_type().is_symlink() || m.file_attributes() & 0x400 != 0 }
@@ -418,6 +426,51 @@ fn apply(tool: &str, root: &Path, directories: &[PathBuf], mut next: Installed, 
     inventory(tool, root, directories)
 }
 
+/// Install a Skill from a local directory. Catalogue installs download from
+/// GitHub; runtimes that ship their own Skill (ego lite) are copied from disk
+/// through the same backup/atomic-replace pipeline, so the tracked state,
+/// rollback and conflict rules stay identical.
+pub(crate) fn install_local_skill(tool: &str, source: &Path, name: &str) -> Result<Inventory, String> {
+    let root = storage()?;
+    let directories = roots(tool)?;
+    install_local_skill_at(&root, tool, source, name, &directories)
+}
+
+fn install_local_skill_at(root: &Path, tool: &str, source: &Path, name: &str, directories: &[PathBuf]) -> Result<Inventory, String> {
+    if directories.is_empty() { return Err("skills_unsupported".into()); }
+    let files = read_files(source)?;
+    if !files.iter().any(|file| file.path == "SKILL.md") { return Err("skills_source".into()); }
+    let hash = digest(&files);
+    let next = Installed { tool: String::new(), path: String::new(), source: format!("local:{name}"), name: name.to_string(), remote_path: String::new(), remote_hash: hash.clone(), hash, update: false, modified: false };
+    apply(tool, root, directories, next, &files)
+}
+
+/// Remove a Skill that Coffee installed. A Skill the user placed themselves,
+/// or that another installer manages, is never touched.
+pub(crate) fn remove_skill(tool: &str, name: &str) -> Result<Inventory, String> {
+    let root = storage()?;
+    let directories = roots(tool)?;
+    remove_skill_at(&root, tool, name, &directories)
+}
+
+fn remove_skill_at(root: &Path, tool: &str, name: &str, directories: &[PathBuf]) -> Result<Inventory, String> {
+    let _guard = WRITE_LOCK.lock().map_err(|_| "skills_write")?;
+    let mut state = read_state(root)?;
+    let index = state.installed.iter().position(|entry| entry.tool == tool && entry.name == name)
+        .ok_or("skills_missing")?;
+    let installed = state.installed[index].clone();
+    let path = PathBuf::from(&installed.path);
+    if path.exists() {
+        let files = read_files(&path)?;
+        if digest(&files) != installed.hash { return Err("skills_modified".into()); }
+        write_files(&root.join("backups").join(uuid::Uuid::new_v4().to_string()).join(name), &files)?;
+        fs::remove_dir_all(&path).map_err(|_| "skills_write")?;
+    }
+    state.installed.remove(index);
+    write_json(&root.join("state.json"), &state)?;
+    inventory(tool, root, directories)
+}
+
 #[tauri::command]
 pub async fn get_tool_skills(tool: String) -> Result<Inventory, String> {
     tauri::async_runtime::spawn_blocking(move || inventory(&tool, &storage()?, &roots(&tool)?)).await.map_err(|_| "skills_read")?
@@ -679,4 +732,40 @@ mod tests {
         assert!(remove("claude", &f.root, &f.directories, &list.skills[0].path).unwrap().skills.is_empty());
     }
 
+    #[test]
+    fn a_local_skill_installs_and_removes_through_the_same_pipeline() {
+        let f = Fixture::new();
+        let source = f.base.join("runtime/ego-skills/ego-browser");
+        fs::create_dir_all(source.join("references")).unwrap();
+        fs::write(source.join("SKILL.md"), "---\nname: ego-browser\ndescription: Example skill\n---\nRun the browser through the ego lite runtime.\n").unwrap();
+        fs::write(source.join("references/install.md"), "reference").unwrap();
+        let installed = f.directories[0].join("ego-browser");
+        let list = install_local_skill_at(&f.root, "claude", &source, "ego-browser", &f.directories).unwrap();
+        assert_eq!(list.skills.len(), 1);
+        assert!(list.skills[0].managed);
+        assert!(installed.join("SKILL.md").is_file());
+        assert!(installed.join("references/install.md").is_file());
+        // A second install is idempotent and keeps a single tracked entry.
+        install_local_skill_at(&f.root, "claude", &source, "ego-browser", &f.directories).unwrap();
+        assert_eq!(read_state(&f.root).unwrap().installed.len(), 1);
+        // Removal drops the copy and the tracked entry; the backup stays.
+        let list = remove_skill_at(&f.root, "claude", "ego-browser", &f.directories).unwrap();
+        assert!(list.skills.is_empty());
+        assert!(!installed.exists());
+        assert!(read_state(&f.root).unwrap().installed.is_empty());
+        // The removed copy stays recoverable from the backup directory.
+        assert!(fs::read_dir(f.root.join("backups")).unwrap().count() >= 1);
+    }
+
+    #[test]
+    fn a_local_skill_the_user_edited_is_never_removed() {
+        let f = Fixture::new();
+        let source = f.base.join("runtime/ego-skills/ego-browser");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("SKILL.md"), "---\nname: ego-browser\ndescription: Example skill\n---\nRun the browser through the ego lite runtime.\n").unwrap();
+        install_local_skill_at(&f.root, "claude", &source, "ego-browser", &f.directories).unwrap();
+        fs::write(f.directories[0].join("ego-browser/SKILL.md"), "edited by the user").unwrap();
+        assert_eq!(remove_skill_at(&f.root, "claude", "ego-browser", &f.directories).err().unwrap(), "skills_modified");
+        assert!(f.directories[0].join("ego-browser/SKILL.md").is_file());
+    }
 }

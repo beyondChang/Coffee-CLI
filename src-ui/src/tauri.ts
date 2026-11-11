@@ -180,7 +180,11 @@ export interface ToolSkill { name: string; description: string; source: string |
 export interface SkillInventory { supported: boolean; skills: ToolSkill[] }
 export interface CatalogSkill { source: string; name: string; description: string }
 
-export interface ToolControlStatus { supported: boolean; installed: boolean; ready: boolean; browser: string | null; agents: { tool: string; supported: boolean; enabled: boolean; conflict: boolean; issue?: string | null }[] }
+export interface ToolControlStatus { supported: boolean; installed: boolean; ready: boolean; agents: { tool: string; supported: boolean; enabled: boolean; conflict: boolean; issue?: string | null }[] }
+
+/** One CLI's ego lite state: Skill discovery, default instruction, command allowance. */
+export interface EgoAgentState { tool: string; supported: boolean; skill: string; instruction: boolean; instructionSupported: boolean; permission: string; issue?: string | null }
+export interface EgoStatus { supported: boolean; installed: boolean; version: string | null; skillPath: string | null; skillVersion: string | null; agents: EgoAgentState[]; legacy: string[] }
 
 export const commands = {
   checkCliUpdate: (tool: string) => invoke<CliUpdateStatus>('check_cli_update', { tool }),
@@ -195,10 +199,15 @@ export const commands = {
   orchestrationDetachWorker: (taskId: string) => invoke<import('./lib/orchestration').OrchestrationSnapshot>('orchestration_detach_worker', { taskId }),
   orchestrationPending: (requestId: string) => invoke<boolean>('orchestration_pending', { requestId }),
   orchestrationResolve: (requestId: string, result: unknown) => invoke<void>('orchestration_resolve', { requestId, result }),
-  getToolControl: (kind: 'computer' | 'browser') => invoke<ToolControlStatus>('get_tool_control', { kind }),
-  checkToolControl: (kind: 'computer' | 'browser') => invoke<ToolControlStatus>('check_tool_control', { kind }),
-  installBrowserControl: () => invoke<ToolControlStatus>('install_browser_control'),
-  setToolControl: (kind: 'computer' | 'browser', tool: string, enabled: boolean) => invoke<ToolControlStatus>('set_tool_control', { kind, tool, enabled }),
+  getToolControl: (kind: 'computer') => invoke<ToolControlStatus>('get_tool_control', { kind }),
+  checkToolControl: (kind: 'computer') => invoke<ToolControlStatus>('check_tool_control', { kind }),
+  setToolControl: (kind: 'computer', tool: string, enabled: boolean) => invoke<ToolControlStatus>('set_tool_control', { kind, tool, enabled }),
+  getEgoStatus: () => invoke<EgoStatus>('get_ego_status'),
+  installEgoSkill: (tool?: string) => invoke<EgoStatus>('install_ego_skill', { tool: tool ?? null }),
+  removeEgoSkill: (tool: string) => invoke<EgoStatus>('remove_ego_skill', { tool }),
+  setEgoInstruction: (tool: string, enabled: boolean) => invoke<EgoStatus>('set_ego_instruction', { tool, enabled }),
+  setEgoPermission: (tool: string, enabled: boolean) => invoke<EgoStatus>('set_ego_permission', { tool, enabled }),
+  cleanupLegacyBrowser: () => invoke<EgoStatus>('cleanup_legacy_browser'),
   getToolSkills: (tool: string) => invoke<SkillInventory>('get_tool_skills', { tool }),
   searchToolSkills: async (query: string, onUpdate?: (items: CatalogSkill[]) => void) => {
     const updates = new (await import('@tauri-apps/api/core')).Channel<CatalogSkill[]>(onUpdate);

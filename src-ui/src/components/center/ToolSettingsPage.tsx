@@ -3,6 +3,7 @@ import { useT } from '../../i18n/useT';
 import { ToolMemoryPanel } from './ToolMemoryPanel';
 import { ToolSkillsPanel } from './ToolSkillsPanel';
 import { ToolControlPanel } from './ToolControlPanel';
+import { ToolEgoPanel } from './ToolEgoPanel';
 import { ToolOrchestrationPanel } from './ToolOrchestrationPanel';
 import './ToolSettingsPage.css';
 
@@ -50,7 +51,7 @@ export function ToolSettingsPage({ active, tools, count, limit, title, actions, 
     <section className={`tool-settings-page${tab === 'memory' ? ' tool-settings-page--memory' : tab === 'skills' ? ' tool-settings-page--skills' : ''}`} aria-label={t('tools.title')} style={active ? undefined : { display: 'none' }}>
       <div className="tool-settings-inner">
         {tabs.map(key => <div key={key} id={`${id}-panel-${key}`} role="tabpanel" aria-labelledby={`${id}-tab-${key}`} className="tool-settings-panel" hidden={tab !== key}>
-          {key === 'selection' ? (active && tab === 'selection' ? children : null) : key === 'memory' ? <ToolMemoryPanel active={active && tab === 'memory'} tools={tools} /> : key === 'orchestration' ? <ToolOrchestrationPanel active={active && tab === key} tools={tools} /> : key === 'skills' ? <ToolSkillsPanel active={active && tab === 'skills'} tools={tools} /> : <ToolControlPanel kind={key} active={active && tab === key} tools={tools} />}
+          {key === 'selection' ? (active && tab === 'selection' ? children : null) : key === 'memory' ? <ToolMemoryPanel active={active && tab === 'memory'} tools={tools} /> : key === 'orchestration' ? <ToolOrchestrationPanel active={active && tab === key} tools={tools} /> : key === 'skills' ? <ToolSkillsPanel active={active && tab === 'skills'} tools={tools} /> : key === 'browser' ? <ToolEgoPanel active={active && tab === key} tools={tools} /> : <ToolControlPanel kind={key} active={active && tab === key} tools={tools} />}
         </div>)}
       </div>
     </section>

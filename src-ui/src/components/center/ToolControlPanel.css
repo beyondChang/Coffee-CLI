@@ -36,6 +36,13 @@
 .tool-control-card-toggle > span { left:calc(100% - 54px); top:calc(50% - 8px); }
 .tool-control-unavailable[data-tip] { z-index:1; }
 .tool-control-no-agents { margin:14px 0 0; color:var(--text-2); font-size:var(--type-label); line-height:1.6; }
+/* ego lite panel: per-agent state tags and the command allowance switch */
+.ego-state-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.ego-state-tag { padding:1px 8px; border:1px solid var(--border); border-radius:999px; color:var(--text-3); font-size:var(--type-caption); font-weight:400; line-height:18px; white-space:nowrap; }
+.ego-state-tag[data-state="installed"], .ego-state-tag[data-state="managed"], .ego-state-tag[data-state="on"], .ego-state-tag[data-state="allowed"] { color:var(--text-2); }
+.ego-state-tag[data-state="modified"], .ego-state-tag[data-state="foreign"] { color:var(--text-1); }
+.ego-permission { display:flex; align-items:center; gap:14px; margin:0 0 18px; padding:14px 18px; border:1px solid var(--border); border-radius:var(--shape-radius-panel,var(--radius-sm)); background:var(--bg-panel); }
+.ego-permission-label { flex:1; min-width:0; color:var(--text-1); font-size:var(--type-label); line-height:20px; }
 /* Inset to the cards' own text (20px padding + 1px border), so the heading reads as theirs. */
 .orchestration-roles-head { display:flex; align-items:baseline; gap:10px; margin-top:26px; padding-left:21px; color:var(--text-1); font-size:var(--type-body); }
 .orchestration-roles-head span { color:var(--text-2); font-size:var(--type-label); }

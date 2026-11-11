@@ -36,6 +36,7 @@ mod tool_memory;
 mod tool_skills;
 mod tool_control;
 mod computer_control;
+mod ego_lite;
 mod orchestration;
 mod worker_worktree;
 mod notify_sound;
