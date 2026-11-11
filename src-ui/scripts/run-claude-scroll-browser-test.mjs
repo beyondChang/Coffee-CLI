@@ -35,6 +35,7 @@ await build({
     builder.onLoad({ filter: /.*/, namespace: 'svg' }, async args => ({ contents: `export default ${JSON.stringify(await readFile(args.path, 'utf8'))}`, loader: 'js' }));
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ resolveDir: project, loader: 'js', contents: args.path === 'store' ? `
       export function useAppLanguage(){return 'en'};export function useAppState(){return {dispatch(action){(window.actions??=[]).push(action)}}};
+      export function useAppDispatch(){return action=>(window.markdownActions??=[]).push(action)};
     ` : args.path === 'syntax' ? `
       export async function tokenizeFile(){return null};export async function tokenizeByLang(){return null};export function getShikiTheme(){return 'light'};
     ` : args.path === 'clipboard' ? `
@@ -420,7 +421,7 @@ try {
   console.log('ok Claude shares the English time greeting and native computer name');
 
   await page.evaluate(()=>window.setSession({busy:false,ready:true,messages:[{id:'link',role:'assistant',content:'[Open page](./test%20page.html) [Website](https://example.com)',timestamp:Date.now()}]}));
-  const local=page.getByRole('link',{name:'Open page',exact:true});await local.click();assert.deepEqual(await page.evaluate(()=>window.nativeActions.at(-1)),{name:'openUrl',args:['D:/Test/test page.html']});
+  const local=page.getByRole('link',{name:'Open page',exact:true});await local.click();assert.equal(await page.evaluate(()=>window.markdownActions.at(-1)?.type),'OPEN_FILE');assert.equal(await page.evaluate(()=>window.markdownActions.at(-1)?.file.path),'D:/Test/test page.html');
   await page.getByRole('link',{name:'Website',exact:true}).click();assert.deepEqual(await page.evaluate(()=>window.nativeActions.at(-1).args),['https://example.com']);
   await local.click({button:'right'});await page.locator('.term-ctx-menu').getByRole('button',{name:'Copy path',exact:true}).click();assert.equal(await page.evaluate(()=>window.copiedText),'D:/Test/test page.html');
   await local.click({button:'right'});await page.locator('.term-ctx-menu').getByRole('button',{name:'Reveal in File Explorer',exact:true}).click();assert.equal(await page.evaluate(()=>window.nativeActions.at(-1).name),'showInFolder');

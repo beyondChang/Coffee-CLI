@@ -49,9 +49,10 @@ try {
   await page.evaluate(() => window.setAgent({ messages: [{ id: 1, role: 'user', text: '看看现在打开了哪些终端' }, { id: 2, role: 'assistant', text: '现在打开了 3 个终端。' }] }));
   await button.waitFor();
   assert.equal(await button.evaluate(el => el.parentElement.classList.contains('gambit-footer')), true, 'New chat lives in the composer footer');
-  const [box, label, send] = await Promise.all([button.boundingBox(), page.locator('.gambit-workspace').boundingBox(), page.locator('.gambit-send').boundingBox()]);
-  assert.ok(box.x >= label.x + label.width && box.x - (label.x + label.width) <= 10, `New chat sits right beside the Super Assistant label: ${JSON.stringify({ box, label })}`);
-  assert.ok(Math.abs(box.y + box.height / 2 - (label.y + label.height / 2)) < 1 && Math.abs(box.height - label.height) < 1, 'New chat matches the label row and height');
+  const [box, label, badge, send] = await Promise.all([button.boundingBox(), page.locator('.gambit-workspace').boundingBox(), page.locator('.agent-weixin-status').boundingBox(), page.locator('.gambit-send').boundingBox()]);
+  assert.ok(badge.x > label.x + label.width, 'the WeChat badge follows the Super Assistant label');
+  assert.ok(box.x >= badge.x + badge.width && box.x - (badge.x + badge.width) <= 10, `New chat sits right beside the WeChat badge: ${JSON.stringify({ box, badge })}`);
+  assert.ok(Math.abs(box.y + box.height / 2 - (badge.y + badge.height / 2)) < 1 && Math.abs(box.height - badge.height) < 1, 'New chat matches the badge row and height');
   assert.ok(send.x - (box.x + box.width) > 200, 'the send button stays at the far right');
   await page.screenshot({ path: join(directory, 'new-chat.png') });
 

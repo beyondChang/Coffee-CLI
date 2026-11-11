@@ -63,7 +63,7 @@ const mockReact = {
 const preferences = new Map();
 const bounds = { left: 10, top: 20, width: 1000, height: 600 };
 const host = { appendChild: canvas => attached.push(canvas), getBoundingClientRect: () => bounds };
-const tabs = ['terminal:a', 'terminal:b', 'agent:agent', 'agent:config', 'diff', 'terminal:blank'].map((id, index) => ({
+const tabs = ['terminal:a', 'terminal:b', 'agent:agent', 'agent:config', 'file:notes.md', 'terminal:blank'].map((id, index) => ({
   dataset: { tabId: id }, visible: true,
   rect: { left: 210 + index * 150, top: 60, width: 100, height: 40 },
   getClientRects() { return this.visible ? [this.rect] : []; },
@@ -95,7 +95,7 @@ const context = {
 runInNewContext(compiled.outputFiles[0].text, context);
 const { CharacterBackground, selectedTabId, reducer } = module.exports;
 let state = {
-  activeTerminalId: 'terminal:a', agentPageActive: null, diffTabActive: false,
+  activeTerminalId: 'terminal:a', agentPageActive: null, fileTabActive: false, activeFile: null,
   agentPages: [], terminals: [{ id: 'terminal:a', tool: 'codex' }, { id: 'terminal:b', tool: 'claude' }, { id: 'terminal:blank', tool: null }],
   tabOrder: ['terminal:a', 'terminal:b', 'terminal:blank'],
 };
@@ -117,7 +117,7 @@ for (const [action, expected] of [
   [{ type: 'SET_ACTIVE_TERMINAL', id: 'terminal:blank' }, 'terminal:blank'],
   [{ type: 'SET_ACTIVE_TERMINAL', id: 'terminal:a' }, 'terminal:a'],
   [{ type: 'OPEN_AGENT_PAGE', page: 'agent' }, 'agent:agent'],
-  [{ type: 'SET_DIFF_TAB_ACTIVE', active: true }, 'diff'],
+  [{ type: 'SET_FILE_TAB_ACTIVE', active: true, path: 'notes.md' }, 'file:notes.md'],
   [{ type: 'SET_ACTIVE_TERMINAL', id: 'terminal:b' }, 'terminal:b'],
 ]) {
   const previousCount = selections.length;
@@ -137,7 +137,7 @@ dispatch({ type: 'SET_AGENT_STATUS', id: 'terminal:b', status: 'working' });
 assert.equal(selections.length, count, 'reselecting a tab and unrelated updates must not restart feedback');
 for (let i = 0; i < 30; i++) dispatch({ type: 'SET_ACTIVE_TERMINAL', id: i % 2 ? 'terminal:b' : 'terminal:a' });
 assert.equal(creates, 1); assert.equal(attached[0], originalCanvas);
-console.log('OK: terminal/Agent/settings/Diff transitions, repeat selection and rapid switching reuse one canvas');
+console.log('OK: terminal/Agent/file transitions, repeat selection and rapid switching reuse one canvas');
 
 tabs[0].visible = false;
 dispatch({ type: 'SET_ACTIVE_TERMINAL', id: 'terminal:a' });
@@ -148,7 +148,7 @@ dispatch({ type: 'SET_ACTIVE_TERMINAL', id: 'terminal:b' });
 assert.equal(selections.at(-1).origin.x, 1, 'clipped tab origins stay within the background');
 console.log('OK: missing tab fallback and clipped tab coordinates');
 
-const preference = preferences.get('(prefers-reduced-motion: reduce)');
+const preference = preferences.get('(prefers-contrast: more)');
 preference.matches = true; preference.dispatchEvent(new Event('change')); render();
 const pausedCount = selections.length;
 dispatch({ type: 'OPEN_AGENT_PAGE', page: 'agent' });
@@ -158,4 +158,4 @@ assert.equal(selections.at(-1).id, 'agent:agent');
 assert.equal(creates, 2); assert.equal(disposals, 1);
 for (const slot of slots) slot?.cleanup?.();
 assert.equal(attached.length, 0); assert.equal(disposals, 2);
-console.log('OK: reduced motion suppresses interaction, resumes at the current tab and cleans up on unmount');
+console.log('OK: blocked contrast suppresses interaction, resumes at the current tab and cleans up on unmount');

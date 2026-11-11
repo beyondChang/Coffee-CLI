@@ -42,6 +42,7 @@ await build({
       import {tab} from 'fixture-tab';
       export function useAppLanguage(){return 'en'};
       export function useAppState(){return {state:{theme:'dark',terminals:[tab()]},dispatch(action){(window.actions??=[]).push(action);window.applyAction(action)}}};
+      export function useAppDispatch(){return action=>(window.markdownActions??=[]).push(action)};
     ` : args.path === 'syntax' ? `
       export async function tokenizeFile(){return null};export async function tokenizeByLang(){return null};export function getShikiTheme(){return 'dark'};
     ` : args.path === 'clipboard' ? `

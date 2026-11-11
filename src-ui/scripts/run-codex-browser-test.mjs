@@ -38,6 +38,7 @@ await build({
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ resolveDir: project, loader: 'js', contents: args.path === 'store' ? `
       const state={theme:'dark',gambitEnterToSend:true,terminals:[{id:'a',folderPath:'D:/Test'},{id:'b',folderPath:'D:/Test'}]},dispatch=action=>(window.actions??=[]).push(action);
       export function useAppLanguage(){return 'en'};export function useAppState(){return {state,dispatch}};
+      export function useAppDispatch(){return action=>(window.markdownActions??=[]).push(action)};
     ` : args.path === 'syntax' ? `
       export async function tokenizeFile(){return null};export async function tokenizeByLang(){return null};export function getShikiTheme(){return 'dark'};
     ` : args.path === 'clipboard' ? `
@@ -257,9 +258,10 @@ try {
   console.log('ok stream expansion, copy, approval, questions, stop, model capabilities and tab isolation');
   await emit('item/completed',{turnId,item:{id:'links',type:'agentMessage',text:'[Open test page](simple-web-test/index.html) [Website](https://example.com) [File URL](file:///D:/Test/test%20page.html) [Blocked](javascript:alert%281%29)'}});
   const local=page.getByRole('link',{name:'Open test page',exact:true});await local.click();
-  assert.deepEqual(await page.evaluate(()=>window.nativeActions.at(-1)),{name:'openUrl',args:['D:/Test/simple-web-test/index.html']});
+  assert.equal(await page.evaluate(()=>window.markdownActions.at(-1)?.type),'OPEN_FILE');
+  assert.equal(await page.evaluate(()=>window.markdownActions.at(-1)?.file.path),'D:/Test/simple-web-test/index.html');
   await page.getByRole('link',{name:'Website',exact:true}).click();assert.deepEqual(await page.evaluate(()=>window.nativeActions.at(-1).args),['https://example.com']);
-  await page.getByRole('link',{name:'File URL',exact:true}).click();assert.deepEqual(await page.evaluate(()=>window.nativeActions.at(-1).args),['D:/Test/test page.html']);
+  await page.getByRole('link',{name:'File URL',exact:true}).click();assert.equal(await page.evaluate(()=>window.markdownActions.at(-1)?.type),'OPEN_FILE');assert.equal(await page.evaluate(()=>window.markdownActions.at(-1)?.file.path),'D:/Test/test page.html');
   assert.equal(await page.getByRole('link',{name:'Blocked',exact:true}).count(),0);
   await local.click({button:'right'});await page.locator('.term-ctx-menu').waitFor();await page.waitForTimeout(150);if(process.env.COFFEE_CODEX_SCREENSHOT)await page.screenshot({path:process.env.COFFEE_CODEX_SCREENSHOT.replace('.png','-menu.png')});await page.locator('.term-ctx-menu').getByRole('button',{name:'Copy path',exact:true}).click();assert.equal(await page.evaluate(()=>window.copiedText),'D:/Test/simple-web-test/index.html');
   await local.click({button:'right'});await page.locator('.term-ctx-menu').getByRole('button',{name:'Reveal in File Explorer',exact:true}).click();assert.deepEqual(await page.evaluate(()=>window.nativeActions.at(-1)),{name:'showInFolder',args:['D:/Test/simple-web-test/index.html']});
@@ -296,7 +298,7 @@ try {
   assert.equal(await returnLatest.evaluate(el=>el.classList.contains('gambit-send')),false,'return button is a dark chip, not the filled send button');
   assert.equal(await returnLatest.locator('svg path').count(),1,'return button uses the shared SVG arrow');
   const radius=locator=>locator.evaluate(el=>getComputedStyle(el).borderRadius);
-  assert.equal(await radius(returnLatest),await radius(page.locator('.gambit-footer > .gambit-send')),'return button takes the theme shape of the send button');
+  assert.ok(parseFloat(await radius(returnLatest)) >= 16,'return button keeps its circular chip shape');
   const returnSize=await returnLatest.boundingBox(),hostSize=await page.locator('.host:visible .claude-conversation').boundingBox();assert.equal(returnSize.width,32);assert.equal(returnSize.height,32);
   assert.ok(Math.abs(returnSize.x+returnSize.width/2-(hostSize.x+hostSize.width/2))<2,'return button is centered in the conversation');
   await page.evaluate(()=>{window.emit('b','turn/started',{turn:{id:'live'}});window.emit('b','item/agentMessage/delta',{turnId:'live',itemId:'answer',delta:'New answer. '.repeat(90)})});

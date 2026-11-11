@@ -198,6 +198,7 @@ try {
       await page.goto(`http://127.0.0.1:${server.address().port}/?deferGit=1&pr=${state}&ci=${ci ?? ''}`);
       await page.mouse.move(500, 300);
       await page.waitForFunction(() => typeof window.resolveGitStatus === 'function');
+      if (layout === 'projects') { await page.locator('.history-project-row').first().click(); await page.locator('.history-card').first().waitFor(); }
       const items = page.locator('.history-project-row, .history-card');
       const geometry = () => items.evaluateAll(nodes => nodes.map(node => {
         const { top, height } = node.getBoundingClientRect();
@@ -221,6 +222,7 @@ try {
     await page.evaluate(layout => { localStorage.setItem('cc-history-layout', layout); localStorage.removeItem('cc-project-git-status-v1'); }, layout);
     await page.goto(`http://127.0.0.1:${server.address().port}/?perSession=1&pr=branch`);
     await page.mouse.move(500, 300);
+    if (layout === 'projects') { await page.locator('.history-project-row').first().click(); await page.locator('.history-card').first().waitFor(); }
     const merged = page.locator('.history-card').nth(1).locator('.history-git-mark.is-merged');
     const closed = page.locator('.history-card').nth(2).locator('.history-git-mark.is-closed');
     await merged.waitFor(); await closed.waitFor();
@@ -237,6 +239,7 @@ try {
   for (const layout of ['projects','list']) {
     await page.evaluate(layout=>localStorage.setItem('cc-history-layout',layout),layout);
     await page.goto(`http://127.0.0.1:${server.address().port}/?toolIcons=1&pr=branch`);
+    if (layout === 'projects') { for (const projectRow of await page.locator('.history-project-row').all()) await projectRow.click(); await page.locator('.history-card').first().waitFor(); }
     await page.locator('.history-card-tool-icon').first().waitFor();
     if(layout==='projects'){
       // A busy folder previews its newest sessions and grows click by click; it can fold back at any point.
@@ -304,6 +307,7 @@ try {
   for (const layout of ['projects','list']) {
     await page.evaluate(layout=>localStorage.setItem('cc-history-layout',layout),layout);
     await page.goto(`http://127.0.0.1:${server.address().port}/?toolIcons=1&agent=1`);
+    if (layout === 'projects') { for (const projectRow of await page.locator('.history-project-row').all()) await projectRow.click(); await page.locator('.history-card').first().waitFor(); }
     const agentCard=page.locator('.history-card').filter({has:page.locator('.history-card-title',{hasText:/^Daily plan$/})});
     const agentIcon=agentCard.locator('.history-card-tool-icon');
     await agentIcon.locator('img').waitFor();

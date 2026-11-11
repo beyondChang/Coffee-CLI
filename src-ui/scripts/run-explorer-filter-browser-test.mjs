@@ -18,6 +18,7 @@ const mock = `
   window.changeFolder=folder=>{state={...state,terminals:[{...state.terminals[0],folderPath:folder}]};listeners.forEach(fn=>fn())};
   export function useAppState(){return {state:useSyncExternalStore(fn=>{listeners.add(fn);return()=>listeners.delete(fn)},()=>state),dispatch:action=>window.calls.actions.push(action)}}
   export function useAppLanguage(){return 'zh-CN'}
+  export const isTauri=false;
   const file=(name,path='D:/project/'+name)=>({name,path,is_dir:false,size:1024});
   export const commands={async listDirectory(path){window.calls.reads.push(path);return path==='D:/project'?[{name:'src',path:path+'/src',is_dir:true,size:0},file('README.md'),file('index.ts'),file('组件.tsx')]:path.endsWith('/src')?[file('child.ts',path+'/child.ts')]:[file('other.txt',path+'/other.txt')]},async startFsWatcher(){},async stopFsWatcher(){}};
   export function onSelfUpdateProgress(){return()=>{}}
@@ -61,7 +62,7 @@ try {
   assert.deepEqual(await page.locator('.right-files-path').boundingBox(), pathBox, 'switching to search does not move the file list');
   await search.fill('  README  '); assert.equal(await page.locator('.tree-file:visible').count(), 1);
   await page.getByText('README.md', { exact: true }).click();
-  assert.equal(await page.evaluate(() => window.calls.actions.at(-1).selection.path), 'D:/project/README.md', 'filtered files retain preview behavior');
+  assert.equal(await page.evaluate(() => window.calls.actions.at(-1).file.path), 'D:/project/README.md', 'filtered files retain preview behavior');
   await search.press('Escape'); assert.match(await page.locator('.right-files-path-text').textContent(), /D:\/project/);
   assert.equal(await page.getByText('child.ts', { exact: true }).isVisible(), true, 'closing search preserves expanded directories');
   assert.deepEqual(await page.evaluate(() => window.calls.reads), ['D:/project', 'D:/project/src'], 'typing never rescans or changes directories');
@@ -69,7 +70,7 @@ try {
   await search.fill('组件'); assert.equal(await page.locator('.tree-file:visible').count(), 1);
   await search.fill('missing'); assert.match(await page.getByRole('status').textContent(), /没有匹配/);
   await page.screenshot({ path: join(directory, 'empty.png') });
-  await search.fill(''); assert.equal(await search.count(), 0, 'clearing the query restores the path');
+  await search.fill(''); assert.ok(await page.locator('.tree-file:visible').count() > 1, 'clearing the filter lists every file again'); await search.blur(); assert.equal(await search.count(), 0, 'leaving an empty filter restores the path');
   await toggle.click(); await search.fill('index'); await search.press('Tab');
   const close = page.getByRole('button', { name: '关闭搜索' }); assert.equal(await close.evaluate(el => document.activeElement === el), true);
   await close.press('Enter'); assert.equal(await search.count(), 0);

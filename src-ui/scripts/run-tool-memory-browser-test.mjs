@@ -14,6 +14,7 @@ window.calls=[];window.docs={claude:{path:'C:/fixture/.claude/CLAUDE.md',content
 export const commands={
  async getToolControl(){return {supported:true,installed:false,ready:false,browser:null,agents:[]}},
  async getToolSkills(){return {supported:false,skills:[]}},
+ async getEgoStatus(){return {supported:false,installed:false,version:null,legacy:[],agents:[]}},
  async searchToolSkills(){return []},
  async readToolMemory(tool){window.calls.push({type:'read',tool});if(window.failRead)throw 'memory_read';if(window.delayTool===tool)await new Promise(resolve=>{window.resolveRead=resolve});return {...window.docs[tool]}},
  async saveToolMemory(tool,path,original,content){window.calls.push({type:'save',tool,path,original,content});if(window.failSave)throw 'memory_write';if(window.docs[tool].path!==path||window.docs[tool].content!==original)throw 'memory_conflict';window.docs[tool]={path,content};return {...window.docs[tool]}}
@@ -26,7 +27,7 @@ import claudeIcon from './src/icons-inline/claude.svg';import codexIcon from './
 import './src/styles/global.css';import './src/components/center/CenterPanel.css';
 const tools=[{value:'claude',label:'Claude Code'},{value:'codex',label:'Codex CLI'},{value:'pi',label:'Pi'},{value:'cursor',label:'Cursor'},{value:'copilot',label:'Copilot CLI'}].map(item=>({...item,icon:item.value==='claude'||item.value==='codex'?<InlineSvgIcon markup={item.value==='claude'?claudeIcon:codexIcon}/>:<span>{item.label[0]}</span>}));
 const choices=[...tools,{value:'opencode',label:'OpenCode',icon:<span>O</span>}];
-function Fixture(){const[active,setActive]=useState(true),[enabled,setEnabled]=useState(tools),[missing,setMissing]=useState([]);window.setMissing=setMissing;window.setEnabled=values=>setEnabled(choices.filter(item=>values.includes(item.value)));return <><button id="navigate" onClick={()=>setActive(!active)}>Navigate</button><div className="main-content" style={{position:'absolute',top:40,right:0,bottom:0,left:0}}><ToolSettingsPage active={active} tools={enabled.map(item=>({...item,installed:!missing.includes(item.value)}))} count={enabled.length} limit={6}><div id="selection">selection</div></ToolSettingsPage></div></>}
+function Fixture(){const[active,setActive]=useState(true),[enabled,setEnabled]=useState(tools),[missing,setMissing]=useState([]);window.setMissing=setMissing;window.setEnabled=values=>setEnabled(choices.filter(item=>values.includes(item.value)));return <><button id="navigate" onClick={()=>setActive(!active)}>Navigate</button><div className="main-content" style={{position:'absolute',top:40,right:0,bottom:0,left:0}}>{<div className="tool-settings-modal" style={active?undefined:{display:'none'}}><ToolSettingsPage active={active} tools={enabled.map(item=>({...item,installed:!missing.includes(item.value)}))} count={enabled.length} limit={6}><div id="selection">selection</div></ToolSettingsPage></div>}</div></>}
 createRoot(document.getElementById('root')).render(<Fixture/>);` }, bundle:true, jsx:'automatic', loader:{'.svg':'text','.png':'dataurl'}, outfile:join(directory,'fixture.js'), logLevel:'silent',
   plugins:[{name:'native-boundary',setup(b){
     b.onResolve({filter:/\/tauri$/},args=>({path:args.path,namespace:'fixture'}));
@@ -95,7 +96,7 @@ try{
   await page.getByRole('button',{name:'重新加载',exact:true}).click();await page.getByRole('button',{name:'放弃修改并重新加载',exact:true}).click();await value('External edit');
   await switchTool('Claude Code');await value('Claude 草稿\n未保存');
   await tab('常用 5/6').click();await tab('主记忆').click();await value('Claude 草稿\n未保存');
-  await page.locator('#navigate').click();assert.equal(await tab('主记忆').count(),0);
+  await page.locator('#navigate').click();assert.equal(await tab('主记忆').isVisible(),false);
   await page.locator('#navigate').click();await value('Claude 草稿\n未保存');
   await page.evaluate(()=>window.setMissing(['claude']));await page.locator('.tool-memory').getByText('未安装',{exact:true}).waitFor();
   assert.equal(await editor.count(),0);assert.equal(await page.getByRole('button',{name:'保存',exact:true}).isDisabled(),true);
@@ -128,9 +129,9 @@ try{
   await page.setViewportSize({width:1100,height:1050});
   await page.waitForFunction(()=>{
     const panel=document.querySelector('.tool-settings-page'),style=getComputedStyle(panel);
-    return Math.abs(document.querySelector('.tool-memory-editor').getBoundingClientRect().bottom-(panel.getBoundingClientRect().bottom-parseFloat(style.borderBottomWidth)-20))<1;
+    return Math.abs(document.querySelector('.tool-memory-editor').getBoundingClientRect().bottom-(panel.getBoundingClientRect().bottom-parseFloat(style.borderBottomWidth)-parseFloat(style.paddingBottom)))<1;
   });
-  assert.ok((await editor.boundingBox()).height>beforeResize.height+190,'editor fills newly available window height');
+  assert.ok(Math.abs((await editor.boundingBox()).height - beforeResize.height) < 1, 'the capped dialog keeps its editor height when the window grows');
   assert.equal(await editor.evaluate(el=>getComputedStyle(el).resize),'none');
   await page.evaluate(()=>{document.documentElement.dataset.mode='light';document.documentElement.dataset.theme='mint';document.documentElement.dataset.shape='soft'});await page.waitForTimeout(180);await page.screenshot({path:join(directory,'memory-light.png')});
   await page.setViewportSize({width:440,height:780});assert.equal(await page.locator('.tool-settings-page').evaluate(el=>el.scrollWidth>el.clientWidth),false);

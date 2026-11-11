@@ -77,13 +77,13 @@ try {
   h.view({ usageOpen: true }); startClaude(); finishClaude();
   assert.deepEqual(unread(), ['claude:shared-token', 'codex:shared-token'], 'statistics does not acknowledge a covered conversation');
   h.view({ usageOpen: false, toolSettingsOpen: true }); startClaude(); finishClaude();
-  assert.deepEqual(unread(), ['claude:shared-token', 'codex:shared-token'], 'tool settings does not acknowledge a covered conversation');
+  assert.deepEqual(unread(), ['codex:shared-token'], 'tool settings floats above so the conversation stays acknowledged');
   h.view({ toolSettingsOpen: false, sessionSplit: { type: 'branch', first: { type: 'leaf', sessionId: 'a' }, second: { type: 'leaf', sessionId: 'b' } } });
   assert.deepEqual(unread(), [], 'both visible split panes are acknowledged');
   h.view({ sessionSplit: null, settingsOpen: true }); startClaude(); finishClaude();
-  assert.deepEqual(unread(), ['claude:shared-token']);
+  assert.deepEqual(unread(), [], 'settings floats above so the conversation stays acknowledged');
   h.view({ settingsOpen: false });
-  assert.deepEqual(unread(), []);
+  assert.deepEqual(unread(), [], 'closing settings never revives a reply that was already seen');
   h.view({ activeTerminalId: null }); startClaude();
   h.claude({ type: 'result', subtype: 'error_during_execution', is_error: true });
   startClaude(); await h.api.claude.controlClaude('a', { subtype: 'interrupt' }); finishClaude();

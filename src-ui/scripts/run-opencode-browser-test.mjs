@@ -38,6 +38,7 @@ await build({
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ resolveDir: project, loader: 'js', contents: args.path === 'store' ? `
       const state={theme:'dark',gambitEnterToSend:true,terminals:[{id:'a',tool:'opencode',folderPath:'D:/Test'}]},dispatch=action=>(window.actions??=[]).push(action);
       export function useAppLanguage(){return 'en'};export function useAppState(){return {state,dispatch}};
+      export function useAppDispatch(){return action=>(window.markdownActions??=[]).push(action)};
     ` : args.path === 'syntax' ? `
       export async function tokenizeFile(){return null};export async function tokenizeByLang(){return null};export function getShikiTheme(){return 'dark'};
     ` : args.path === 'clipboard' ? `

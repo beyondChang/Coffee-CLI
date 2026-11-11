@@ -27,7 +27,7 @@ const compile = code => ts.transpileModule(code, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText;
 const splitLayout = await import(`data:text/javascript;base64,${Buffer.from(compile(readFileSync(new URL('../src/lib/session-split-layout.ts', import.meta.url), 'utf8'))).toString('base64')}`);
-const stateApi = vm.runInNewContext(compile(`${declaration(store, 'getTabOrder')}; ${declaration(store, 'splitForSession')}; ${declaration(store, 'reducer')}; ({ getTabOrder, reducer });`), {
+const stateApi = vm.runInNewContext(compile(`${declaration(store, 'isLaunchpadActive')}; ${declaration(store, 'getTabOrder')}; ${declaration(store, 'splitForSession')}; ${declaration(store, 'reducer')}; ({ getTabOrder, reducer });`), {
   ...splitLayout,
   localStorage: { setItem() {}, removeItem() {} }, crypto: { randomUUID: () => 'replacement-terminal' },
   supportsAgentStatus: () => true,
@@ -63,7 +63,7 @@ function fixture(order = ['one', 'two', 'agent:config', 'agent:agent'], titlebar
   let state = {
     terminals: [{ id: 'one', tool: 'claude', folderPath: 'E:\\one' }, { id: 'two', tool: 'codex', folderPath: 'E:\\two' }],
     agentPages: ['config', 'agent'], tabOrder: order,
-    activeTerminalId: 'one', agentPageActive: null, diffTabActive: false,
+    activeTerminalId: 'one', agentPageActive: null, fileTabActive: false, openFiles: [], activeFile: null,
   };
   const listeners = new Map(), actions = [], dragFrames = [];
   const dispatch = action => { actions.push(native(action)); state = stateApi.reducer(state, action); };
@@ -239,42 +239,26 @@ test('new session reuses the selector, leaves application configuration and keep
   assert.deepEqual(f.visible(), ['one', 'two', 'agent:config', 'agent:agent']);
 });
 
-test('Explorer preview opens on the right and follows the user surface choice without changing terminals', () => {
+test('opening a workspace file takes the centre tab without touching terminals or the right panel', () => {
   const f = fixture();
-  f.dispatch({ type: 'SET_DIFF_MODE', mode: 'overlay' });
   f.dispatch({ type: 'OPEN_AGENT_PAGE', page: 'agent' });
   f.dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
   const terminals = f.state.terminals;
-  const selection = { path: 'D:/Test/README.md', repoRoot: 'D:/Test', folderPath: 'D:/Test', rel: 'README.md', kind: 'file', fileSize: 120 };
-  f.dispatch({ type: 'SET_DIFF_SELECTION', selection });
-  assert.equal(f.state.diffMode, 'overlay');
-  assert.equal(f.state.diffTabActive, false);
-  assert.equal(f.state.agentPageActive, 'agent');
-  assert.equal(f.state.rightPanelHidden, false);
-  assert.equal(f.state.terminals, terminals);
-  f.dispatch({ type: 'SET_DIFF_MODE', mode: 'tab' });
-  assert.equal(f.state.diffTabActive, true);
+  const panelHidden = f.state.rightPanelHidden;
+  const file = { path: 'D:/Test/README.md', rel: 'README.md', kind: 'file', fileSize: 120 };
+  f.dispatch({ type: 'OPEN_FILE', file });
+  assert.equal(f.state.activeFile, file.path);
+  assert.equal(f.state.fileTabActive, true);
   assert.equal(f.state.agentPageActive, null);
-  f.dispatch({ type: 'SET_ACTIVE_TERMINAL', id: 'two' });
-  assert.equal(f.state.diffTabActive, false);
-  f.dispatch({ type: 'SET_DIFF_SELECTION', selection });
-  assert.equal(f.state.diffTabActive, true);
+  assert.equal(f.state.rightPanelHidden, panelHidden, 'opening a file keeps the panel state');
   assert.equal(f.state.terminals, terminals);
-  f.dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
-  f.dispatch({ type: 'SET_DIFF_MODE', mode: 'overlay' });
-  assert.equal(f.state.diffTabActive, false);
-  assert.equal(f.state.rightPanelHidden, false, 'fold back reveals the right panel');
-  f.dispatch({ type: 'CLEAR_DIFF' });
-  assert.equal(f.state.diffSelection, null);
+  f.dispatch({ type: 'OPEN_FILE', file });
+  assert.equal(f.state.openFiles.length, 1, 'reopening a file focuses its existing tab');
+  f.dispatch({ type: 'SET_FILE_TAB_ACTIVE', active: false });
+  assert.equal(f.state.fileTabActive, false);
+  f.dispatch({ type: 'SET_ACTIVE_TERMINAL', id: 'two' });
+  assert.equal(f.state.fileTabActive, false);
   assert.equal(f.state.activeTerminalId, 'two');
-});
-
-test('ordinary change selection keeps the overlay surface preference', () => {
-  const f = fixture();
-  f.dispatch({ type: 'SET_DIFF_MODE', mode: 'overlay' });
-  f.dispatch({ type: 'SET_DIFF_SELECTION', selection: { path: 'D:/Test/index.ts', kind: 'uncommitted' } });
-  assert.equal(f.state.diffMode, 'overlay');
-  assert.equal(f.state.diffTabActive, false);
 });
 
 test('closing a session group removes its children and split references atomically', () => {

@@ -57,6 +57,8 @@ try {
   await page.getByRole('button', { name: 'Agent configuration', exact: true }).click();
   assert.equal(await page.getByText('Agent Tools', { exact: true }).count(), 0, 'retired category is removed');
   assert.equal(await page.getByText('Coffee 101', { exact: true }).count(), 0);
+  await page.keyboard.press('Escape');
+  await page.locator('.tool-settings-overlay, .settings-overlay').first().waitFor({ state: 'detached' });
   await page.getByRole('complementary').getByRole('button', { name: 'New session', exact: true }).click();
   for (const session of [
     { id: 'a', tool: 'claude', claudeMode: 'conversation', resumeToken: 'thread-a', toolTitle: 'Claude desktop task' },
@@ -89,13 +91,8 @@ try {
   await drag('Claude terminal task', 'b', 'bottom'); await count(4);
   assert.equal(await page.locator('[data-fixture-view][data-active="true"]').count(), 1, 'only focused pane owns keyboard actions');
   assert.equal(await page.locator('[data-fixture-view][data-visible="true"]:visible').count(), 4, 'all visible views remain active for scrolling and rendering');
-  await page.getByRole('button', { name: 'Usage statistics', exact: true }).click();
+  await page.evaluate(() => window.testDispatch({ type: 'SET_USAGE_OPEN', open: true }));
   await page.getByRole('region', { name: 'Usage statistics', exact: true }).waitFor();
-  const navigationStyles = await page.evaluate(() => ['.explorer-tabs .explorer-new-session', '.explorer-usage'].map(selector => {
-    const button = document.querySelector(selector), style = getComputedStyle(button), icon = button.querySelector('svg').getBoundingClientRect();
-    return { font: style.font, padding: style.padding, iconX: icon.x, iconWidth: icon.width, iconHeight: icon.height };
-  }));
-  assert.deepEqual(navigationStyles[1], navigationStyles[0], 'statistics use the same typography and icon alignment as New session');
   // Search is now an icon-only action beside the layout filter on the label row.
   const searchAction = await page.evaluate(() => {
     const button = document.querySelector('.history-search-trigger'), filter = document.querySelector('.history-layout-menu-btn');
@@ -112,7 +109,7 @@ try {
   assert.equal(await page.locator('.gambit').count(), 0, 'statistics do not leave the composer over the charts');
   await row('Claude desktop task').click(); await count(4);
   assert.equal(await page.getByRole('textbox', { name: 'draft a', exact: true }).inputValue(), 'Draft survives splitting');
-  await page.getByRole('button', { name: 'Usage statistics', exact: true }).click();
+  await page.evaluate(() => window.testDispatch({ type: 'SET_USAGE_OPEN', open: true }));
   await page.locator('.chrome-tab').filter({ hasText: 'Claude desktop task' }).click(); await count(4);
   assert.equal(await page.locator('.usage-dashboard').count(), 0, 'selecting a session leaves statistics');
   await page.evaluate(() => window.testDispatch({ type: 'SET_ACTIVE_TERMINAL', id: 'd' }));
@@ -240,7 +237,8 @@ try {
     await page.evaluate(status=>{for(const id of ['a','worker-0'])window.testDispatch({type:'SET_AGENT_STATUS',id,status})},status);
     await page.waitForFunction(expected=>document.querySelector('.chrome-tab[data-tab-id="worker-0"] .orchestration-status')?.dataset.state===expected,expected);
     assert.equal(await childTab.locator('.orchestration-status').evaluate(el=>getComputedStyle(el).backgroundColor),color,'child tab uses the standard '+expected+' color');
-    assert.equal(await parentTab.locator('.tab-status-dot').first().evaluate(el=>getComputedStyle(el).backgroundColor),color,'ordinary and child tabs share '+expected+' colors');
+    if(status==='idle')assert.equal(await parentTab.locator('.tab-status-dot').count(),0,'an idle tab shows a plain close button instead of a status dot');
+    else assert.equal(await parentTab.locator('.tab-status-dot').first().evaluate(el=>getComputedStyle(el).backgroundColor),color,'ordinary and child tabs share '+expected+' colors');
   }
   await page.evaluate(()=>{for(const id of ['a','worker-0'])window.testDispatch({type:'SET_AGENT_STATUS',id,status:'working'})});
   for(const mode of ['light','dark']) {

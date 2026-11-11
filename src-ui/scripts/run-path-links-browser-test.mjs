@@ -31,6 +31,7 @@ await build({
     b.onResolve({ filter: /(^|\/)tauri$/ }, () => ({ path: 'tauri', namespace: 'fixture' }));
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ resolveDir: project, loader: 'js', contents: args.path === 'store' ? `
       export function useAppLanguage(){return 'en'};export function useAppState(){return {state:{terminals:[{id:'a',folderPath:'D:/Repo'}]},dispatch(){}}};
+      export function useAppDispatch(){return action=>(window.markdownActions??=[]).push(action)};
     ` : args.path === 'syntax' ? `
       export async function tokenizeFile(){return null};export async function tokenizeByLang(){return null};export function getShikiTheme(){return 'dark'};
     ` : args.path === 'clipboard' ? `
@@ -126,9 +127,10 @@ try {
   await page.keyboard.press('Escape');
 
   // Inline paths reveal on click and never run; commands stay plain code.
-  await page.evaluate(() => { window.native.length = 0; });
+  await page.evaluate(() => { window.markdownActions = []; });
   await page.getByRole('link', { name: 'src/app.ts' }).click();
-  assert.deepEqual(await native(), [['showInFolder', 'D:/Repo/src/app.ts']]);
+  assert.equal(await page.evaluate(() => window.markdownActions.at(-1)?.type), 'OPEN_FILE');
+  assert.equal(await page.evaluate(() => window.markdownActions.at(-1)?.file.path), 'D:/Repo/src/app.ts');
   assert.equal(await page.getByRole('link', { name: 'npm run build' }).count(), 0);
 
   // The block keeps clear of the list under it.

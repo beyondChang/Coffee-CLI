@@ -22,13 +22,15 @@ const isPiConversation = evaluate('lib/chat-tools.ts', 'isPiConversation');
 const isConversationSession = evaluate('lib/chat-tools.ts', 'isConversationSession', { isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation });
 const splitSessionIds = evaluate('lib/session-split-layout.ts', 'splitSessionIds');
 const replaceSplitSession = evaluate('lib/session-split-layout.ts', 'replaceSplitSession', { splitSessionIds });
-const reducer = evaluate('store/app-state.tsx', 'reducer', { isConversationSession, replaceSplitSession, getTabOrder: state => state.tabOrder });
-const terminals = [{ id: 'claude', tool: 'claude' }, { id: 'terminal', tool: null }];
+const isLaunchpadActive = evaluate('store/app-state.tsx', 'isLaunchpadActive');
+const reducer = evaluate('store/app-state.tsx', 'reducer', { isConversationSession, replaceSplitSession, getTabOrder: state => state.tabOrder, isLaunchpadActive });
+const terminals = [{ id: 'claude', tool: 'claude' }, { id: 'terminal', tool: 'codex' }];
 let state;
 const effects = [];
 const terminalSends = [], claudeSends = [], codexSends = [], dshSends = [], openCodeSends = [], piSends = [];
 let team = { enabled: false, agents: [], coordinators: [] };
 const context = {
+  isLaunchpadActive,
   isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation, isConversationSession,
   useAppState: () => ({ state, dispatch: action => { state = reducer(state, action); } }),
   useAppStateRef: () => ({ get current() { return state; } }),
@@ -61,7 +63,7 @@ function buttons(node) {
 // the Alt+W hotkey / reducer alone, so these checks dispatch it directly.
 const toggleGambit = () => { state = reducer(state, { type: 'TOGGLE_GAMBIT' }); };
 for (const preference of [false, true]) {
-  state = { terminals, activeTerminalId: 'claude', gambitOpen: preference, agentPageActive: null, diffTabActive: false };
+  state = { terminals, activeTerminalId: 'claude', gambitOpen: preference, agentPageActive: null, fileTabActive: false };
   assert.equal(host().type, 'gambit', 'Claude always has its input, including a previously closed preference');
   const before = state;
   toggleGambit();
@@ -77,15 +79,20 @@ for (const preference of [false, true]) {
   assert.equal(!!host(), !preference);
   console.log(`OK: Claude is always open and ordinary terminal preference ${preference} survives tab switches`);
 }
-for (const surface of [{ agentPageActive: 'agent' }, { diffTabActive: true }]) {
-  state = { terminals, activeTerminalId: 'claude', gambitOpen: false, agentPageActive: null, diffTabActive: false, ...surface };
+state = { terminals: [{ id: 'chooser', tool: null }], activeTerminalId: 'chooser', gambitOpen: false };
+assert.equal(host(), null, 'the launchpad chooser never mounts a composer');
+toggleGambit();
+assert.equal(state.gambitOpen, false, 'the hotkey leaves the launchpad chooser alone');
+console.log('OK: the untooled launchpad tab owns the workspace and ignores the composer hotkey');
+for (const surface of [{ agentPageActive: 'agent' }, { fileTabActive: true }]) {
+  state = { terminals, activeTerminalId: 'claude', gambitOpen: false, agentPageActive: null, fileTabActive: false, ...surface };
   assert.equal(host(), null, 'hidden Claude does not mount an extra composer on another surface');
   toggleGambit();
   assert.equal(state.gambitOpen, true, 'other surfaces retain their existing toggle behavior');
 }
 state = { terminals, activeTerminalId: null, gambitOpen: false };
 assert.equal(host(), null, 'no composer without an active terminal');
-console.log('OK: Agent, diff and no-tab surfaces retain their existing behavior');
+console.log('OK: Agent, file and no-tab surfaces retain their existing behavior');
 
 state = { terminals: [{ id: 'native', tool: 'claude', claudeMode: 'terminal' }], activeTerminalId: 'native', gambitOpen: false };
 assert.equal(host(), null, 'native Claude terminal can keep Gambit closed');
