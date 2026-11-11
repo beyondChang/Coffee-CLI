@@ -2,6 +2,27 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import ts from 'typescript';
+import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const nodeRequire = createRequire(import.meta.url);
+
+// Load a real module (not a copy) so the assertions run against the shipped
+// implementation instead of a snippet pasted into the test.
+const project = fileURLToPath(new URL('..', import.meta.url));
+async function loadModule(entry) {
+  const result = await build({ stdin: { contents: entry, resolveDir: project, loader: 'tsx' }, bundle: true, write: false, format: 'cjs', platform: 'node', external: ['react'] });
+  const module = { exports: {} };
+  const context = vm.createContext({
+    module, exports: module.exports, require: nodeRequire, console,
+    localStorage: { value: null, getItem() { return this.value; }, setItem(_key, value) { this.value = value; } },
+    window: { addEventListener() {}, removeEventListener() {}, dispatchEvent() {} },
+    Event: class { constructor(type) { this.type = type; } },
+  });
+  vm.runInContext(result.outputFiles[0].text, context);
+  return module.exports;
+}
 
 const source = file => ts.createSourceFile(file,
   fs.readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'),
@@ -398,11 +419,26 @@ const catalogPins = [...aiPins, ...utilityPins];
 assert.ok(aiPins.includes('cline'), 'Cline must remain selectable as a launch-only tool');
 assert.deepEqual([...validPinKeys].sort(), catalogPins.sort(), 'every valid pin needs a visible switch');
 
+// The settings modal's 应用 section offers its own copy of that catalog; it
+// must list exactly the same tools, or one screen would offer a tool the
+// other hides.
+const agentApps = await loadModule('export { AGENT_APP_KEYS } from "./src/lib/agent-apps";');
+assert.deepEqual([...agentApps.AGENT_APP_KEYS].sort(), catalogPins.sort(), 'the settings 应用 section offers the same tools as the tool dialog');
+
+// The new rail entry sits directly under 通用, where the user asked for it.
+const settingsSource = fs.readFileSync(new URL('../src/components/common/SettingsModal.tsx', import.meta.url), 'utf8');
+const railOrder = [...settingsSource.matchAll(/id: '(\w+)',\s+label: t\('([^']+)'\)/g)].map(match => match[1]);
+assert.deepEqual(railOrder.slice(0, 3), ['general', 'apps', 'appearance'], 'the 应用 section sits directly under 通用');
+
 savedPins = JSON.stringify(['agent:cline', 'agent:claude', 'agent:multi-agent', 'agent:four-split']);
 let pins = loadPins();
 assert.deepEqual(pins, ['agent:cline', 'agent:claude'], 'preserve current tools and remove retired split pins');
+// The real toggle logic, not a copy of it.
+const pinnedTools = await loadModule('export { togglePinnedItem } from "./src/lib/pinned-tools";');
 const togglePin = evaluate(pinDeclarations.get('togglePin').initializer.getText(centerTree), {
   ...pinContext, MAX_PINS: 6, setPinnedItems: update => { pins = update(pins); },
+  togglePinnedItem: pinnedTools.togglePinnedItem,
+  savePinnedItems: items => { savedPins = JSON.stringify(items); },
 });
 for (const key of catalogPins) {
   if (pins.includes(`agent:${key}`)) togglePin(`agent:${key}`);

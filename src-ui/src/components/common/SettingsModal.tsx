@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { SegmentedTabs } from './SegmentedTabs';
 import { AgentSettings } from '../agent/AgentPages';
+import { AgentAppsSection } from './AgentAppsSection';
 import { UsageDashboard } from '../center/UsageDashboard';
 import { useAppState, useAppDispatch, HOTKEY_SCHEMES, type HotkeyScheme, type ThemeColor, type ThemeMode, type ThemeShape, type IconTheme } from '../../store/app-state';
 import { playNotifySound } from '../../lib/notify-sound';
@@ -28,8 +29,8 @@ import { setUiScale, useUiScale } from '../../lib/ui-scale';
 import { THEME_COLORS, THEME_MODES, THEME_SHAPES, ICON_ART_THEMES, LANGUAGES, TASK_VIEW_MODES, isMaskTintTheme } from '../../lib/personalization';
 import './SettingsModal.css';
 
-type Section = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'gambit' | 'sound' | 'language' | 'agent' | 'usage';
-const SECTION_IDS: Section[] = ['general', 'appearance', 'wallpaper', 'terminal', 'gambit', 'sound', 'language', 'agent', 'usage'];
+type Section = 'general' | 'apps' | 'appearance' | 'wallpaper' | 'terminal' | 'gambit' | 'sound' | 'language' | 'agent' | 'usage';
+const SECTION_IDS: Section[] = ['general', 'apps', 'appearance', 'wallpaper', 'terminal', 'gambit', 'sound', 'language', 'agent', 'usage'];
 
 // Read a `cc-*` boolean localStorage preference. Module-level
 // so the SettingsModal sound toggles can seed their useState initializers.
@@ -104,6 +105,14 @@ const ICONS: Record<Section, ReactNode> = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 7h9m4 0h3M4 17h3m4 0h9" />
       <circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" />
+    </svg>
+  ),
+  // Same four-square glyph the launchpad's 应用配置 button uses, so the two
+  // entries into the same selection read as one thing.
+  apps: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 17.5h7M17.5 14v7" />
     </svg>
   ),
   language: (
@@ -332,6 +341,7 @@ export function SettingsModal() {
 
   const SECTIONS: { id: Section; label: string }[] = [
     { id: 'general',    label: t('settings.general') },
+    { id: 'apps',       label: t('settings.apps.title') },
     { id: 'appearance', label: t('settings.appearance') },
     { id: 'terminal',   label: t('settings.terminal') },
     { id: 'language',   label: t('settings.language') },
@@ -377,6 +387,7 @@ export function SettingsModal() {
                 positioned and owns its own scrolling, so the body is its
                 positioning context rather than the centre column. */}
             {section === 'usage' && <UsageDashboard />}
+            {section === 'apps' && <AgentAppsSection />}
             {section === 'appearance' && (
               <>
                 <div className="settings-section-head">

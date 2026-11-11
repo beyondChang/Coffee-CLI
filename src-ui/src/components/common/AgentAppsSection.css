@@ -1,0 +1,55 @@
+/* The settings modal's 应用 section: the pinned-tool cards from the tool
+   dialog, laid out for the narrower settings column. The card, icon, gear and
+   switch come from CenterPanel.css — only the grid width changes here. */
+
+.settings-apps-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 6px;
+}
+
+.settings-apps-head h2 {
+  margin: 0;
+  font-size: var(--type-body);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+/* N/6, matching the counter the tool dialog shows on its 常用 tab. */
+.settings-apps-count {
+  flex: 0 0 auto;
+  color: var(--text-3);
+  font: var(--type-caption)/1 var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-apps-hint {
+  margin: 0 0 14px;
+  color: var(--text-2);
+  font-size: var(--type-label);
+  line-height: 1.8;
+}
+
+/* Two per row: the settings column is narrower than the tool dialog, and each
+   card carries an icon, a name, a gear and a switch. */
+.settings-apps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-apps-grid .library-item { padding: 10px 12px; gap: 10px; }
+.settings-apps-grid .library-item-icon { width: 32px; height: 32px; }
+.settings-apps-grid .library-item-icon svg { width: 24px; height: 24px; }
+
+/* The tool dialog's page is absolutely positioned because it fills a fixed
+   modal; here it has to flow inside the scrolling settings body. */
+.settings-apps .tool-settings-modal-header { padding: 0; border-bottom: 0; }
+.settings-apps .tool-settings-tabs { margin-bottom: 16px; }
+.settings-apps .tool-settings-page,
+.settings-apps .tool-settings-page.tool-settings-page--memory { position: static; inset: auto; overflow: visible; padding: 0; }
+.settings-apps .tool-settings-inner { max-width: none; }
+/* The memory editor wants a real height; the dialog gave it one by filling
+   the modal, the settings body has to say so. */
+.settings-apps .tool-memory { min-height: 320px; }
+
+@media (max-width: 760px) {
+  .settings-apps-grid { grid-template-columns: minmax(0, 1fr); }
+}

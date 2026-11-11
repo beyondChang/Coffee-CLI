@@ -28,6 +28,7 @@ import { FileTabContextMenu, type FileTabMenuState } from './FileTabContextMenu'
 import { getTabOrder, supportsAgentStatus, useAppState, type ClaudeMode, type ToolType } from '../../store/app-state';
 import { isFrostShape } from '../../lib/personalization';
 import { isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation } from '../../lib/chat-tools';
+import { readPinnedItems, savePinnedItems, subscribePinnedItems, togglePinnedItem } from '../../lib/pinned-tools';
 
 // Dropdown shown when a tool card is clicked: the globally
 // recent project folders (any tool that used one) + "Open folder…" last.
@@ -359,6 +360,8 @@ const CONFIGURABLE_AGENT_TOOLS = new Set<ToolType>([
   'mimocode', 'kilo', 'openclaw', 'hermes', 'pi', 'kimicode', 'omp',
   'codebuddy',
 ]);
+// Shared with the settings modal's 应用 section, which renders the same cards.
+export { CONFIGURABLE_AGENT_TOOLS };
 
 // Dynamic Island visibility follows the shared agent-status capability: native
 // OSC title tools plus TUIs covered by the rendered-screen semantic parser.
@@ -530,18 +533,17 @@ export function CenterPanel() {
 
   const togglePin = (id: string) => {
     setPinnedItems(prev => {
-      const isPinned = prev.includes(id);
-      let next: string[];
-      if (isPinned) {
-        next = prev.filter(x => x !== id);
-      } else {
-        if (prev.length >= MAX_PINS) return prev;
-        next = [...prev, id];
-      }
-      try { localStorage.setItem('coffee_pinned_items', JSON.stringify(next)); } catch { /* Best-effort operation; failure is non-fatal. */ }
+      const next = togglePinnedItem(prev, id, MAX_PINS);
+      // Save + announce only on a real change, so the settings modal's 应用
+      // section re-reads instead of holding a stale grid.
+      if (next !== prev) savePinnedItems(next);
       return next;
     });
   };
+
+  // The settings modal edits the same pins; adopt whatever it saved so the
+  // launchpad behind it is already up to date when the dialog closes.
+  useEffect(() => subscribePinnedItems(() => setPinnedItems(readPinnedItems())), []);
 
   // (renderPinIcon removed — selection state is now indicated by the
   // .library-item.is-pinned border + opacity, not a right-side icon.)
