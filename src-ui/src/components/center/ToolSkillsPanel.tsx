@@ -21,12 +21,14 @@ function SkillCardDetails({ item, children }: { item: CatalogSkill | ToolSkill; 
   const t = useT();
   const host = useRef<HTMLDivElement>(null);
   const [description, setDescription] = useState(item.description || (item.source && readSkillDescription(item.source, item.name)) || '');
+  // A generated Chinese summary replaces the English catalogue description.
+  const summary = item.source ? readSkillSummary(item.source, item.name) : undefined;
   const [avatarLoaded, setAvatarLoaded] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState<string | null>(null);
   const owner = item.source?.split('/')[0];
   const avatar = owner && /^[\w.-]+$/.test(owner) ? `https://github.com/${owner}.png?size=80` : null;
   useEffect(() => {
-    if (item.description || !item.source || !host.current) return;
+    if (item.description || !item.source || !host.current || readSkillSummary(item.source, item.name)) return;
     let cancelled = false;
     const observer = new IntersectionObserver(entries => {
       if (!entries.some(entry => entry.isIntersecting)) return;
@@ -47,10 +49,10 @@ function SkillCardDetails({ item, children }: { item: CatalogSkill | ToolSkill; 
       </div>
       {children}
     </div>
-    <p className="skill-description">{item.description || description || '\u00a0'}</p>
+    <p className="skill-description">{summary || item.description || description || '\u00a0'}</p>
   </div>;
 }
-function SkillDetailDialog({ item, onClose }: { item: CatalogSkill; onClose: () => void }) {
+function SkillDetailDialog({ item, onClose, onSaved }: { item: CatalogSkill; onClose: () => void; onSaved: () => void }) {
   const t = useT();
   const [text, setText] = useState(() => readSkillSummary(item.source, item.name) ?? '');
   const [busy, setBusy] = useState(false);
@@ -58,7 +60,7 @@ function SkillDetailDialog({ item, onClose }: { item: CatalogSkill; onClose: () 
   const run = (refresh: boolean) => {
     setBusy(true); setError(null);
     commands.summarizeToolSkill(item.source, item.name, refresh).then(value => {
-      saveSkillSummary(item.source, item.name, value); setText(value);
+      saveSkillSummary(item.source, item.name, value); setText(value); onSaved();
     }).catch(reason => {
       const raw = typeof reason === 'string' ? reason : '';
       setError(raw && errorKeys[raw] ? t(errorKeys[raw]) : raw || t('skills.detail_error'));
@@ -108,6 +110,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
   const [pending, setPending] = useState<{ key: string; tool: string } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null), [confirm, setConfirm] = useState<string | null>(null);
   const [detail, setDetail] = useState<CatalogSkill | null>(null);
+  const [, setSummaryTick] = useState(0);
   const [loading, setLoading] = useState(false);
   const [coldSearch, setColdSearch] = useState<string | null>(null);
   const [tip, setTip] = useState<{ label: string; left: number; top: number } | null>(null);
@@ -195,7 +198,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
       <div className="skills-search">{searching ? <span className="skill-spinner" aria-hidden="true" /> : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5" /></svg>}<input aria-label={t('skills.search')} placeholder={t('skills.search')} value={query} maxLength={200} onChange={event => setQuery(event.target.value)} /></div>
     </div>
     {active && tip && createPortal(<span className="tool-memory-tool-tip" role="tooltip" style={{ left:tip.left, top:tip.top }}>{tip.label}</span>, document.body)}
-    {detail && <SkillDetailDialog item={detail} onClose={() => setDetail(null)} />}
+    {detail && <SkillDetailDialog item={detail} onClose={() => setDetail(null)} onSaved={() => setSummaryTick(value => value + 1)} />}
     {error?.scope === view && <p className="skills-error" role="alert">{error.label && `${error.label} · `}{t(error.key)}</p>}
     {view !== 'discover' && inventory?.supported === false ? <div className="skills-empty">{t('skills.unsupported')}</div> : <div className="skills-grid" aria-busy={!!pending || searching || skeletons > 0}>
       {items.map(item => {
