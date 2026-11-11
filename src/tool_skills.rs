@@ -195,6 +195,33 @@ async fn featured(source: &str, on_update: Option<&tauri::ipc::Channel<Vec<Catal
 struct CatalogCache { at: u64, items: Vec<CatalogSkill> }
 #[derive(Serialize, Deserialize)]
 struct DescriptionCache { at: u64, description: String }
+#[derive(Serialize, Deserialize)]
+struct SummaryCache { summary: String }
+/// Chinese AI summary of one catalogue skill, persisted until regenerated.
+#[tauri::command]
+pub async fn summarize_tool_skill(app: tauri::AppHandle, source: String, name: String, refresh: bool) -> Result<String, String> {
+    let root = storage()?;
+    let resolved = |repo: &str, skill: &str| root.join("summaries").join(format!("{}.json", hash(format!("{repo}/{skill}").as_bytes())));
+    let details = crate::agent_capabilities::details("skill", &source, &name).await.map_err(|_| "skills_source")?;
+    let repo = details["source"].as_str().ok_or("skills_source")?.to_string();
+    let skill = details["name"].as_str().ok_or("skills_source")?.to_string();
+    let path = resolved(&repo, &skill);
+    if !refresh {
+        if let Ok(bytes) = fs::read(&path) {
+            if let Ok(cache) = serde_json::from_slice::<SummaryCache>(&bytes) { return Ok(cache.summary); }
+        }
+    }
+    let commit = details["commit"].as_str().ok_or("skills_source")?.to_string();
+    let document = details["skillPath"].as_str().ok_or("skills_source")?.to_string();
+    let body = String::from_utf8(get(&raw_url(&repo, &commit, &document)?, MAX_FILE as usize).await.map_err(|error| if error == "skills_size" { error } else { "skills_network".to_string() })?)
+        .map_err(|_| "skills_source")?;
+    // Long documents still summarize fine from their opening sections.
+    let text: String = body.chars().take(12_000).collect();
+    let summary = crate::agent::summarize_skill_document(&app, &text).await?;
+    let _ = fs::create_dir_all(path.parent().ok_or("skills_write")?);
+    let _ = write_json(&path, &SummaryCache { summary: summary.clone() });
+    Ok(summary)
+}
 fn description_from_html(html: &str) -> Result<String, String> {
     for script in html.split("<script").skip(1) {
         let Some((attributes, body)) = script.split_once('>') else { continue; };

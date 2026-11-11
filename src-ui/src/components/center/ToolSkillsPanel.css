@@ -69,10 +69,27 @@
 .skill-remove-confirm > span { flex:1; overflow-wrap:anywhere; }
 .skill-remove-confirm button { padding:4px 8px; border:0; background:var(--bg-hover); border-radius:var(--shape-radius-btn,var(--radius-sm)); color:var(--text-1); font:inherit; cursor:pointer; }
 .skill-remove-confirm .skill-remove-action { color:#f85149; }
+.skill-details-button { display:flex; flex-shrink:0; align-items:center; justify-content:center; min-width:52px; min-height:28px; padding:5px 10px; border:1px solid var(--border); border-radius:var(--shape-radius-btn,var(--radius-sm)); background:transparent; color:var(--text-2); font:inherit; font-size:var(--type-label); font-weight:500; cursor:pointer; transition:background-color .15s,color .15s; }
+.skill-details-button:hover:not(:disabled) { background:var(--bg-hover); color:var(--text-1); }
+.skill-details-button:disabled { opacity:.45; cursor:default; }
+.skill-detail-overlay { position:fixed; inset:0; z-index:900; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(0,0,0,.45); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:skills-fade 160ms ease; }
+.skill-detail-modal { display:flex; flex-direction:column; width:min(560px,100%); max-height:min(640px,100%); border:1px solid var(--border); border-radius:var(--shape-radius-panel,var(--radius-sm)); background:var(--bg-panel); box-shadow:0 1px 2px rgba(0,0,0,.2),0 6px 20px rgba(0,0,0,.22); overflow:hidden; }
+.skill-detail-header { display:flex; flex-shrink:0; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border); }
+.skill-detail-heading { display:flex; flex:1; flex-direction:column; gap:3px; min-width:0; }
+.skill-detail-heading strong { color:var(--text-1); font-size:var(--type-body); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.skill-detail-heading span { color:var(--text-3); font-size:var(--type-caption); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.skill-detail-toolbar { display:flex; flex-shrink:0; align-items:center; gap:4px; }
+.skill-detail-body { flex:1; overflow-y:auto; padding:16px; }
+.skill-detail-loading { display:flex; align-items:center; gap:10px; color:var(--text-2); font-size:var(--type-body); }
+.skill-detail-text { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--text-1); font-size:var(--type-body); line-height:1.75; }
+.skill-detail-error { display:flex; flex-direction:column; align-items:flex-start; gap:10px; color:#f85149; font-size:var(--type-body); overflow-wrap:anywhere; }
+.skill-detail-error button { padding:4px 10px; border:1px solid var(--border); background:var(--bg-hover); border-radius:var(--shape-radius-btn,var(--radius-sm)); color:var(--text-1); font:inherit; font-size:var(--type-label); cursor:pointer; }
+.skill-detail-footer { flex-shrink:0; padding:10px 16px; border-top:1px solid var(--border); color:var(--text-3); font-size:var(--type-caption); }
+@keyframes skills-fade { from { opacity:0; } to { opacity:1; } }
 .skill-spinner { display:inline-block; width:13px; height:13px; border:1.5px solid currentColor; border-top-color:transparent; border-radius:50%; animation:skills-spin .8s linear infinite; }
 @keyframes skills-spin { to { transform:rotate(360deg); } }
 @keyframes skills-pulse { from { opacity:.45; } to { opacity:1; } }
 @container (max-width:650px) { .skills-search { flex-basis:100%; max-width:none; } }
 @container (max-width:850px) { .skills-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @container (max-width:540px) { .skills-grid { grid-template-columns:minmax(0,1fr); } }
-@media (prefers-reduced-motion:reduce) { .skill-spinner, .skill-skeleton * { animation:none; } .skill-targets-expander, .skills-tab-marker, .skill-avatar img, .skill-avatar[data-ready="true"] .skill-avatar-fallback { transition:none; } }
+@media (prefers-reduced-motion:reduce) { .skill-spinner, .skill-skeleton * { animation:none; } .skill-targets-expander, .skills-tab-marker, .skill-avatar img, .skill-avatar[data-ready="true"] .skill-avatar-fallback, .skill-detail-overlay { transition:none; animation:none; } }

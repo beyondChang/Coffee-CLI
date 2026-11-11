@@ -7,19 +7,28 @@ const pending = new Map<string, Promise<CatalogSkill[]>>();
 const listeners = new Map<string, Set<(items: CatalogSkill[]) => void>>();
 const descriptions = new Map<string, string>();
 const pendingDescriptions = new Map<string, Promise<string>>();
+const summaries = new Map<string, string>();
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
   for (const [key, value] of saved?.inventories ?? []) if (typeof key === 'string' && Array.isArray(value?.skills) && typeof value.supported === 'boolean') inventories.set(key, value);
   for (const [key, value] of saved?.catalogues ?? []) if (typeof key === 'string' && Array.isArray(value)) catalogues.set(key, value);
   for (const [key, value] of saved?.descriptions ?? []) if (typeof key === 'string' && typeof value === 'string') descriptions.set(key, value);
+  for (const [key, value] of saved?.summaries ?? []) if (typeof key === 'string' && typeof value === 'string') summaries.set(key, value);
 } catch { /* Optional snapshots. */ }
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify({ inventories:[...inventories].slice(-24), catalogues:[...catalogues].slice(-8), descriptions:[...descriptions].slice(-120) })); } catch { /* Memory remains available. */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ inventories:[...inventories].slice(-24), catalogues:[...catalogues].slice(-8), descriptions:[...descriptions].slice(-120), summaries:[...summaries].slice(-120) })); } catch { /* Memory remains available. */ }
 }
 export function readSkillInventory(tool: string) { return inventories.get(tool); }
 export function saveSkillInventory(tool: string, inventory: SkillInventory) { inventories.set(tool, inventory); persist(); }
 export function readSkillCatalogue(query: string) { return catalogues.get(query); }
 export function readSkillDescription(source: string, name: string) { return descriptions.get(`${source}/${name}`); }
+/** Chinese AI summary cached for instant re-display in the details dialog. */
+export function readSkillSummary(source: string, name: string) { return summaries.get(`${source}/${name}`); }
+export function saveSkillSummary(source: string, name: string, summary: string) {
+  summaries.set(`${source}/${name}`, summary);
+  if (summaries.size > 120) summaries.delete(summaries.keys().next().value!);
+  persist();
+}
 export function fetchSkillDescription(source: string, name: string) {
   const key = `${source}/${name}`;
   let request = pendingDescriptions.get(key);

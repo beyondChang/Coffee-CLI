@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { commands, type CatalogSkill, type SkillInventory, type ToolSkill } from '../../tauri';
-import { readSkillInventory, saveSkillInventory, readSkillCatalogue, fetchSkillCatalogue, readSkillDescription, fetchSkillDescription } from '../../lib/tool-skills';
+import { readSkillInventory, saveSkillInventory, readSkillCatalogue, fetchSkillCatalogue, readSkillDescription, fetchSkillDescription, readSkillSummary, saveSkillSummary } from '../../lib/tool-skills';
 import { useT } from '../../i18n/useT';
 import type { I18nKey } from '../../i18n/en';
 import './ToolSkillsPanel.css';
@@ -50,6 +50,48 @@ function SkillCardDetails({ item, children }: { item: CatalogSkill | ToolSkill; 
     <p className="skill-description">{item.description || description || '\u00a0'}</p>
   </div>;
 }
+function SkillDetailDialog({ item, onClose }: { item: CatalogSkill; onClose: () => void }) {
+  const t = useT();
+  const [text, setText] = useState(() => readSkillSummary(item.source, item.name) ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = (refresh: boolean) => {
+    setBusy(true); setError(null);
+    commands.summarizeToolSkill(item.source, item.name, refresh).then(value => {
+      saveSkillSummary(item.source, item.name, value); setText(value);
+    }).catch(reason => {
+      const raw = typeof reason === 'string' ? reason : '';
+      setError(raw && errorKeys[raw] ? t(errorKeys[raw]) : raw || t('skills.detail_error'));
+    }).finally(() => setBusy(false));
+  };
+  useEffect(() => { if (!readSkillSummary(item.source, item.name)) run(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [item.source, item.name]);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [onClose]);
+  return createPortal(<div className="skill-detail-overlay" onClick={onClose}>
+    <div className="skill-detail-modal" role="dialog" aria-modal="true" aria-label={`${t('skills.details')} · ${item.name}`} onClick={event => event.stopPropagation()}>
+      <header className="skill-detail-header">
+        <div className="skill-detail-heading"><strong>{item.name}</strong><span>{item.source}</span></div>
+        <div className="skill-detail-toolbar">
+          <button type="button" className="skills-icon-button" aria-label={t('skills.detail_refresh')} title={t('skills.detail_refresh')} disabled={busy} onClick={() => run(true)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 4v5h-5" /></svg>
+          </button>
+          <button type="button" className="skills-icon-button" aria-label={t('tool_config.cancel')} onClick={onClose}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg>
+          </button>
+        </div>
+      </header>
+      <div className="skill-detail-body">
+        {busy && <div className="skill-detail-loading"><span className="skill-spinner" />{t('skills.detail_loading')}</div>}
+        {!busy && error && <div className="skill-detail-error" role="alert">{error}<button type="button" onClick={() => run(false)}>{t('tools.memory.reload')}</button></div>}
+        {!busy && !error && text && <p className="skill-detail-text">{text}</p>}
+      </div>
+      <footer className="skill-detail-footer">{t('skills.detail_hint')}</footer>
+    </div>
+  </div>, document.body);
+}
 export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { value: string; label: string; icon: ReactNode }[] }) {
   const t = useT();
   const enabled = tools.slice(0, 6), toolKeys = enabled.map(item => item.value).join('|');
@@ -65,6 +107,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
   const [error, setError] = useState<{ scope: string; key: I18nKey; label?: string } | null>(null);
   const [pending, setPending] = useState<{ key: string; tool: string } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null), [confirm, setConfirm] = useState<string | null>(null);
+  const [detail, setDetail] = useState<CatalogSkill | null>(null);
   const [loading, setLoading] = useState(false);
   const [coldSearch, setColdSearch] = useState<string | null>(null);
   const [tip, setTip] = useState<{ label: string; left: number; top: number } | null>(null);
@@ -124,7 +167,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
     const r = element.getBoundingClientRect();
     setTip({ label, left:Math.max(8, Math.min(r.left, window.innerWidth - 248)), top:r.bottom + 6 });
   };
-  const navigate = (next: string) => { setSelected(next); setError(null); setConfirm(null); setExpanded(null); setTip(null); };
+  const navigate = (next: string) => { setSelected(next); setError(null); setConfirm(null); setExpanded(null); setTip(null); setDetail(null); };
   const operate = async (item: CatalogSkill | ToolSkill, tool: string, remove = false) => {
     if (pending || !enabled.some(entry => entry.value === tool) || !inventoryFor(tool)?.supported || !remove && !item.source) return;
     const key = 'path' in item ? item.path : `${item.source}/${item.name}`;
@@ -152,6 +195,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
       <div className="skills-search">{searching ? <span className="skill-spinner" aria-hidden="true" /> : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5" /></svg>}<input aria-label={t('skills.search')} placeholder={t('skills.search')} value={query} maxLength={200} onChange={event => setQuery(event.target.value)} /></div>
     </div>
     {active && tip && createPortal(<span className="tool-memory-tool-tip" role="tooltip" style={{ left:tip.left, top:tip.top }}>{tip.label}</span>, document.body)}
+    {detail && <SkillDetailDialog item={detail} onClose={() => setDetail(null)} />}
     {error?.scope === view && <p className="skills-error" role="alert">{error.label && `${error.label} · `}{t(error.key)}</p>}
     {view !== 'discover' && inventory?.supported === false ? <div className="skills-empty">{t('skills.unsupported')}</div> : <div className="skills-grid" aria-busy={!!pending || searching || skeletons > 0}>
       {items.map(item => {
@@ -161,7 +205,10 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
         const open = expanded === key;
         return <article key={key} className="skill-card">
           <SkillCardDetails item={item}>
-            {view === 'discover' ? <button type="button" className="skill-install" aria-expanded={open} disabled={enabled.length === 0} onClick={() => { setExpanded(open ? null : key); setTip(null); }}>{t('skills.install')}</button> : <div className="skill-card-actions">
+            {view === 'discover' ? <>
+              <button type="button" className="skill-details-button" disabled={!item.source} onClick={() => { if ('path' in item) return; setDetail(item); setTip(null); }}>{t('skills.details')}</button>
+              <button type="button" className="skill-install" aria-expanded={open} disabled={enabled.length === 0} onClick={() => { setExpanded(open ? null : key); setTip(null); }}>{t('skills.install')}</button>
+            </> : <div className="skill-card-actions">
               {local?.managed && local.update && !local.modified && <button type="button" className="skill-install" disabled={!!pending} onClick={() => { void operate(local, view); }}>{pending?.key === key ? <span className="skill-spinner" /> : t('skills.update')}</button>}
               {local?.managed && <button type="button" className="skills-icon-button skill-remove" aria-label={`${t('skills.remove')} ${item.name}`} disabled={!!pending} onClick={() => setConfirm(key)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></svg></button>}
             </div>}

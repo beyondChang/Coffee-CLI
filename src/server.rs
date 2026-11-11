@@ -1894,6 +1894,7 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::tool_skills::get_tool_skills,
             crate::tool_skills::search_tool_skills,
             crate::tool_skills::get_tool_skill_description,
+            crate::tool_skills::summarize_tool_skill,
             crate::tool_skills::install_tool_skill,
             crate::tool_skills::remove_tool_skill,
             crate::tool_skills::check_tool_skill_updates,
