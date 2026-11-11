@@ -57,7 +57,7 @@ try {
   // One card per catalog tool, plus the two that are switched on.
   assert.equal(await cards.count(), 25, 'every catalog tool has a card');
   assert.equal(await pinned.count(), 2, 'the two stored pins are switched on');
-  assert.equal((await page.locator('.settings-apps-count').innerText()).trim(), '2/6', 'the counter shows the stored selection');
+  assert.equal((await page.locator('.tool-settings-tab-count').innerText()).trim(), '2/6', 'the counter shows the stored selection');
 
   // The switched-on cards come first, like the tool dialog.
   const firstTwo = await cards.evaluateAll(nodes => nodes.slice(0, 2).map(node => node.getAttribute('aria-pressed')));
@@ -70,7 +70,7 @@ try {
   const next = page.locator('.library-item:not(.is-pinned)').first();
   const label = await next.getAttribute('aria-label');
   await next.click();
-  await page.waitForFunction(() => document.querySelector('.settings-apps-count')?.textContent?.trim() === '3/6');
+  await page.waitForFunction(() => document.querySelector('.tool-settings-tab-count')?.textContent?.trim() === '3/6');
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('coffee_pinned_items')));
   assert.equal(stored.length, 3, 'the toggle is persisted');
   assert.ok(stored.includes(`agent:${label.replace('Tool ', '')}`), `the new pin is stored: ${JSON.stringify(stored)}`);
@@ -78,7 +78,7 @@ try {
 
   // Switching it off again removes it from the store.
   await page.locator('.library-item.is-pinned').last().click();
-  await page.waitForFunction(() => document.querySelector('.settings-apps-count')?.textContent?.trim() === '2/6');
+  await page.waitForFunction(() => document.querySelector('.tool-settings-tab-count')?.textContent?.trim() === '2/6');
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('coffee_pinned_items')))).length, 2, 'the pin is removed again');
 
   await page.screenshot({ path: join(directory, 'apps-section.png') });
