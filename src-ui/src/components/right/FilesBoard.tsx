@@ -4,7 +4,7 @@
 // both into one narrow column. The tree now owns a right-panel tab and reads
 // the active session's folder, so terminal CWD changes still drive it.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppState } from '../../store/app-state';
 import type { ToolType } from '../../store/app-state';
 import { useT } from '../../i18n/useT';
@@ -17,6 +17,10 @@ import '../left/Explorer.css';
 import './FilesBoard.css';
 
 const normPath = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+
+// Stable empty set so "nothing expanded yet" does not allocate a new Set on
+// every render (which would invalidate the memoised isExpanded callback).
+const EMPTY_SET: ReadonlySet<string> = new Set<string>();
 
 // OpenClaw (persona forge), Hermes Agent and Remote Terminal are
 // directory-agnostic: they never bind to a local project folder, so the tree
@@ -47,7 +51,7 @@ export function FilesBoard() {
   // app) restores the same tree shape. Keyed by normalised path.
   const folderKey = folderPath ? normFolder(folderPath) : null;
   const [expandedMap, setExpandedMap] = useState<Record<string, Set<string>>>({});
-  const expanded = (folderKey && expandedMap[folderKey]) || EMPTY_SET;
+  const expanded: ReadonlySet<string> = (folderKey && expandedMap[folderKey]) || EMPTY_SET;
   const isExpanded = useCallback((dirPath: string) => expanded.has(normFolder(dirPath)), [expanded]);
   const toggleExpanded = useCallback((dirPath: string, open: boolean) => {
     if (!folderKey) return;
@@ -198,7 +202,7 @@ export function FilesBoard() {
             {entries.map(entry => (
               <div key={entry.path} hidden={!!filter && !entry.name.toLowerCase().includes(filter)}>
                 {entry.is_dir ? (
-                  <BrowserDirNode name={entry.name} dirPath={entry.path} onCtxMenu={handleCtxMenu} />
+                  <BrowserDirNode name={entry.name} dirPath={entry.path} onCtxMenu={handleCtxMenu} isExpanded={isExpanded} onToggle={toggleExpanded} />
                 ) : (
                   <BrowserFileNode entry={entry} parentDirPath={folderPath} onCtxMenu={handleCtxMenu} />
                 )}

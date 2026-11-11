@@ -328,15 +328,19 @@ for (const [file, fragment] of [
   }
 }
 
-// Actual Explorer effect: old folders and old refreshes cannot replace the latest listing.
+// Actual right-panel file-tree effect (it moved out of the left Explorer when
+// the tree became a right-panel tab): old folders and old refreshes cannot
+// replace the latest listing.
 const callbacks = new Map(), requests = []; let entries;
 const browser = {
   addEventListener: (name, cb) => callbacks.set(name, cb),
   removeEventListener: name => callbacks.delete(name),
 };
-const refresh = effect('components/left/Explorer.tsx', 'const target = norm(folderPath)');
+const refresh = effect('components/right/FilesBoard.tsx', 'const target = normPath(folderPath)');
 const mount = folderPath => evaluate(`(${refresh})()`, {
-  folderPath, window: browser, setRootEntries: value => { entries = value; },
+  folderPath, window: browser, setQuery: () => {}, setRootEntries: value => { entries = value; },
+  // Mirrors the module-level helper the effect closes over.
+  normPath: p => p.replace(/\\/g, '/').replace(/\/+$/, ''),
   commands: { listDirectory: () => { const request = deferred(); requests.push(request); return request.promise; } },
 });
 const closeA = mount('/A');

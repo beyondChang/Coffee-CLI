@@ -368,7 +368,10 @@ export function BrowserDirNode({ name, dirPath, icon, onCtxMenu, isExpanded, onT
   const [openState, setOpen] = useState(() => (controlled ? false : false));
   const open = controlled ? isExpanded(dirPath) : openState;
   const [children, setChildren] = useState<DirEntryInfo[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Derived, not stored: in controlled mode the only moment we can be loading
+  // is "open but no children yet" (the restored-from-persistence path below).
+  // Keeping it out of state avoids a synchronous setState inside an effect.
+  const loading = controlled && open && children === null;
 
   const setOpenBoth = (next: boolean) => {
     if (controlled) onToggle?.(dirPath, next);
@@ -390,7 +393,6 @@ export function BrowserDirNode({ name, dirPath, icon, onCtxMenu, isExpanded, onT
 
   const toggle = async () => {
     if (!open && children === null) {
-      setLoading(true);
       try {
         const entries = await commands.listDirectory(dirPath);
         setChildren(entries);
@@ -398,7 +400,6 @@ export function BrowserDirNode({ name, dirPath, icon, onCtxMenu, isExpanded, onT
         console.warn('[Explorer] list_directory failed:', e);
         setChildren([]);
       }
-      setLoading(false);
     }
     setOpenBoth(!open);
   };
@@ -408,11 +409,9 @@ export function BrowserDirNode({ name, dirPath, icon, onCtxMenu, isExpanded, onT
   useEffect(() => {
     if (!controlled || !open || children !== null) return;
     let cancelled = false;
-    setLoading(true);
     commands.listDirectory(dirPath)
       .then(entries => { if (!cancelled) setChildren(entries); })
-      .catch(() => { if (!cancelled) setChildren([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .catch(() => { if (!cancelled) setChildren([]); });
     return () => { cancelled = true; };
   }, [controlled, open, children, dirPath]);
 
