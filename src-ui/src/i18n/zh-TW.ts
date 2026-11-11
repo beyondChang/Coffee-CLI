@@ -96,7 +96,6 @@ export const zhTW = {
   "control.no_agents": "請先在「常用」中開啟工具。",
   "control.agent_unavailable": "暫不可用",
   "control.agent_unsupported_help": "暫不支援為 {tool} 開啟此功能。",
-  "control.agent_conflict_help": "設定中已有名為 {server} 的服務。請在工具設定檔中重新命名該服務，再重新開啟此頁面。",
   "control.agent_config_help": "請檢查工具設定檔的格式和讀取權限，再重新開啟此頁面。",
   "control.read_error": "无法读取工具配置。",
   "control.write_error": "保存失败，原有配置已保留。",

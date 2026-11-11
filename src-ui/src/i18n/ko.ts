@@ -96,7 +96,6 @@ export const ko = {
   "control.no_agents": "먼저 즐겨찾기 탭에서 Agent를 활성화하세요.",
   "control.agent_unavailable": "사용 불가",
   "control.agent_unsupported_help": "{tool}에서는 아직 이 기능을 지원하지 않습니다.",
-  "control.agent_conflict_help": "{server} 서비스가 이미 있습니다. 에이전트 설정에서 이름을 바꾼 후 이 페이지를 다시 여세요.",
   "control.agent_config_help": "에이전트 설정의 형식과 읽기 권한을 확인한 후 이 페이지를 다시 여세요.",
   "control.read_error": "에이전트 설정을 읽을 수 없습니다.",
   "control.write_error": "저장하지 못했습니다. 기존 설정은 유지되었습니다.",

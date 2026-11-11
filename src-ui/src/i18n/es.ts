@@ -96,7 +96,6 @@ export const es = {
   "control.no_agents": "Activa primero un agente en Favoritos.",
   "control.agent_unavailable": "No disponible",
   "control.agent_unsupported_help": "El control aún no es compatible con {tool}.",
-  "control.agent_conflict_help": "Ya existe un servicio llamado {server}. Cambie su nombre en la configuración del agente y vuelva a abrir esta página.",
   "control.agent_config_help": "Revise el formato y los permisos de la configuración del agente y vuelva a abrir esta página.",
   "control.read_error": "No se puede leer la configuración del agente.",
   "control.write_error": "No se pudo guardar. Se conservó la configuración anterior.",

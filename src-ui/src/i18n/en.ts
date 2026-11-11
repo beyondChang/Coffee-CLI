@@ -94,7 +94,6 @@ export const en = {
   "control.no_agents": "Enable an agent in Favorites first.",
   "control.agent_unavailable": "Unavailable",
   "control.agent_unsupported_help": "Control is not supported for {tool} yet.",
-  "control.agent_conflict_help": "A service named {server} already exists. Rename it in the agent configuration, then reopen this page.",
   "control.agent_config_help": "Check the format and permissions of the agent configuration, then reopen this page.",
   "control.read_error": "Unable to read the agent configuration.",
   "control.write_error": "Could not save. Your existing configuration was preserved.",

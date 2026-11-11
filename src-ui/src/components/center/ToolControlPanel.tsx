@@ -56,11 +56,14 @@ export function ToolControlPanel({ kind, active, tools }: {
     {error && <p className="tool-memory-notice" role="alert">{t(error)}</p>}
     <div className="tool-control-agents">
       {agents.map(tool => {
-        const agent = status?.agents.find(agent => agent.tool === tool.value) ?? { supported: false, enabled: false, conflict: false };
+        const agent = status?.agents.find(agent => agent.tool === tool.value) ?? { supported: false, enabled: false, conflict: false, issue: null };
         const missing = tool.installed === false;
-        const unavailable = !!status && !missing && (!status.supported || agent.supported === false || agent.conflict);
+        // A same-name server left by an older install is replaced on enable.
+        // Only unreadable configurations and unsupported tools block the switch.
+        const overwritable = agent.issue === 'conflict';
+        const unavailable = !!status && !missing && (!status.supported || agent.supported === false || (agent.conflict && !overwritable));
         const disabled = !status || missing || unavailable || (!agent.enabled && !status.ready);
-        const help = !unavailable ? undefined : t(agent.supported === false ? 'control.agent_unsupported_help' : agent.issue === 'conflict' ? 'control.agent_conflict_help' : 'control.agent_config_help', { tool: tool.label, server: `coffee-${kind}-use` });
+        const help = !unavailable ? undefined : t(agent.supported === false ? 'control.agent_unsupported_help' : 'control.agent_config_help', { tool: tool.label });
         return <div className="tool-control-agent" key={tool.value}>
           <span className="tool-control-agent-icon" aria-hidden="true">{tool.icon}</span>
           <span className="tool-control-agent-name"><span className="tool-control-agent-label">{tool.label}</span>

@@ -96,7 +96,6 @@ export const vi = {
   "control.no_agents": "Trước tiên hãy bật Agent trong mục Ưa dùng.",
   "control.agent_unavailable": "Chưa khả dụng",
   "control.agent_unsupported_help": "Chưa hỗ trợ điều khiển {tool}.",
-  "control.agent_conflict_help": "Dịch vụ {server} đã tồn tại. Hãy đổi tên trong cấu hình tác nhân rồi mở lại trang này.",
   "control.agent_config_help": "Kiểm tra định dạng và quyền đọc cấu hình tác nhân rồi mở lại trang này.",
   "control.read_error": "Không thể đọc cấu hình tác nhân.",
   "control.write_error": "Không thể lưu. Cấu hình hiện có được giữ nguyên.",

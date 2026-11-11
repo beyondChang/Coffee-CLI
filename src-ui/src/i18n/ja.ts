@@ -96,7 +96,6 @@ export const ja = {
   "control.no_agents": "「お気に入り」で Agent を有効にしてください。",
   "control.agent_unavailable": "利用不可",
   "control.agent_unsupported_help": "{tool} ではまだこの機能を利用できません。",
-  "control.agent_conflict_help": "{server} というサービスが既に存在します。エージェントの設定で名前を変更し、このページを開き直してください。",
   "control.agent_config_help": "エージェント設定の形式と読み取り権限を確認し、このページを開き直してください。",
   "control.read_error": "エージェント設定を読み取れません。",
   "control.write_error": "保存できませんでした。既存の設定は保持されています。",

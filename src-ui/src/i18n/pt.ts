@@ -96,7 +96,6 @@ export const pt = {
   "control.no_agents": "Ative primeiro um agente em Favoritos.",
   "control.agent_unavailable": "Indisponível",
   "control.agent_unsupported_help": "O controle ainda não é compatível com {tool}.",
-  "control.agent_conflict_help": "Já existe um serviço chamado {server}. Renomeie-o na configuração do agente e reabra esta página.",
   "control.agent_config_help": "Verifique o formato e as permissões da configuração do agente e reabra esta página.",
   "control.read_error": "Não foi possível ler a configuração do agente.",
   "control.write_error": "Falha ao salvar. A configuração existente foi preservada.",

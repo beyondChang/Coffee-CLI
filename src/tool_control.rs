@@ -168,17 +168,31 @@ fn cst_value(value: &Value) -> jsonc_parser::cst::CstInputValue {
 
 fn edit(text: Option<&str>, tool: &str, name: &str, expected: &Value, enabled: bool) -> Result<String, String> {
     let before = entry(text, tool, name)?;
-    if before.as_ref().is_some_and(|value| value != expected) { return Err("control_conflict".into()); }
+    // The `coffee-*` server name belongs to us: enabling replaces a stale entry
+    // left by an older install instead of blocking the switch. Disabling still
+    // refuses to remove an entry that no longer matches what we wrote, so a
+    // hand-edited server survives.
+    if !enabled && before.as_ref().is_some_and(|value| value != expected) { return Err("control_conflict".into()); }
     if tool == "codex" {
         let mut document = text.unwrap_or("").parse::<toml_edit::DocumentMut>().map_err(|_| "control_read")?;
         if enabled {
-            let mut table = toml_edit::Table::new();
-            table["command"] = toml_edit::value(expected["command"].as_str().ok_or("control_write")?);
+            let command = expected["command"].as_str().ok_or("control_write")?;
             let mut args = toml_edit::Array::new();
             for arg in expected["args"].as_array().ok_or("control_write")? { args.push(arg.as_str().ok_or("control_write")?); }
-            table["args"] = toml_edit::value(args);
             if document.get("mcp_servers").is_none() { document["mcp_servers"] = toml_edit::Item::Table(toml_edit::Table::new()); }
-            document["mcp_servers"][name] = toml_edit::Item::Table(table);
+            let servers = document["mcp_servers"].as_table_like_mut().ok_or("control_read")?;
+            if let Some(existing) = servers.get_mut(name).and_then(|item| item.as_table_like_mut()) {
+                // Reuse the existing table when replacing a stale entry so the
+                // comments attached to its header are not lost.
+                existing.clear();
+                existing.insert("command", toml_edit::value(command));
+                existing.insert("args", toml_edit::value(args));
+            } else {
+                let mut table = toml_edit::Table::new();
+                table["command"] = toml_edit::value(command);
+                table["args"] = toml_edit::value(args);
+                servers.insert(name, toml_edit::Item::Table(table));
+            }
         } else if let Some(servers) = document.get_mut("mcp_servers").and_then(|item| item.as_table_like_mut()) { servers.remove(name); }
         Ok(document.to_string())
     } else {
@@ -386,6 +400,43 @@ mod tests {
                 if tool == "copilot" { assert_eq!(expected["type"], "local"); assert_eq!(expected["tools"], json!(["*"])); }
             }
         }
+    }
+    #[test]
+    fn enabling_replaces_a_stale_same_name_entry() {
+        let exe = Path::new("C:/Program Files/Coffee/coffee-cli.exe");
+        // An older install can leave the same server name with a different
+        // command line. Turning the switch on must replace it, not report a
+        // conflict and ask the user to rename the server by hand.
+        for tool in ["claude","cursor","copilot","antigravity","qwen","kiro","pi","kilo","opencode"] {
+            for nested in [false,true] {
+                if nested && tool != "opencode" { continue; }
+                let original = if nested {
+                    "{\n// keep model\n\"mcp\":{\"servers\":{\"coffee-computer-use\":{\"type\":\"local\",\"command\":[\"stale\"]},\"mine\":{\"type\":\"local\",\"command\":[\"custom\"]}}},\"hooks\":[]\n}\n"
+                } else if matches!(tool,"kilo"|"opencode") {
+                    "{\n// keep model\n\"mcp\":{\"coffee-computer-use\":{\"type\":\"local\",\"command\":[\"stale\"]},\"mine\":{\"type\":\"local\",\"command\":[\"custom\"]}},\"hooks\":[]\n}\n"
+                } else {
+                    "{\n// keep model\n\"mcpServers\":{\"coffee-computer-use\":{\"command\":\"stale\"},\"mine\":{\"command\":\"custom\"}},\"hooks\":[]\n}\n"
+                };
+                let expected = spec(exe, "computer", tool);
+                assert!(entry(Some(original), tool, "coffee-computer-use").unwrap().is_some());
+                let replaced = edit(Some(original), tool, "coffee-computer-use", &expected, true).unwrap();
+                assert!(replaced.contains("// keep model"), "{tool} nested={nested}: comments survive the overwrite");
+                assert_eq!(entry(Some(&replaced), tool, "coffee-computer-use").unwrap(), Some(expected.clone()), "{tool} nested={nested}: stale entry now holds the current spec");
+                assert!(entry(Some(&replaced), tool, "mine").unwrap().is_some(), "{tool} nested={nested}: other servers survive the overwrite");
+                assert!(edit(Some(original), tool, "coffee-computer-use", &expected, false).is_err(), "{tool} nested={nested}: disabling still refuses to remove a foreign entry");
+            }
+        }
+        let original_toml = "# keep me\n[mcp_servers.coffee-computer-use]\ncommand = \"stale\"\nargs = [\"--old\"]\n[mcp_servers.mine]\ncommand = \"other\"\n";
+        let expected = spec(exe, "computer", "codex");
+        let replaced = edit(Some(original_toml), "codex", "coffee-computer-use", &expected, true).unwrap();
+        assert!(replaced.contains("# keep me") && replaced.contains("[mcp_servers.mine]"), "codex: comments and other servers survive the overwrite");
+        assert_eq!(entry(Some(&replaced), "codex", "coffee-computer-use").unwrap(), Some(expected.clone()));
+        assert_eq!(entry(Some(&replaced), "codex", "mine").unwrap(), Some(json!({"command":"other"})));
+        assert!(edit(Some(original_toml), "codex", "coffee-computer-use", &expected, false).is_err());
+        let scalar_toml = "[mcp_servers]\ncoffee-computer-use = \"stale\"\nmine = \"other\"\n";
+        let replaced = edit(Some(scalar_toml), "codex", "coffee-computer-use", &expected, true).unwrap();
+        assert_eq!(entry(Some(&replaced), "codex", "coffee-computer-use").unwrap(), Some(expected.clone()), "codex: a stale scalar entry is replaced too");
+        assert_eq!(entry(Some(&replaced), "codex", "mine").unwrap(), Some(json!("other")));
     }
     #[test]
     fn empty_configuration_is_unconfigured_until_explicitly_enabled() {

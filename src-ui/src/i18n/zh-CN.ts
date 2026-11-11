@@ -96,7 +96,6 @@ export const zhCN = {
   "control.no_agents": "请先在「常用」中开启工具。",
   "control.agent_unavailable": "暂不可用",
   "control.agent_unsupported_help": "暂不支持为 {tool} 开启此功能。",
-  "control.agent_conflict_help": "配置中已有名为 {server} 的服务。请在工具配置文件中重命名该服务，再重新打开此页面。",
   "control.agent_config_help": "请检查工具配置文件的格式和读取权限，再重新打开此页面。",
   "control.read_error": "无法读取工具配置。",
   "control.write_error": "保存失败，原有配置已保留。",

@@ -96,7 +96,6 @@ export const de = {
   "control.no_agents": "Aktiviere zuerst einen Agenten unter Favoriten.",
   "control.agent_unavailable": "Nicht verfügbar",
   "control.agent_unsupported_help": "Die Steuerung wird für {tool} noch nicht unterstützt.",
-  "control.agent_conflict_help": "Ein Dienst namens {server} existiert bereits. Benennen Sie ihn in der Agent-Konfiguration um und öffnen Sie diese Seite erneut.",
   "control.agent_config_help": "Prüfen Sie Format und Zugriffsrechte der Agent-Konfiguration und öffnen Sie diese Seite erneut.",
   "control.read_error": "Agent-Konfiguration kann nicht gelesen werden.",
   "control.write_error": "Speichern fehlgeschlagen. Die vorhandene Konfiguration bleibt erhalten.",
