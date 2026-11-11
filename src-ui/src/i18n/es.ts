@@ -443,10 +443,10 @@ export const es = {
   'task.prompt.category_placeholder': 'Nombre de categoría (elige o crea una)',
   'task.prompt.body_placeholder': 'Escribe un prompt, envíalo a la IA…',
   'task.note_placeholder': 'Anota algo y envíalo entero a tu agente…',
-  'task.optimize': 'Optimizar prompt',
-  'task.optimize_busy': 'Optimizando el prompt…',
-  'task.optimize_failed': 'No se pudo optimizar el prompt. Inténtalo de nuevo.',
-  'task.optimize_stale': 'La nota cambió durante la optimización; el resultado no se aplicó.',
+  'prompt.optimize': 'Optimizar prompt',
+  'prompt.optimize_busy': 'Optimizando el prompt…',
+  'prompt.optimize_failed': 'No se pudo optimizar el prompt. Inténtalo de nuevo.',
+  'prompt.optimize_stale': 'La nota cambió durante la optimización; el resultado no se aplicó.',
   'task.welcome_note': `Te damos la bienvenida a Coffee CLI ☕
 
 Esto es una nota adhesiva: escribe lo que quieras y pulsa ▶ (arriba a la derecha) para enviarlo entero a tu IA. Se acabó la casilla de texto diminuta.

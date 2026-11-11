@@ -443,10 +443,10 @@ export const ko = {
   'task.prompt.category_placeholder': '분류명 (기존 선택 또는 새로 입력)',
   'task.prompt.body_placeholder': '프롬프트를 적어 AI에게 전송…',
   'task.note_placeholder': '메모를 적어 에이전트로 한 번에 보내기…',
-  'task.optimize': '프롬프트 최적화',
-  'task.optimize_busy': '프롬프트 최적화 중…',
-  'task.optimize_failed': '최적화에 실패했습니다. 다시 시도하세요.',
-  'task.optimize_stale': '내용이 수정되어 최적화 결과를 적용하지 않았습니다.',
+  'prompt.optimize': '프롬프트 최적화',
+  'prompt.optimize_busy': '프롬프트 최적화 중…',
+  'prompt.optimize_failed': '최적화에 실패했습니다. 다시 시도하세요.',
+  'prompt.optimize_stale': '내용이 수정되어 최적화 결과를 적용하지 않았습니다.',
   'task.welcome_note': `Coffee CLI에 오신 것을 환영합니다 ☕
 
 이건 '메모지'예요. 아무거나 적고 오른쪽 위 ▶ 를 누르면 전체를 AI에게 보냅니다. 더 이상 비좁은 입력창은 필요 없어요.

@@ -24,6 +24,7 @@ import { useAppState } from '../../store/app-state';
 import { registerFileDropTarget, formatPathsForInsert } from '../../lib/file-drop';
 import { bindAutoHideScrollbar } from '../../lib/auto-hide-scrollbar';
 import { ClaudeComposerControls, AttachIcon } from './ClaudeComposerControls';
+import { GambitPromptOptimize } from './GambitPromptOptimize';
 import { CodexComposerControls } from './CodexComposerControls';
 import { OpenCodeComposerControls } from './OpenCodeComposerControls';
 import { PiComposerControls } from './PiComposerControls';
@@ -1281,6 +1282,10 @@ function GambitImpl({
             {voiceNoInput ? t('gambit.voice_no_input') : voiceError ? t('gambit.voice_failed_reason', { error: voiceError }) : t('gambit.voice_failed_hint')}
           </span>
         )}
+
+        {/* Prompt optimization — left of the audio input button, same slot
+            while recording (the voice bar replaces the mic button). */}
+        <GambitPromptOptimize draft={draft} onDraftChange={onDraftChange} />
 
         {voiceSupported && voiceState === 'recording' && (
           <div className="gambit-voice-bar" role="group" aria-label={t('gambit.voice_listening_hint')}>

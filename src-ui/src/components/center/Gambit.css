@@ -395,6 +395,13 @@
 .gambit-voice:disabled { opacity:0.55; cursor:default; }
 .gambit-voice:disabled svg { animation:gambit-voice-spin 1s linear infinite; }
 @keyframes gambit-voice-spin { to { transform:rotate(360deg); } }
+/* Prompt optimization sits left of the voice button; same 26px treatment.
+   Disabled while running (the sparkle spins) or on an empty draft. */
+.gambit-optimize { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:26px; height:26px; padding:0; border:0; border-radius:var(--shape-radius-btn,5px); color:var(--text-2); background:var(--bg-hover); cursor:pointer; transition:background 0.12s, color 0.12s; }
+.gambit-optimize:hover:not(:disabled) { color:var(--text-1); background:var(--accent-bg,var(--bg-hover)); }
+.gambit-optimize:disabled { opacity:0.55; cursor:default; }
+.gambit-optimize.is-busy svg { animation:gambit-voice-spin 1s linear infinite; }
+.gambit-send-hint--optimize { color:var(--danger,#da8076); }
 /* Recording bar: × (discard) · live waveform · ↑ (confirm & transcribe).
    Compact so the waveform hugs the two buttons instead of stretching the
    whole footer width; centred in the free space left of the send button. */

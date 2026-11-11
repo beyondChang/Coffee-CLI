@@ -443,10 +443,10 @@ export const ja = {
   'task.prompt.category_placeholder': 'カテゴリ名（既存を選ぶか新規入力）',
   'task.prompt.body_placeholder': 'プロンプトを書いてAIに送信…',
   'task.note_placeholder': 'メモを書いて、まとめて送信…',
-  'task.optimize': 'プロンプト最適化',
-  'task.optimize_busy': 'プロンプトを最適化中…',
-  'task.optimize_failed': '最適化に失敗しました。もう一度お試しください。',
-  'task.optimize_stale': '編集されたため、最適化結果は適用されませんでした。',
+  'prompt.optimize': 'プロンプト最適化',
+  'prompt.optimize_busy': 'プロンプトを最適化中…',
+  'prompt.optimize_failed': '最適化に失敗しました。もう一度お試しください。',
+  'prompt.optimize_stale': '編集されたため、最適化結果は適用されませんでした。',
   'task.welcome_note': `Coffee CLI へようこそ ☕
 
 これは「付箋」です。思いついたことを書いて、右上の ▶ を押せば、まるごと AI に送れます。窮屈な小さな入力欄とはお別れです。

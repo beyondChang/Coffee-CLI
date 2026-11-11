@@ -444,10 +444,10 @@ export const zhCN = {
   'task.prompt.category_placeholder': '分类名（选已有或输入新的）',
   'task.prompt.body_placeholder': '写提示词，整段发给 AI…',
   'task.note_placeholder': '写点什么，整段发给 AI…',
-  'task.optimize': '提示词优化',
-  'task.optimize_busy': '正在优化提示词…',
-  'task.optimize_failed': '优化失败，请重试。',
-  'task.optimize_stale': '文本已修改，优化结果未应用。',
+  'prompt.optimize': '提示词优化',
+  'prompt.optimize_busy': '正在优化提示词…',
+  'prompt.optimize_failed': '优化失败，请重试。',
+  'prompt.optimize_stale': '文本已修改，优化结果未应用。',
   'task.welcome_note': `欢迎来到 Coffee CLI ☕
 
 这张就是「便签」——随手写，写完点右上角 ▶ 整段发给 AI，不用再挤小输入框。

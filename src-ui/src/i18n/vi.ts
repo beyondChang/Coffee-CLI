@@ -445,10 +445,10 @@ export const vi = {
   'task.prompt.category_placeholder': 'Tên phân loại (chọn sẵn hoặc gõ mới)',
   'task.prompt.body_placeholder': 'Viết prompt, gửi cho AI…',
   'task.note_placeholder': 'Ghi vài dòng rồi gửi cả đoạn cho agent…',
-  'task.optimize': 'Tối ưu prompt',
-  'task.optimize_busy': 'Đang tối ưu prompt…',
-  'task.optimize_failed': 'Không thể tối ưu prompt. Vui lòng thử lại.',
-  'task.optimize_stale': 'Ghi chú đã thay đổi trong lúc tối ưu; kết quả không được áp dụng.',
+  'prompt.optimize': 'Tối ưu prompt',
+  'prompt.optimize_busy': 'Đang tối ưu prompt…',
+  'prompt.optimize_failed': 'Không thể tối ưu prompt. Vui lòng thử lại.',
+  'prompt.optimize_stale': 'Ghi chú đã thay đổi trong lúc tối ưu; kết quả không được áp dụng.',
   'task.welcome_note': `Chào mừng đến với Coffee CLI ☕
 
 Đây là một tờ ghi chú dán: viết bất cứ điều gì, rồi bấm ▶ (góc trên bên phải) để gửi cả đoạn cho AI của bạn. Không còn ô nhập liệu chật chội nữa.

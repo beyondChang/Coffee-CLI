@@ -17,7 +17,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useT } from '../../i18n/useT';
-import { commands } from '../../tauri';
+import { usePromptOptimize } from '../../lib/prompt-optimize';
 import { TaskEmptyState } from './TaskEmptyState';
 import { STATUS_ORDER, type TaskItem, type TaskStatus } from './task-types';
 import { useTextContextMenu } from '../../lib/use-text-context-menu';
@@ -98,42 +98,14 @@ export function TaskNoteView({
   const [resizing, setResizing] = useState<{ id: string; height: number } | null>(null);
 
   // ── Prompt optimization (built-in model) ───────────────────────────────
-  // One optimization at a time (shared model channel); the result replaces
-  // the note text only if the note is still unchanged since the click, so a
-  // slow model response can never clobber edits typed in the meantime.
-  const [optimizingId, setOptimizingId] = useState<string | null>(null);
-  const [optimizeNotice, setOptimizeNotice] = useState<{ id: string; kind: 'failed' | 'stale' } | null>(null);
+  // Shared flow (lib/prompt-optimize): one optimization at a time, the
+  // result replaces the note text only if the note is still unchanged since
+  // the click, so a slow model response can never clobber edits typed in
+  // the meantime.
+  const { activeId: optimizingId, notice: optimizeNotice, optimize } = usePromptOptimize();
+  // Live tasks mirror for the stale check — only committed renders feed it.
   const tasksRef = useRef(tasks);
-  tasksRef.current = tasks;
-
-  // Auto-dismiss the notice — the header has no room for a persistent banner.
-  useEffect(() => {
-    if (!optimizeNotice) return;
-    const timer = setTimeout(() => setOptimizeNotice(null), 6000);
-    return () => clearTimeout(timer);
-  }, [optimizeNotice]);
-
-  const handleOptimize = async (task: TaskItem) => {
-    if (optimizingId || !task.title.trim()) return;
-    setOptimizeNotice(null);
-    setOptimizingId(task.id);
-    try {
-      const optimized = (await commands.optimizeTaskPrompt(task.title)).trim();
-      if (!optimized) throw new Error('empty optimization');
-      const fresh = tasksRef.current.find(item => item.id === task.id);
-      if (!fresh || fresh.title !== task.title) {
-        // The note was edited (or removed) while the model was working —
-        // dropping the result keeps the user's newer text intact.
-        setOptimizeNotice({ id: task.id, kind: 'stale' });
-      } else {
-        onUpdateTitle(task.id, optimized);
-      }
-    } catch {
-      setOptimizeNotice({ id: task.id, kind: 'failed' });
-    } finally {
-      setOptimizingId(null);
-    }
-  };
+  useLayoutEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
   const handlePointerDown = (e: React.PointerEvent, id: string) => {
     const target = e.target as HTMLElement;
@@ -327,10 +299,15 @@ export function TaskNoteView({
                 <button
                   type="button"
                   className={`task-note-btn task-note-optimize${optimizingId === task.id ? ' is-busy' : ''}`}
-                  onClick={() => handleOptimize(task)}
+                  onClick={() => optimize(
+                    task.id,
+                    task.title,
+                    next => onUpdateTitle(task.id, next),
+                    () => tasksRef.current.find(item => item.id === task.id)?.title === task.title,
+                  )}
                   disabled={!!optimizingId || !task.title.trim()}
-                  title={optimizingId === task.id ? t('task.optimize_busy') : t('task.optimize')}
-                  aria-label={t('task.optimize')}
+                  title={optimizingId === task.id ? t('prompt.optimize_busy') : t('prompt.optimize')}
+                  aria-label={t('prompt.optimize')}
                 >
                   {/* Prompt optimization — rewrites the note through the
                       built-in model; the replaced text is the feedback. */}
@@ -379,7 +356,7 @@ export function TaskNoteView({
 
             {optimizeNotice?.id === task.id && (
               <p className="task-note-optimize-error" role="alert">
-                {t(optimizeNotice.kind === 'stale' ? 'task.optimize_stale' : 'task.optimize_failed')}
+                {t(optimizeNotice.kind === 'stale' ? 'prompt.optimize_stale' : 'prompt.optimize_failed')}
               </p>
             )}
 

@@ -443,10 +443,10 @@ export const fr = {
   'task.prompt.category_placeholder': 'Nom de catégorie (choisir ou saisir)',
   'task.prompt.body_placeholder': 'Écrivez un prompt, envoyez-le à l’IA…',
   'task.note_placeholder': 'Notez quelque chose et envoyez le tout à votre agent…',
-  'task.optimize': 'Optimiser l’invite',
-  'task.optimize_busy': 'Optimisation de l’invite…',
-  'task.optimize_failed': 'Impossible d’optimiser l’invite. Réessayez.',
-  'task.optimize_stale': 'La note a changé pendant l’optimisation ; le résultat n’a pas été appliqué.',
+  'prompt.optimize': 'Optimiser l’invite',
+  'prompt.optimize_busy': 'Optimisation de l’invite…',
+  'prompt.optimize_failed': 'Impossible d’optimiser l’invite. Réessayez.',
+  'prompt.optimize_stale': 'La note a changé pendant l’optimisation ; le résultat n’a pas été appliqué.',
   'task.welcome_note': `Bienvenue sur Coffee CLI ☕
 
 Ceci est une note autocollante : écrivez ce que vous voulez, puis appuyez sur ▶ (en haut à droite) pour tout envoyer à votre IA. Fini la petite zone de saisie à l'étroit.
