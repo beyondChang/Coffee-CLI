@@ -114,12 +114,8 @@ export function AgentAppsSection() {
   </>;
 
   return <section className="settings-apps">
-    <div className="settings-apps-head">
-      <h2>{t('settings.apps.title')}</h2>
-      <span className="settings-apps-count">{pinnedCount}/{PINNED_ITEMS_LIMIT}</span>
-    </div>
-    {/* The section speaks for itself: the 常用 tab already carries the count,
-        so no explanatory line sits above the cards. */}
+    {/* No heading of its own: the rail already says 应用 and the 常用 tab
+        carries the N/6 count, so the section opens straight on the tabs. */}
     {/* The tool dialog's own page: the 常用 cards above, the panels behind
         the other tabs (主记忆 / 多智能体编排 / 技能 / 电脑控制 / 浏览器控制). */}
     <ToolSettingsPage active tools={tools} count={pinnedCount} limit={PINNED_ITEMS_LIMIT}>

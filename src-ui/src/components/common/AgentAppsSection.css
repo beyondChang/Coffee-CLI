@@ -2,29 +2,6 @@
    dialog, laid out for the narrower settings column. The card, icon, gear and
    switch come from CenterPanel.css — only the grid width changes here. */
 
-.settings-apps-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 6px;
-}
-
-.settings-apps-head h2 {
-  margin: 0;
-  font-size: var(--type-body);
-  font-weight: 600;
-  color: var(--text-1);
-}
-
-/* N/6, matching the counter the tool dialog shows on its 常用 tab. */
-.settings-apps-count {
-  flex: 0 0 auto;
-  color: var(--text-3);
-  font: var(--type-caption)/1 var(--font-mono, ui-monospace, monospace);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Two per row: the settings column is narrower than the tool dialog, and each
    card carries an icon, a name, a gear and a switch. */
 .settings-apps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
