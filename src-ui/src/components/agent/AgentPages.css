@@ -139,9 +139,11 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
 .agent-weixin-status:hover { color: var(--text-1); background: var(--accent-bg, var(--bg-hover)); }
 .agent-weixin-status:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 /* Deliberately not var(--red): the themed red is a muted pink in dark mode,
-   while an unlinked channel needs an unmistakable bright red in every theme. */
+   while an unlinked channel needs an unmistakable bright red in every theme.
+   Same reason the connected dot skips var(--green), which is a greyish sage
+   (#98b89d) and reads as "no signal" — a linked channel gets true green. */
 .agent-weixin-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #ff3b30; }
-.agent-weixin-dot.is-connected { background: var(--green); }
+.agent-weixin-dot.is-connected { background: #00c853; }
 /* The badge takes over the target label's push; New chat, when present,
    takes it back so both stay grouped on the left of the footer. */
 .gambit-footer:has(> .agent-weixin-status) > .gambit-workspace { margin-right: 0; }
