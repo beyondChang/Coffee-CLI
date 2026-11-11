@@ -206,7 +206,10 @@ export const commands = {
   },
   getToolSkillDescription: (source: string, name: string) => invoke<string>('get_tool_skill_description', { source, name }),
   /** Chinese AI summary of a catalogue skill, persisted on disk until regenerated. */
-  summarizeToolSkill: (source: string, name: string, refresh = false) => invoke<string>('summarize_tool_skill', { source, name, refresh }),
+  /** Chinese AI summary of a skill, persisted on disk until regenerated.
+   *  Catalogue skills are fetched from their GitHub `source`; installed
+   *  skills pass their local `path` instead and the file is read from disk. */
+  summarizeToolSkill: (source: string | null, name: string, refresh = false, path: string | null = null) => invoke<string>('summarize_tool_skill', { source, name, refresh, path }),
   installToolSkill: (tool: string, source: string, name: string) => invoke<SkillInventory>('install_tool_skill', { tool, source, name }),
   removeToolSkill: (tool: string, path: string) => invoke<SkillInventory>('remove_tool_skill', { tool, path }),
   checkToolSkillUpdates: (tool: string) => invoke<SkillInventory>('check_tool_skill_updates', { tool }),

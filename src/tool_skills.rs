@@ -53,6 +53,7 @@ fn roots_in(tool: &str, home: &Path, env: impl Fn(&str) -> Option<std::ffi::OsSt
     roots
 }
 fn roots(tool: &str) -> Result<Vec<PathBuf>, String> { Ok(roots_in(tool, &dirs::home_dir().ok_or("skills_read")?, |key| std::env::var_os(key))) }
+
 fn linked(path: &Path) -> bool {
     fs::symlink_metadata(path).is_ok_and(|m| {
         #[cfg(windows)] { use std::os::windows::fs::MetadataExt; m.file_type().is_symlink() || m.file_attributes() & 0x400 != 0 }
@@ -197,29 +198,48 @@ struct CatalogCache { at: u64, items: Vec<CatalogSkill> }
 struct DescriptionCache { at: u64, description: String }
 #[derive(Serialize, Deserialize)]
 struct SummaryCache { summary: String }
-/// Chinese AI summary of one catalogue skill, persisted until regenerated.
+/// Chinese AI summary of one skill — a catalogue entry (fetched from its
+/// GitHub source) or a locally installed folder (read from disk) — persisted
+/// until regenerated.
 #[tauri::command]
-pub async fn summarize_tool_skill(app: tauri::AppHandle, source: String, name: String, refresh: bool) -> Result<String, String> {
+pub async fn summarize_tool_skill(app: tauri::AppHandle, source: Option<String>, name: String, refresh: bool, path: Option<String>) -> Result<String, String> {
+    let _ = name;
     let root = storage()?;
-    let resolved = |repo: &str, skill: &str| root.join("summaries").join(format!("{}.json", hash(format!("{repo}/{skill}").as_bytes())));
-    let details = crate::agent_capabilities::details("skill", &source, &name).await.map_err(|_| "skills_source")?;
-    let repo = details["source"].as_str().ok_or("skills_source")?.to_string();
-    let skill = details["name"].as_str().ok_or("skills_source")?.to_string();
-    let path = resolved(&repo, &skill);
+    let (cache, body) = match (source, path) {
+        (Some(source), _) => {
+            let details = crate::agent_capabilities::details("skill", &source, &name).await.map_err(|_| "skills_source")?;
+            let repo = details["source"].as_str().ok_or("skills_source")?.to_string();
+            let skill = details["name"].as_str().ok_or("skills_source")?.to_string();
+            let commit = details["commit"].as_str().ok_or("skills_source")?.to_string();
+            let document = details["skillPath"].as_str().ok_or("skills_source")?.to_string();
+            let cache = root.join("summaries").join(format!("{}.json", hash(format!("{repo}/{skill}").as_bytes())));
+            let body = String::from_utf8(get(&raw_url(&repo, &commit, &document)?, MAX_FILE as usize).await.map_err(|error| if error == "skills_size" { error } else { "skills_network".to_string() })?)
+                .map_err(|_| "skills_source")?;
+            (cache, body)
+        }
+        (None, Some(path)) => {
+            let folder = PathBuf::from(&path);
+            if linked(&folder) { return Err("skills_modified".into()); }
+            let folder = resolved(&folder);
+            // Only genuine skill folders are summarized, and metadata() also
+            // bounds the document to MAX_FILE before we read it back.
+            if metadata(&folder).is_none() { return Err("skills_source".into()); }
+            let cache = root.join("summaries").join(format!("{}.json", hash(format!("local/{}", folder.to_string_lossy()).as_bytes())));
+            let body = fs::read_to_string(folder.join("SKILL.md")).map_err(|_| "skills_read")?;
+            (cache, body)
+        }
+        _ => return Err("skills_source".into()),
+    };
     if !refresh {
-        if let Ok(bytes) = fs::read(&path) {
+        if let Ok(bytes) = fs::read(&cache) {
             if let Ok(cache) = serde_json::from_slice::<SummaryCache>(&bytes) { return Ok(cache.summary); }
         }
     }
-    let commit = details["commit"].as_str().ok_or("skills_source")?.to_string();
-    let document = details["skillPath"].as_str().ok_or("skills_source")?.to_string();
-    let body = String::from_utf8(get(&raw_url(&repo, &commit, &document)?, MAX_FILE as usize).await.map_err(|error| if error == "skills_size" { error } else { "skills_network".to_string() })?)
-        .map_err(|_| "skills_source")?;
     // Long documents still summarize fine from their opening sections.
     let text: String = body.chars().take(12_000).collect();
     let summary = crate::agent::summarize_skill_document(&app, &text).await?;
-    let _ = fs::create_dir_all(path.parent().ok_or("skills_write")?);
-    let _ = write_json(&path, &SummaryCache { summary: summary.clone() });
+    let _ = fs::create_dir_all(cache.parent().ok_or("skills_write")?);
+    let _ = write_json(&cache, &SummaryCache { summary: summary.clone() });
     Ok(summary)
 }
 fn description_from_html(html: &str) -> Result<String, String> {
@@ -423,12 +443,24 @@ fn remove(tool: &str, root: &Path, directories: &[PathBuf], path: &str) -> Resul
         if linked(&target) { return Err("skills_modified".into()); }
         let target = resolved(&target);
         let path = target.to_string_lossy().into_owned();
-        let own = state.installed.iter().find(|s| s.tool == tool && s.path == path).ok_or("skills_exists")?;
-        if !valid_name(&own.name) || !normal_path(&own.name) || !directories.iter().any(|p| resolved(p).join(&own.name) == target) || digest(&read_files(&target)?) != own.hash { return Err("skills_modified".into()); }
-        let backup = root.join("backups").join(uuid::Uuid::new_v4().to_string()).join(&own.name);
+        let own = state.installed.iter().find(|s| s.tool == tool && s.path == path).cloned();
+        let name = match &own {
+            Some(own) => own.name.clone(),
+            None => {
+                // An unmanaged skill folder can only be removed when it sits
+                // directly inside this tool's skill roots and is a genuine
+                // skill; a folder owned by another tool stays protected.
+                if state.installed.iter().any(|s| s.path == path) { return Err("skills_exists".into()); }
+                let name = target.file_name().and_then(|n| n.to_str()).ok_or("skills_source")?.to_string();
+                if !valid_name(&name) || !normal_path(&name) || !directories.iter().any(|p| resolved(p).join(&name) == target) || metadata(&target).is_none() { return Err("skills_modified".into()); }
+                name
+            }
+        };
+        if !valid_name(&name) || !normal_path(&name) || !directories.iter().any(|p| resolved(p).join(&name) == target) { return Err("skills_modified".into()); }
+        if let Some(own) = &own { if digest(&read_files(&target)?) != own.hash { return Err("skills_modified".into()); } }
+        let backup = root.join("backups").join(uuid::Uuid::new_v4().to_string()).join(&name);
         write_files(&backup, &read_files(&target)?)?;
         let old = target.with_file_name(format!(".coffee-skills-old-{}", uuid::Uuid::new_v4()));
-        if digest(&read_files(&target)?) != own.hash { return Err("skills_modified".into()); }
         fs::rename(&target, &old).map_err(|_| "skills_write")?;
         state.installed.retain(|s| !(s.tool == tool && s.path == path));
         if let Err(error) = write_json(&root.join("state.json"), &state) { let _ = fs::rename(&old, &target); return Err(error); }
@@ -442,6 +474,13 @@ pub async fn check_tool_skill_updates(tool: String) -> Result<Inventory, String>
     if now().saturating_sub(*state.checked.get(&tool).unwrap_or(&0)) < 12 * 3600 { return inventory(&tool, &root, &roots(&tool)?); }
     let mut trees = BTreeMap::new(); let mut results = Vec::new();
     for entry in state.installed.iter().filter(|s| s.tool == tool) {
+        // A Skill that a runtime installed locally has no upstream repository
+        // to compare against; only local edits can make it stale.
+        if entry.source.starts_with("local:") {
+            let modified = read_files(Path::new(&entry.path)).map(|files| digest(&files) != entry.hash).unwrap_or(true);
+            results.push((entry.clone(), false, modified));
+            continue;
+        }
         if !trees.contains_key(&entry.source) { trees.insert(entry.source.clone(), tree(&entry.source, "HEAD").await?); }
         let update = folder_hash(&trees[&entry.source], &entry.remote_path)? != entry.remote_hash;
         let modified = read_files(Path::new(&entry.path)).map(|files| digest(&files) != entry.hash).unwrap_or(true);
@@ -515,6 +554,17 @@ mod tests {
         let f = Fixture::new(); f.install("first").unwrap();
         let mut state = read_state(&f.root).unwrap(); state.installed[0].source = "another/repo".into(); write_json(&f.root.join("state.json"), &state).unwrap();
         assert_eq!(f.install("replace").err().unwrap(), "skills_exists");
+    }
+
+    #[test]
+    fn unmanaged_local_skills_are_backed_up_then_removed() {
+        let f = Fixture::new(); write_files(&f.path(), &Fixture::files("user")).unwrap();
+        let list = remove("claude", &f.root, &f.directories, &f.path().to_string_lossy()).unwrap();
+        assert!(list.skills.is_empty()); assert!(!f.path().exists());
+        let backups = fs::read_dir(f.root.join("backups")).unwrap().count();
+        assert_eq!(backups, 1);
+        let restored = fs::read_dir(f.root.join("backups")).unwrap().next().unwrap().unwrap().path().join("demo").join("SKILL.md");
+        assert!(fs::read_to_string(restored).unwrap().contains("user"));
     }
 
     #[test]
@@ -628,4 +678,5 @@ mod tests {
         assert_eq!(list.skills[0].name, item.name); assert!(list.skills[0].managed);
         assert!(remove("claude", &f.root, &f.directories, &list.skills[0].path).unwrap().skills.is_empty());
     }
+
 }

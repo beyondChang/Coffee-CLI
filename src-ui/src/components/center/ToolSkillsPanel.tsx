@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { commands, type CatalogSkill, type SkillInventory, type ToolSkill } from '../../tauri';
-import { readSkillInventory, saveSkillInventory, readSkillCatalogue, fetchSkillCatalogue, readSkillDescription, fetchSkillDescription, readSkillSummary, saveSkillSummary } from '../../lib/tool-skills';
+import { readSkillInventory, saveSkillInventory, readSkillCatalogue, fetchSkillCatalogue, readSkillDescription, fetchSkillDescription, skillSummaryKey, readSkillSummary, saveSkillSummary } from '../../lib/tool-skills';
 import { useT } from '../../i18n/useT';
 import type { I18nKey } from '../../i18n/en';
 import './ToolSkillsPanel.css';
@@ -21,14 +21,14 @@ function SkillCardDetails({ item, children }: { item: CatalogSkill | ToolSkill; 
   const t = useT();
   const host = useRef<HTMLDivElement>(null);
   const [description, setDescription] = useState(item.description || (item.source && readSkillDescription(item.source, item.name)) || '');
-  // A generated Chinese summary replaces the English catalogue description.
-  const summary = item.source ? readSkillSummary(item.source, item.name) : undefined;
+  // A generated Chinese summary replaces the catalogue description.
+  const summary = readSkillSummary(skillSummaryKey(item));
   const [avatarLoaded, setAvatarLoaded] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState<string | null>(null);
   const owner = item.source?.split('/')[0];
   const avatar = owner && /^[\w.-]+$/.test(owner) ? `https://github.com/${owner}.png?size=80` : null;
   useEffect(() => {
-    if (item.description || !item.source || !host.current || readSkillSummary(item.source, item.name)) return;
+    if (item.description || !item.source || !host.current || readSkillSummary(skillSummaryKey(item))) return;
     let cancelled = false;
     const observer = new IntersectionObserver(entries => {
       if (!entries.some(entry => entry.isIntersecting)) return;
@@ -52,21 +52,22 @@ function SkillCardDetails({ item, children }: { item: CatalogSkill | ToolSkill; 
     <p className="skill-description">{summary || item.description || description || '\u00a0'}</p>
   </div>;
 }
-function SkillDetailDialog({ item, onClose, onSaved }: { item: CatalogSkill; onClose: () => void; onSaved: () => void }) {
+function SkillDetailDialog({ item, onClose, onSaved }: { item: CatalogSkill | ToolSkill; onClose: () => void; onSaved: () => void }) {
   const t = useT();
-  const [text, setText] = useState(() => readSkillSummary(item.source, item.name) ?? '');
+  const key = skillSummaryKey(item);
+  const [text, setText] = useState(() => readSkillSummary(key) ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = (refresh: boolean) => {
     setBusy(true); setError(null);
-    commands.summarizeToolSkill(item.source, item.name, refresh).then(value => {
-      saveSkillSummary(item.source, item.name, value); setText(value); onSaved();
+    commands.summarizeToolSkill('path' in item ? null : item.source, item.name, refresh, 'path' in item ? item.path : null).then(value => {
+      saveSkillSummary(key, value); setText(value); onSaved();
     }).catch(reason => {
       const raw = typeof reason === 'string' ? reason : '';
       setError(raw && errorKeys[raw] ? t(errorKeys[raw]) : raw || t('skills.detail_error'));
     }).finally(() => setBusy(false));
   };
-  useEffect(() => { if (!readSkillSummary(item.source, item.name)) run(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [item.source, item.name]);
+  useEffect(() => { if (!readSkillSummary(key)) run(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [key]);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
     window.addEventListener('keydown', escape);
@@ -75,7 +76,7 @@ function SkillDetailDialog({ item, onClose, onSaved }: { item: CatalogSkill; onC
   return createPortal(<div className="skill-detail-overlay" onClick={onClose}>
     <div className="skill-detail-modal" role="dialog" aria-modal="true" aria-label={`${t('skills.details')} · ${item.name}`} onClick={event => event.stopPropagation()}>
       <header className="skill-detail-header">
-        <div className="skill-detail-heading"><strong>{item.name}</strong><span>{item.source}</span></div>
+        <div className="skill-detail-heading"><strong>{item.name}</strong><span>{item.source || t('skills.local')}</span></div>
         <div className="skill-detail-toolbar">
           <button type="button" className="skills-icon-button" aria-label={t('skills.detail_refresh')} title={t('skills.detail_refresh')} disabled={busy} onClick={() => run(true)}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 4v5h-5" /></svg>
@@ -109,7 +110,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
   const [error, setError] = useState<{ scope: string; key: I18nKey; label?: string } | null>(null);
   const [pending, setPending] = useState<{ key: string; tool: string } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null), [confirm, setConfirm] = useState<string | null>(null);
-  const [detail, setDetail] = useState<CatalogSkill | null>(null);
+  const [detail, setDetail] = useState<CatalogSkill | ToolSkill | null>(null);
   const [, setSummaryTick] = useState(0);
   const [loading, setLoading] = useState(false);
   const [coldSearch, setColdSearch] = useState<string | null>(null);
@@ -209,11 +210,12 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
         return <article key={key} className="skill-card">
           <SkillCardDetails item={item}>
             {view === 'discover' ? <>
-              <button type="button" className="skill-details-button" disabled={!item.source} onClick={() => { if ('path' in item) return; setDetail(item); setTip(null); }}>{t('skills.details')}</button>
+              <button type="button" className="skill-details-button" onClick={() => { setDetail(item); setTip(null); }}>{t('skills.details')}</button>
               <button type="button" className="skill-install" aria-expanded={open} disabled={enabled.length === 0} onClick={() => { setExpanded(open ? null : key); setTip(null); }}>{t('skills.install')}</button>
             </> : <div className="skill-card-actions">
               {local?.managed && local.update && !local.modified && <button type="button" className="skill-install" disabled={!!pending} onClick={() => { void operate(local, view); }}>{pending?.key === key ? <span className="skill-spinner" /> : t('skills.update')}</button>}
-              {local?.managed && <button type="button" className="skills-icon-button skill-remove" aria-label={`${t('skills.remove')} ${item.name}`} disabled={!!pending} onClick={() => setConfirm(key)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></svg></button>}
+              <button type="button" className="skill-details-button" disabled={!!pending} onClick={() => { setDetail(item); setTip(null); }}>{t('skills.details')}</button>
+              <button type="button" className="skill-uninstall-button" aria-label={`${t('skills.remove')} ${item.name}`} disabled={!!pending} onClick={() => { setConfirm(key); setTip(null); }}>{t('skills.remove')}</button>
             </div>}
           </SkillCardDetails>
           {local?.modified && <span className="skill-status">{t('skills.modified')}</span>}

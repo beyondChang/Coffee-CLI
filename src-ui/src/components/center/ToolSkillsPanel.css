@@ -49,9 +49,7 @@
 .skills-icon-button { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; padding:6px; border:0; border-radius:var(--shape-radius-btn,var(--radius-sm)); background:transparent; color:var(--text-3); cursor:pointer; }
 .skills-icon-button:hover:not(:disabled) { background:var(--bg-hover); color:var(--text-1); }
 .skills-icon-button:disabled { opacity:.45; cursor:default; }
-.skill-remove { opacity:0; }
-.skill-card:hover .skill-remove, .skill-card:focus-within .skill-remove { opacity:1; }
-.skill-remove:hover:not(:disabled), .skill-remove-action { color:#f85149; }
+.skill-remove-action { color:#f85149; }
 .skill-status { flex-shrink:0; margin-top:10px; font-size:var(--type-caption); color:var(--text-3); }
 .skills-error { margin:0 0 14px; font-size:var(--type-label); color:var(--text-2); }
 .skills-empty { display:flex; flex:1; align-items:center; justify-content:center; grid-column:1/-1; min-height:240px; color:var(--text-3); font-size:var(--type-body); }
@@ -72,6 +70,9 @@
 .skill-details-button { display:flex; flex-shrink:0; align-items:center; justify-content:center; min-width:52px; min-height:28px; padding:5px 10px; border:1px solid var(--border); border-radius:var(--shape-radius-btn,var(--radius-sm)); background:transparent; color:var(--text-2); font:inherit; font-size:var(--type-label); font-weight:500; cursor:pointer; transition:background-color .15s,color .15s; }
 .skill-details-button:hover:not(:disabled) { background:var(--bg-hover); color:var(--text-1); }
 .skill-details-button:disabled { opacity:.45; cursor:default; }
+.skill-uninstall-button { display:flex; flex-shrink:0; align-items:center; justify-content:center; min-width:52px; min-height:28px; padding:5px 10px; border:1px solid color-mix(in srgb,#f85149 45%,var(--border)); border-radius:var(--shape-radius-btn,var(--radius-sm)); background:transparent; color:#f85149; font:inherit; font-size:var(--type-label); font-weight:500; cursor:pointer; transition:background-color .15s; }
+.skill-uninstall-button:hover:not(:disabled) { background:color-mix(in srgb,#f85149 14%,transparent); }
+.skill-uninstall-button:disabled { opacity:.45; cursor:default; }
 .skill-detail-overlay { position:fixed; inset:0; z-index:900; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(0,0,0,.45); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:skills-fade 160ms ease; }
 .skill-detail-modal { display:flex; flex-direction:column; width:min(560px,100%); max-height:min(640px,100%); border:1px solid var(--border); border-radius:var(--shape-radius-panel,var(--radius-sm)); background:var(--bg-panel); box-shadow:0 1px 2px rgba(0,0,0,.2),0 6px 20px rgba(0,0,0,.22); overflow:hidden; }
 .skill-detail-header { display:flex; flex-shrink:0; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border); }

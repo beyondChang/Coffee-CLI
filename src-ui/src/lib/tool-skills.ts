@@ -22,10 +22,15 @@ export function readSkillInventory(tool: string) { return inventories.get(tool);
 export function saveSkillInventory(tool: string, inventory: SkillInventory) { inventories.set(tool, inventory); persist(); }
 export function readSkillCatalogue(query: string) { return catalogues.get(query); }
 export function readSkillDescription(source: string, name: string) { return descriptions.get(`${source}/${name}`); }
-/** Chinese AI summary cached for instant re-display in the details dialog. */
-export function readSkillSummary(source: string, name: string) { return summaries.get(`${source}/${name}`); }
-export function saveSkillSummary(source: string, name: string, summary: string) {
-  summaries.set(`${source}/${name}`, summary);
+/** Chinese AI summary cached for instant re-display. Keys follow the backend:
+ *  installed folders use "local:<path>" (the on-disk version is what was
+ *  summarized); catalogue skills use "source/name". */
+export function skillSummaryKey(item: { source?: string | null; name: string; path?: string }) {
+  return item.path ? `local:${item.path}` : `${item.source}/${item.name}`;
+}
+export function readSkillSummary(key: string) { return summaries.get(key); }
+export function saveSkillSummary(key: string, summary: string) {
+  summaries.set(key, summary);
   if (summaries.size > 120) summaries.delete(summaries.keys().next().value!);
   persist();
 }
