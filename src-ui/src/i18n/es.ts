@@ -355,7 +355,6 @@ export const es = {
   'settings.close': "Cerrar",
   'settings.general': 'General',
   'settings.apps.title': 'Aplicaciones',
-  'settings.apps.hint': 'Elige qué herramientas muestra la pantalla de inicio. Es la misma selección que en «Configuración de aplicaciones»: las fijadas aparecen como tarjetas, seis como máximo.',
   'settings.apps.configure': 'Configurar {tool}',
   'settings.credentials.title': 'Almacenamiento de credenciales',
   'settings.credentials.encrypted': 'Archivo cifrado',

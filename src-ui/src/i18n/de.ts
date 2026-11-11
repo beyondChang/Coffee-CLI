@@ -355,7 +355,6 @@ export const de = {
   'settings.close': "Schließen",
   'settings.general': 'Allgemein',
   'settings.apps.title': 'Apps',
-  'settings.apps.hint': 'Wähle, welche Tools der Startbereich zeigt. Das ist dieselbe Auswahl wie in „App-Konfiguration“: angeheftete Tools erscheinen als Karten, höchstens sechs.',
   'settings.apps.configure': '{tool} konfigurieren',
   'settings.credentials.title': 'Speicher für Anmeldedaten',
   'settings.credentials.encrypted': 'Verschlüsselte Datei',

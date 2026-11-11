@@ -355,7 +355,6 @@ export const ru = {
   'settings.close': "Закрыть",
   'settings.general': 'Общие',
   'settings.apps.title': 'Приложения',
-  'settings.apps.hint': 'Выберите, какие инструменты показывать на стартовом экране. Это тот же выбор, что в «Настройке приложений»: закреплённые инструменты показываются карточками, не больше шести.',
   'settings.apps.configure': 'Настроить {tool}',
   'settings.credentials.title': 'Хранение учётных данных',
   'settings.credentials.encrypted': 'Зашифрованный файл',

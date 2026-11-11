@@ -25,13 +25,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.settings-apps-hint {
-  margin: 0 0 14px;
-  color: var(--text-2);
-  font-size: var(--type-label);
-  line-height: 1.8;
-}
-
 /* Two per row: the settings column is narrower than the tool dialog, and each
    card carries an icon, a name, a gear and a switch. */
 .settings-apps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

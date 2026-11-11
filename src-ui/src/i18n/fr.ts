@@ -355,7 +355,6 @@ export const fr = {
   'settings.close': "Fermer",
   'settings.general': 'Général',
   'settings.apps.title': 'Applications',
-  'settings.apps.hint': 'Choisissez les outils affichés sur l’écran de lancement. C’est la même sélection que dans « Configuration des applications » : les outils épinglés apparaissent en cartes, six au maximum.',
   'settings.apps.configure': 'Configurer {tool}',
   'settings.credentials.title': 'Stockage des identifiants',
   'settings.credentials.encrypted': 'Fichier chiffré',

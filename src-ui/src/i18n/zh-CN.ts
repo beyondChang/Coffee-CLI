@@ -355,7 +355,6 @@ export const zhCN = {
   'settings.close': "关闭",
   'settings.general': '通用',
   'settings.apps.title': '应用',
-  'settings.apps.hint': '选择启动页显示哪些工具，与「应用配置」中的选择一致；开启的工具显示为卡片，最多 6 个。',
   'settings.apps.configure': '配置 {tool}',
   'settings.credentials.title': '凭据存储',
   'settings.credentials.encrypted': '加密文件',

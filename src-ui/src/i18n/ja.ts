@@ -355,7 +355,6 @@ export const ja = {
   'settings.close': "閉じる",
   'settings.general': '一般',
   'settings.apps.title': 'アプリ',
-  'settings.apps.hint': 'ランチパッドに表示するツールを選択します。「アプリ設定」と同じ選択内容で、固定したツールがカードとして最大 6 件表示されます。',
   'settings.apps.configure': '{tool} を設定',
   'settings.credentials.title': '認証情報の保存',
   'settings.credentials.encrypted': '暗号化ファイル',

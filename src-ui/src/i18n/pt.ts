@@ -355,7 +355,6 @@ export const pt = {
   'settings.close': "Fechar",
   'settings.general': 'Geral',
   'settings.apps.title': 'Aplicativos',
-  'settings.apps.hint': 'Escolha quais ferramentas a tela inicial mostra. É a mesma seleção de «Configuração de aplicativos»: as fixadas aparecem como cartões, no máximo seis.',
   'settings.apps.configure': 'Configurar {tool}',
   'settings.credentials.title': 'Armazenamento de credenciais',
   'settings.credentials.encrypted': 'Arquivo criptografado',

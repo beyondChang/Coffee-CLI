@@ -357,7 +357,6 @@ export const vi = {
   'settings.close': "Đóng",
   'settings.general': 'Chung',
   'settings.apps.title': 'Ứng dụng',
-  'settings.apps.hint': 'Chọn công cụ hiển thị trên màn hình khởi động. Đây là lựa chọn giống mục «Cấu hình ứng dụng»: công cụ đã ghim hiện thành thẻ, tối đa sáu.',
   'settings.apps.configure': 'Cấu hình {tool}',
   'settings.credentials.title': 'Lưu trữ thông tin xác thực',
   'settings.credentials.encrypted': 'Tệp mã hóa',

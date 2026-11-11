@@ -355,7 +355,6 @@ export const zhTW = {
   'settings.close': "關閉",
   'settings.general': '通用',
   'settings.apps.title': '應用',
-  'settings.apps.hint': '選擇啟動頁顯示哪些工具，與「應用設定」中的選擇一致；開啟的工具顯示為卡片，最多 6 個。',
   'settings.apps.configure': '設定 {tool}',
   'settings.credentials.title': '憑證儲存',
   'settings.credentials.encrypted': '加密檔案',
