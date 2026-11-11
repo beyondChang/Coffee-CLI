@@ -355,6 +355,41 @@ pub fn agent_save_model(app: AppHandle, config: SaveModel) -> Result<(), String>
     save_json(&path, &next)
 }
 
+/// Connectivity probe for the model form: one minimal completion request
+/// built from the form's current values. Nothing is saved and no tool loop
+/// starts, so a failing key or URL is reported before it matters in a chat.
+#[tauri::command]
+pub async fn agent_test_model(config: SaveModel) -> Result<(), String> {
+    let probe = ModelConfig {
+        provider: config.provider,
+        base_url: config.base_url.trim().trim_end_matches('/').into(),
+        model: config.model.trim().into(),
+        english_delegation: true,
+        api_key: config.api_key.unwrap_or_default().trim().into(),
+        work_modes: Default::default(),
+    };
+    validate_model_request(&probe)?;
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none()).build().map_err(|_| "Could not create model client")?;
+    let request = client.post(endpoint(&probe));
+    let request = match probe.provider {
+        Provider::Openai => {
+            let request = if probe.api_key.is_empty() { request } else { request.bearer_auth(&probe.api_key) };
+            request.json(&json!({"model":probe.model,"messages":[{"role":"user","content":"ping"}],"max_tokens":1,"stream":false}))
+        }
+        Provider::Anthropic => {
+            let request = if probe.api_key.is_empty() { request } else { request.header("x-api-key",&probe.api_key) };
+            request.header("anthropic-version","2023-06-01").json(&json!({"model":probe.model,"max_tokens":1,"messages":[{"role":"user","content":"ping"}]}))
+        }
+    };
+    let response = request.send().await.map_err(|_| "Could not reach the model service")?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("Model service returned HTTP {}", status.as_u16()));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_conversation_id(id: &str) -> Result<(), String> {
     if id.is_empty()
         || id.len() > 80

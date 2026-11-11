@@ -72,7 +72,10 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
    label/control pairing (the voice form's Unisound hint did exactly that). */
 .agent-field-hint { grid-column: 1 / -1; margin: 8px 0 0; color: var(--text-2); font-size: var(--type-label); line-height: 1.8; }
 .agent-form-footer { display: flex; grid-column: 2 / -1; align-items: center; gap: 12px; margin: 4px 0 0; }
-.agent-form-footer > button { order: 1; margin-inline-start: auto; }
+.agent-form-footer > button { order: 1; }
+/* Only the first button pushes the button group to the right edge; a second
+   button (the connectivity test) then sits beside it with the normal gap. */
+.agent-form-footer > button:first-of-type { margin-inline-start: auto; }
 .agent-mode-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 48px; }
 .agent-mode-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; color: var(--text-2); font-size: var(--type-body); }
 .agent-mode-row .agent-mode-switch { margin-left: 0; padding: 0; border: 0; cursor: pointer; }

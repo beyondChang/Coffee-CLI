@@ -287,9 +287,9 @@ function isUnisoundUrl(url: string): boolean {
 }
 
 type ModelKind = 'text' | 'voice';
-const MODEL_ENDPOINTS: Record<ModelKind, { get: string; save: string; title: I18nKey }> = {
-  text: { get: 'agent_get_model', save: 'agent_save_model', title: 'agent.model.title' },
-  voice: { get: 'agent_get_voice_model', save: 'agent_save_voice_model', title: 'agent.voice.title' },
+const MODEL_ENDPOINTS: Record<ModelKind, { get: string; save: string; test: string; title: I18nKey }> = {
+  text: { get: 'agent_get_model', save: 'agent_save_model', test: 'agent_test_model', title: 'agent.model.title' },
+  voice: { get: 'agent_get_voice_model', save: 'agent_save_voice_model', test: 'agent_test_voice_model', title: 'agent.voice.title' },
 };
 
 /** One model form; text and voice each read and save their own independent settings. */
@@ -299,6 +299,7 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
   const [config, setConfig] = useState<ModelSettings>({ provider: 'openai', baseUrl: DEFAULT_URL.openai, model: '', apiKey: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [feedback, setFeedback] = useState<I18nKey | ''>('');
   const [error, setError] = useState('');
 
@@ -326,6 +327,16 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
     finally { setSaving(false); }
   };
 
+  // Connectivity probe with the form's current values; nothing is saved.
+  const test = async () => {
+    setTesting(true); setError(''); setFeedback('');
+    try {
+      await invoke(endpoints.test, { config: { provider: config.provider, baseUrl: config.baseUrl.trim(), model: config.model.trim(), apiKey: config.apiKey.trim() } });
+      setFeedback('agent.model.test_ok');
+    } catch (failure) { setError(String(failure)); }
+    finally { setTesting(false); }
+  };
+
   return <section className="agent-settings-section">
       <div className="agent-model-heading"><h2>{t(endpoints.title)}</h2>{helpButton}</div>
       <form className="agent-model-form" onSubmit={save}>
@@ -339,7 +350,7 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
           {/* A full-width note goes last: inserted between two fields it takes
               the next grid row and leaves that pair out of step. */}
           {kind === 'voice' && isUnisoundUrl(config.baseUrl) && <p className="agent-field-hint" role="status">{t('agent.voice.unisound_hint')}</p>}
-          <div className="agent-form-footer"><button type="submit" className="agent-button primary">{saving ? t('agent.model.saving') : t('agent.model.save')}</button><span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span></div>
+          <div className="agent-form-footer"><button type="button" className="agent-button quiet" disabled={loading || saving || testing} onClick={() => void test()}>{testing ? t('agent.model.testing') : t('agent.model.test')}</button><button type="submit" className="agent-button primary" disabled={loading || saving || testing}>{saving ? t('agent.model.saving') : t('agent.model.save')}</button><span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span></div>
         </fieldset>
         {error && <p className="agent-feedback error" role="alert">{formatAgentError(error, t)}</p>}
       </form>

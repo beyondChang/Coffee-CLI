@@ -164,6 +164,47 @@ pub fn agent_save_voice_model(app: AppHandle, config: SaveVoiceModel) -> Result<
     save_json(&path, &next)
 }
 
+/// Connectivity probe for the voice model form. Unisound has no key-check
+/// endpoint, so reaching the service root proves connectivity; OpenAI-compatible
+/// transcription services answer GET /models, which also verifies the API key.
+#[tauri::command]
+pub async fn agent_test_voice_model(config: SaveVoiceModel) -> Result<(), String> {
+    let base_url = config.base_url.trim().trim_end_matches('/').to_owned();
+    if base_url.is_empty() {
+        return Err("请先在 Agent 配置中填写服务地址".into());
+    }
+    validate_base_url(&base_url)?;
+    let key = config.api_key.unwrap_or_default().trim().to_owned();
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|_| "Could not create voice model client")?;
+    if is_u2_asr_host(&base_url) {
+        let root = u2_service_root(&base_url).ok_or("Invalid u2-asr service URL")?;
+        client
+            .get(root)
+            .send()
+            .await
+            .map_err(|_| "Could not reach the voice model service")?;
+        // Any HTTP answer (even 404) proves the service is reachable.
+        return Ok(());
+    }
+    let request = if key.is_empty() {
+        client.get(format!("{base_url}/models"))
+    } else {
+        client.get(format!("{base_url}/models")).bearer_auth(&key)
+    };
+    let response = request
+        .send()
+        .await
+        .map_err(|_| "Could not reach the voice model service")?;
+    let status = response.status();
+    if matches!(status, reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN) {
+        return Err(format!("Voice model service returned HTTP {}", status.as_u16()));
+    }
+    Ok(())
+}
+
 /// Unisound MaaS: an asynchronous, task-based ASR service (model `u2-asr`)
 /// that is not OpenAI compatible. Uploading and task creation live under
 /// different paths, so the service URL alone is the base:
