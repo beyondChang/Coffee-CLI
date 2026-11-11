@@ -347,6 +347,9 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
    idle state reads identical to the empty-pane badge and the user only
    sees "close" affordance when they're reaching for it. */
 .pane-number-badge--closable {
+  /* Above .panel-edge-handle (z 300): the rightmost pane's close badge sits
+     under the fixed edge handle and must stay clickable. */
+  z-index: 350;
   pointer-events: auto;
   cursor: pointer;
   transition: background-color 120ms ease;
