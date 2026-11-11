@@ -34,6 +34,15 @@ fn segment(value: &str) -> bool {
         && value.bytes().all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c))
 }
 
+/// A skill's front-matter name may be any Unicode segment (local skills are
+/// often named in the user's language, e.g. Chinese); only empty names and
+/// path separators stay forbidden. GitHub-sourced names keep the stricter
+/// `segment` check on install and source validation.
+pub(crate) fn valid_display_name(value: &str) -> bool {
+    !value.is_empty() && value.len() <= 100 && value != "." && value != ".."
+        && !value.contains(['/', '\\']) && !value.bytes().any(|c| c < 0x20 || c == 0x7f)
+}
+
 pub(crate) fn repository(source: &str) -> Result<String, String> {
     let source = source.trim().trim_end_matches('/').trim_end_matches(".git");
     let source = source.strip_prefix("https://github.com/").unwrap_or(source);
@@ -88,7 +97,7 @@ pub(crate) fn skill_metadata(body: &str) -> Result<(String,String),String> {
             } else { description = value.trim_matches(['\'', '"']).to_string(); }
         }
     }
-    if !segment(&name) || description.trim().is_empty() { return Err("SKILL.md must have a valid name and description".into()); }
+    if !valid_display_name(&name) || description.trim().is_empty() { return Err("SKILL.md must have a valid name and description".into()); }
     Ok((name,description.chars().take(1000).collect()))
 }
 
@@ -637,6 +646,7 @@ mod tests {
     #[test]
     fn skill_frontmatter_is_validated_before_install(){
         assert_eq!(skill_metadata("---\nname: fixture\ndescription: >\n  Useful first line.\n  More detail.\n---\nDo the work.").unwrap(),("fixture".into(),"Useful first line. More detail.".into()));
+        assert_eq!(skill_metadata("---\nname: 完美中文小说\ndescription: test\n---\nbody").unwrap().0, "完美中文小说");
         assert!(skill_metadata("---\nname: ../escape\ndescription: test\n---\nbody").is_err());
         assert!(skill_metadata("---\nname: fixture\ndescription: test\n---evil\nbody").is_err());
         assert!(skill_metadata("---\nname: fixture\ndescription: test\n---\n").is_err());

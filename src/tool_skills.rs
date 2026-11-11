@@ -505,11 +505,11 @@ fn remove(tool: &str, root: &Path, directories: &[PathBuf], path: &str) -> Resul
                 // skill; a folder owned by another tool stays protected.
                 if state.installed.iter().any(|s| s.path == path) { return Err("skills_exists".into()); }
                 let name = target.file_name().and_then(|n| n.to_str()).ok_or("skills_source")?.to_string();
-                if !valid_name(&name) || !normal_path(&name) || !directories.iter().any(|p| resolved(p).join(&name) == target) || metadata(&target).is_none() { return Err("skills_modified".into()); }
+                if !crate::agent_capabilities::valid_display_name(&name) || !normal_path(&name) || !directories.iter().any(|p| resolved(p).join(&name) == target) || metadata(&target).is_none() { return Err("skills_modified".into()); }
                 name
             }
         };
-        if !valid_name(&name) || !normal_path(&name) || !directories.iter().any(|p| resolved(p).join(&name) == target) { return Err("skills_modified".into()); }
+        if !crate::agent_capabilities::valid_display_name(&name) || !normal_path(&name) || !directories.iter().any(|p| resolved(p).join(&name) == target) { return Err("skills_modified".into()); }
         if let Some(own) = &own { if digest(&read_files(&target)?) != own.hash { return Err("skills_modified".into()); } }
         let backup = root.join("backups").join(uuid::Uuid::new_v4().to_string()).join(&name);
         write_files(&backup, &read_files(&target)?)?;
@@ -618,6 +618,22 @@ mod tests {
         assert_eq!(backups, 1);
         let restored = fs::read_dir(f.root.join("backups")).unwrap().next().unwrap().unwrap().path().join("demo").join("SKILL.md");
         assert!(fs::read_to_string(restored).unwrap().contains("user"));
+    }
+
+    #[test]
+    fn unicode_skill_folders_are_listed_and_removable() {
+        let f = Fixture::new();
+        let folder = f.directories[0].join("完美中文小说");
+        let files = vec![FileData { path:"SKILL.md".into(), bytes:String::from("---\nname: 完美中文小说\ndescription: 中文创作技能\n---\nbody\n").into_bytes(), executable:false }];
+        write_files(&folder, &files).unwrap();
+        let listed = inventory("claude", &f.root, &f.directories).unwrap();
+        assert_eq!(listed.skills.len(), 1);
+        assert_eq!(listed.skills[0].name, "完美中文小说");
+        assert!(!listed.skills[0].managed);
+        let removed = remove("claude", &f.root, &f.directories, &folder.to_string_lossy()).unwrap();
+        assert!(removed.skills.is_empty()); assert!(!folder.exists());
+        let restored = fs::read_dir(f.root.join("backups")).unwrap().next().unwrap().unwrap().path().join("完美中文小说").join("SKILL.md");
+        assert!(fs::read_to_string(restored).unwrap().contains("中文创作技能"));
     }
 
     #[test]
