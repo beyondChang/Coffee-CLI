@@ -8,7 +8,6 @@
 // dialog.
 
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { CONFIGURABLE_AGENT_TOOLS, getToolIcon } from '../center/CenterPanel';
 import { ToolConfigModal } from '../center/ToolConfigModal';
 import { ToolSettingsPage } from '../center/ToolSettingsPage';
@@ -121,6 +120,8 @@ export function AgentAppsSection() {
     <ToolSettingsPage active tools={tools} count={pinnedCount} limit={PINNED_ITEMS_LIMIT}>
       {grid}
     </ToolSettingsPage>
-    {configTool && createPortal(<ToolConfigModal toolKey={configTool.key} toolLabel={configTool.label} onClose={() => setConfigTool(null)} />, document.body)}
+    {/* The config modal mounts itself at body level (see ToolConfigModal) so
+        it stacks above this section's dialog. */}
+    {configTool && <ToolConfigModal toolKey={configTool.key} toolLabel={configTool.label} onClose={() => setConfigTool(null)} />}
   </section>;
 }

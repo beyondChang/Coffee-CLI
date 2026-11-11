@@ -1779,9 +1779,9 @@ export function CenterPanel() {
         )}
       </div>
 
-      {/* Per-tool launch override modal. Mounted at root so its fixed-
-          position backdrop covers the whole window, not just the
-          launchpad area. */}
+      {/* Per-tool launch override modal. It mounts itself at body level (see
+          ToolConfigModal) so its backdrop covers the whole window and stacks
+          above the tool settings dialog portaled there. */}
       {closingGroup && <CloseSessionGroupDialog error={closingGroup.error} onChoose={keepChildren => closeGroup(closingGroup.id, keepChildren)} onClose={() => setClosingGroup(null)} />}
       {configModalTool && (
         <ToolConfigModal

@@ -822,7 +822,7 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
 
 /* Tool settings opens as a modal from the launchpad. It is portaled to the
    body so glass / carbon / monogram descendant transparency cannot reach it.
-   z-index stays below .tool-config-backdrop (1000) so a per-tool config
+   z-index stays below .tool-config-backdrop (2100) so a per-tool config
    opened from inside the dialog still sits on top. */
 .tool-settings-overlay { position: fixed; inset: 0; z-index: 900; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
 .tool-settings-modal { display: flex; flex-direction: column; width: min(1000px, 92vw); height: min(680px, 88vh); background: var(--bg-panel, #1c1c1e); border: 1px solid var(--border, rgba(255, 255, 255, 0.08)); border-radius: var(--radius-md, 14px); box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.55), 0 8px 20px -8px rgba(0, 0, 0, 0.4); overflow: hidden; }
@@ -969,6 +969,10 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
 /* etc. so dawn (light) and dark themes both work without re-coloring */
 /* anything inline. No descriptive copy — only field labels.          */
 
+/* Mounts at body level (ToolConfigModal portals itself). 2100 clears both
+   dialogs whose gear opens it — .tool-settings-overlay (900) and the settings
+   modal .settings-overlay (2000) — and stays under ctx-menus (9999) and
+   tooltips / ThemedSelect menus (10000+). */
 .tool-config-backdrop {
   position: fixed;
   inset: 0;
@@ -978,7 +982,7 @@ body.session-split-dragging { cursor: grabbing; user-select: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2100;
 }
 
 /* Visual language unified with .remote-form-card (Remote Terminal

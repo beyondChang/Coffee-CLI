@@ -16,6 +16,7 @@
 // Persisted via Tauri command into ~/.coffee-cli/tools.json.
 
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { commands, type ToolConfigEntry } from '../../tauri';
 import { useT } from '../../i18n/useT';
 import { ThemedSelect } from '../common/ThemedSelect';
@@ -169,7 +170,12 @@ export function ToolConfigModal({ toolKey, toolLabel, onClose }: Props) {
     }
   };
 
-  return (
+  // Mounted at body level, never inline in the caller's tree. #root carries a
+  // clip-path (rounded window corners) that creates a stacking context, so an
+  // inline fixed backdrop can never paint above a body-level dialog portal —
+  // the config modal opened from a gear must stack ON TOP of the dialog that
+  // hosts it (.tool-settings-overlay z 900 / .settings-overlay z 2000).
+  return createPortal(
     <div onMouseDown={event => { if (event.button === 0 && event.target === event.currentTarget) onClose(); }} className="tool-config-backdrop">
       <div onClick={e => e.stopPropagation()} className="tool-config-modal">
         <div className="tool-config-header">
@@ -223,7 +229,8 @@ export function ToolConfigModal({ toolKey, toolLabel, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
