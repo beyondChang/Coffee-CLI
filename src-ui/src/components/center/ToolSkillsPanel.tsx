@@ -52,6 +52,30 @@ function SkillCardDetails({ item, children }: { item: CatalogSkill | ToolSkill; 
     <p className="skill-description">{summary || item.description || description || '\u00a0'}</p>
   </div>;
 }
+/** Right-click menu on installed-skill cards. Reuses the workspace-tree
+ *  `.ctx-menu` classes (Explorer.css) for theme and dismissal consistency. */
+function SkillCardMenu({ menu, onClose }: { menu: { path: string; x: number; y: number }; onClose: () => void }) {
+  const t = useT();
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const dismiss = (event: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(event.target as Node)) onClose(); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', dismiss); document.removeEventListener('keydown', escape); };
+  }, [onClose]);
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    ...(menu.y + 48 > window.innerHeight ? { bottom: Math.max(0, window.innerHeight - menu.y) } : { top: menu.y }),
+    ...(menu.x + 180 > window.innerWidth ? { right: Math.max(0, window.innerWidth - menu.x) } : { left: menu.x }),
+  };
+  return createPortal(
+    <div className="ctx-menu" ref={menuRef} style={style} role="menu">
+      <button className="ctx-menu-item" onClick={() => { onClose(); void commands.showInFolder(menu.path).catch(() => {}); }}>{t('filetab.open_folder')}</button>
+    </div>,
+    document.body,
+  );
+}
 function SkillDetailDialog({ item, onClose, onSaved }: { item: CatalogSkill | ToolSkill; onClose: () => void; onSaved: () => void }) {
   const t = useT();
   const key = skillSummaryKey(item);
@@ -111,6 +135,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
   const [pending, setPending] = useState<{ key: string; tool: string } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null), [confirm, setConfirm] = useState<string | null>(null);
   const [detail, setDetail] = useState<CatalogSkill | ToolSkill | null>(null);
+  const [menu, setMenu] = useState<{ path: string; x: number; y: number } | null>(null);
   const [, setSummaryTick] = useState(0);
   const [loading, setLoading] = useState(false);
   const [coldSearch, setColdSearch] = useState<string | null>(null);
@@ -171,7 +196,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
     const r = element.getBoundingClientRect();
     setTip({ label, left:Math.max(8, Math.min(r.left, window.innerWidth - 248)), top:r.bottom + 6 });
   };
-  const navigate = (next: string) => { setSelected(next); setError(null); setConfirm(null); setExpanded(null); setTip(null); setDetail(null); };
+  const navigate = (next: string) => { setSelected(next); setError(null); setConfirm(null); setExpanded(null); setTip(null); setDetail(null); setMenu(null); };
   const operate = async (item: CatalogSkill | ToolSkill, tool: string, remove = false) => {
     if (pending || !enabled.some(entry => entry.value === tool) || !inventoryFor(tool)?.supported || !remove && !item.source) return;
     const key = 'path' in item ? item.path : `${item.source}/${item.name}`;
@@ -200,6 +225,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
     </div>
     {active && tip && createPortal(<span className="tool-memory-tool-tip" role="tooltip" style={{ left:tip.left, top:tip.top }}>{tip.label}</span>, document.body)}
     {detail && <SkillDetailDialog item={detail} onClose={() => setDetail(null)} onSaved={() => setSummaryTick(value => value + 1)} />}
+    {menu && <SkillCardMenu menu={menu} onClose={() => setMenu(null)} />}
     {error?.scope === view && <p className="skills-error" role="alert">{error.label && `${error.label} · `}{t(error.key)}</p>}
     {view !== 'discover' && inventory?.supported === false ? <div className="skills-empty">{t('skills.unsupported')}</div> : <div className="skills-grid" aria-busy={!!pending || searching || skeletons > 0}>
       {items.map(item => {
@@ -207,7 +233,7 @@ export function ToolSkillsPanel({ active, tools }: { active: boolean; tools: { v
         const key = 'path' in item ? item.path : `${item.source}/${item.name}`;
         const recipients = enabled.filter(entry => inventoryFor(entry.value)?.skills.some(skill => skill.name === item.name && skill.source === item.source));
         const open = expanded === key;
-        return <article key={key} className="skill-card">
+        return <article key={key} className="skill-card" onContextMenu={view !== 'discover' && local ? event => { event.preventDefault(); setMenu({ path: local.path, x: event.clientX, y: event.clientY }); } : undefined}>
           <SkillCardDetails item={item}>
             {view === 'discover' ? <>
               <button type="button" className="skill-details-button" onClick={() => { setDetail(item); setTip(null); }}>{t('skills.details')}</button>
