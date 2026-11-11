@@ -18,7 +18,7 @@ const fixtures = {
 await build({ stdin: { loader: 'tsx', resolveDir: project, contents: `
 import React from'react';import{createRoot}from'react-dom/client';import{AgentModelSection}from'./src/components/agent/AgentPages';import'./src/styles/global.css';import'./src/components/center/TierTerminal.css';
 window.invokes=[];window.clipboardText='';window.stored={provider:'openai',baseUrl:'https://api.openai.com/v1',model:'',apiKey:'sk-saved-plain'};
-createRoot(document.getElementById('root')).render(<div className="agent-page-config"><div className="agent-settings-content" style={{width:720,padding:20}}><AgentModelSection/></div></div>);
+createRoot(document.getElementById('root')).render(<div className="agent-page-config"><div className="agent-settings-content" style={{width:720,padding:20}}><AgentModelSection kind="text"/></div></div>);
 ` }, bundle: true, outfile: join(directory, 'fixture.js'), jsx: 'automatic', define: { __IS_LINUX__: 'false' },
   loader: { '.woff2': 'dataurl', '.svg': 'dataurl', '.png': 'dataurl' }, external: ['/fonts/*', '/monogram.svg', '/backgrounds/*'],
   plugins: [{ name: 'agent-model-fixtures', setup(b) {
@@ -52,9 +52,14 @@ try {
     }
   };
 
-  // The saved API key is ordinary visible text.
-  assert.equal(await key.getAttribute('type'), null);
+  // The saved API key is masked until the user asks to read it.
+  assert.equal(await key.getAttribute('type'), 'password');
   assert.equal(await key.inputValue(), 'sk-saved-plain');
+  const reveal = page.locator('.agent-secret-toggle');
+  await reveal.click();
+  assert.equal(await key.getAttribute('type'), 'text');
+  await reveal.click();
+  assert.equal(await key.getAttribute('type'), 'password');
 
   // Each field pastes from a button inside its right edge, replacing the value and trimming newlines.
   await setClipboard('  https://example.test/v1\n');
@@ -113,6 +118,6 @@ try {
   await page.evaluate(() => { document.querySelector('.agent-settings-content').style.width = '380px'; });
   await pasteButtonsSitInsideFields(200);
   await page.screenshot({ path: join(directory, 'narrow.png') });
-  console.log('OK: Super Assistant model fields paste from buttons inside the fields, use the shared right-click menu, and keep the API key as optional plain text');
+  console.log('OK: Super Assistant model fields paste from buttons inside the fields, use the shared right-click menu, and keep the API key optional and masked');
   console.log(`Screenshots: ${directory}`);
 } finally { await browser.close(); server.close(); }

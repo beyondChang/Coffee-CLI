@@ -335,8 +335,10 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
           }} /></label>
           <AgentPasteInput label={t('agent.model.url')} type="url" value={config.baseUrl} placeholder={DEFAULT_URL[config.provider]} onValue={setBaseUrl} openMenu={openMenu} />
           <AgentPasteInput label={t('agent.model.id')} value={config.model} maxLength={200} placeholder={t('agent.model.id_placeholder')} onValue={setModel} openMenu={openMenu} />
-          {kind === 'voice' && isUnisoundUrl(config.baseUrl) && <p className="agent-field-hint" role="status">{t('agent.voice.unisound_hint')}</p>}
           <AgentPasteInput label={t('agent.model.api_key')} secret value={config.apiKey} autoComplete="off" placeholder={t('agent.model.api_key_placeholder')} onValue={setKey} openMenu={openMenu} />
+          {/* A full-width note goes last: inserted between two fields it takes
+              the next grid row and leaves that pair out of step. */}
+          {kind === 'voice' && isUnisoundUrl(config.baseUrl) && <p className="agent-field-hint" role="status">{t('agent.voice.unisound_hint')}</p>}
           <div className="agent-form-footer"><button type="submit" className="agent-button primary">{saving ? t('agent.model.saving') : t('agent.model.save')}</button><span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span></div>
         </fieldset>
         {error && <p className="agent-feedback error" role="alert">{formatAgentError(error, t)}</p>}

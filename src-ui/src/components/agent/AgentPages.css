@@ -67,7 +67,10 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
 .agent-field input::placeholder, .agent-inline-input::placeholder { color: var(--text-3); }
 .agent-select-trigger { min-width: 0; min-height: 34px; padding: 7px 10px; }
 .agent-select-trigger:focus-visible { outline: none; border-color: var(--accent); }
-.agent-field-hint { margin: 8px 0 0; color: var(--text-2); font-size: var(--type-label); line-height: 1.8; }
+/* Full-width inside the 4-column fieldset grid: as a bare grid item it would
+   take the label track of a new row and shift every field after it out of its
+   label/control pairing (the voice form's Unisound hint did exactly that). */
+.agent-field-hint { grid-column: 1 / -1; margin: 8px 0 0; color: var(--text-2); font-size: var(--type-label); line-height: 1.8; }
 .agent-form-footer { display: flex; grid-column: 2 / -1; align-items: center; gap: 12px; margin: 4px 0 0; }
 .agent-form-footer > button { order: 1; margin-inline-start: auto; }
 .agent-mode-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 48px; }
