@@ -58,11 +58,19 @@ export function getClaudeConnection(id: string) {
   return c && c.owners > 0 ? { generation: c.generation, state: c.state, ready: c.state.ready && !c.connecting && !c.restarting, inputBusy: c.state.busy || !!c.restarting } : undefined;
 }
 
+/** The Ultracode switch as the user set it. The CLI's own `ultracode` is only true while the model and workflows
+ *  allow it, so a switch that is on but not available reads back false; like Claude desktop, keep showing what was
+ *  asked for and let the CLI's `ultracodeRequested` say so. */
+function requestedUltracode(applied: Json, effective: Json): boolean {
+  if (typeof applied.ultracodeRequested === 'boolean') return applied.ultracodeRequested;
+  return typeof applied.ultracode === 'boolean' ? applied.ultracode : effective.ultracode === true;
+}
+
 async function readSettings(id: string, c: Client) {
   const settings = await invoke<Json>('claude_session_control', { id, generation: c.generation, request: { subtype: 'get_settings' } });
   const applied = object(settings.applied), effective = object(settings.effective);
   const selected = text(applied.model) || text(effective.model) || c.state.models[0]?.resolvedModel || 'default';
-  c.state = { ...c.state, model: selected, effort: text(applied.effort) || text(applied.effortLevel) || text(effective.effortLevel), ultracode: typeof applied.ultracode === 'boolean' ? applied.ultracode : effective.ultracode === true, thinking: effective.alwaysThinkingEnabled !== false };
+  c.state = { ...c.state, model: selected, effort: text(applied.effort) || text(applied.effortLevel) || text(effective.effortLevel), ultracode: requestedUltracode(applied, effective), thinking: effective.alwaysThinkingEnabled !== false };
 }
 
 // Tabs restarted as a new conversation: which session they continue, and the prompt waiting to be sent.
@@ -117,8 +125,9 @@ export function retainClaudeSession(id: string, cwd: string | null, resumeToken?
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           await initializeClaude(id, c, cwd, resumeToken);
+          if (!c.owners) return;
           const continuation = continuations.get(id);
-          if (continuation) { continuations.delete(id); await sendClaudeMessage(id, continuation.prompt); }
+          if (continuation) { continuations.delete(id); if (continuation.prompt) await sendClaudeMessage(id, continuation.prompt); }
           return;
         }
         catch (error) {
@@ -142,6 +151,7 @@ export function retainClaudeSession(id: string, cwd: string | null, resumeToken?
       void (c.starting ?? Promise.resolve()).finally(() => invoke('claude_session_close', { id, generation: c.generation })).catch(() => {});
       clearTimeout(c.publishTimer);
       clearSessionControls(id, c.generation);
+      continuations.delete(id);
       clients.delete(id);
     }, 300);
   };
@@ -167,13 +177,14 @@ export async function settleClaudeColdReturn(id: string, choice: 'full' | 'never
   if (choice !== 'cancel' && prompt && !await sendClaudeMessage(id, prompt)) { c.state = { ...c.state, coldReturn: held }; publish(c, true); }
   return prompt;
 }
-/** Hands the held prompt to a new conversation in tab `newId`, with a pointer to this one instead of its history. */
-export function continueClaudeInNewConversation(id: string, newId: string): void {
-  const c = client(id), prompt = c.state.coldReturn?.prompt;
-  if (!prompt) return;
+/** Prepares a new conversation with a pointer to this one, forwarding a prompt only when the cold-return card held it. */
+export function continueClaudeInNewConversation(id: string, newId: string): boolean {
+  const c = client(id), prompt = c.state.coldReturn?.prompt ?? '';
+  if (!c.state.ready || c.state.busy || c.restarting || !c.state.nativeId || !c.state.messages.length || c.state.requests.length || c.state.backgroundTasks.length) return false;
   const messages = c.state.messages, lastPrompt = messages.findLast(m => m.role === 'user'), reply = messages.findLast(m => m.role === 'assistant');
   continuations.set(newId, { prompt, continueFrom: { token: c.state.nativeId, prompt: lastPrompt?.content ?? '', reply: reply?.content ?? '' } });
   c.state = { ...c.state, coldReturn: undefined };
+  return true;
 }
 export async function sendClaudeMessage(id: string, prompt: string, orchestrationDelivery?: string): Promise<boolean> {
   const c = client(id);
@@ -236,7 +247,7 @@ export async function controlClaude(id: string, request: Json): Promise<Json> {
       const applied = object(settings.applied);
       if (typeof applied.model === 'string') patch.model = applied.model;
       if (typeof applied.effort === 'string') patch.effort = applied.effort;
-      if (typeof applied.ultracode === 'boolean') patch.ultracode = applied.ultracode;
+      if (typeof applied.ultracodeRequested === 'boolean' || typeof applied.ultracode === 'boolean') patch.ultracode = requestedUltracode(applied, {});
     }
     c.state = { ...c.state, ...patch }; publish(c, true); return result;
   } catch (error) {

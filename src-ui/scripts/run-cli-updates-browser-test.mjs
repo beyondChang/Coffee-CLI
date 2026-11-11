@@ -41,8 +41,9 @@ try{
   await card('Claude Code').getByRole('button',{name:'更新 1.2.0',exact:true}).dblclick();
   await page.waitForFunction(()=>window.updates.length===1);
   assert.equal(await page.evaluate(()=>window.launches),0,'update clicks never launch a CLI or open its folder menu');
-  const updating=card('Claude Code').getByRole('button',{name:'正在更新',exact:true});
-  assert.equal(await updating.isDisabled(),true);assert.equal(await updating.innerText(),'更新','busy keeps the word; its accessible name says it is updating');
+  const updating=card('Claude Code').getByRole('button',{name:'更新中',exact:true});
+  assert.equal(await updating.isDisabled(),true);assert.equal(await updating.locator('.cli-update-label').evaluate(el=>getComputedStyle(el).visibility),'visible','busy keeps its label visible above the stripes');
+  assert.equal(await updating.locator('.cli-update-label').textContent(),'更新中');
   assert.equal(await updating.locator('.cli-update-stripes').count(),1);
   assert.equal(await updating.locator('.cli-update-stripes').evaluate(el=>getComputedStyle(el).animationName),'cli-update-stripes');
   await page.emulateMedia({reducedMotion:'reduce'});
@@ -56,7 +57,7 @@ try{
   await page.getByRole('tooltip').filter({hasText:'更新超时'}).waitFor();assert.equal(await retry.getAttribute('title'),null);
   await retry.press('Enter');await page.waitForFunction(()=>window.updates.length===2);
   await card('Codex CLI').getByRole('button',{name:'更新 2.0.0',exact:true}).click();await page.waitForFunction(()=>window.updates.length===3);
-  assert.equal(await page.getByRole('button',{name:'正在更新',exact:true}).count(),2);
+  assert.equal(await page.getByRole('button',{name:'更新中',exact:true}).count(),2);
   await page.evaluate(()=>{window.releaseUpdates.claude();window.releaseUpdates.codex()});
   await page.waitForFunction(()=>document.querySelectorAll('.cli-update-button').length===0);
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('cc-cli-updates-v1')).find(status=>status.tool==='claude').current),'1.2.0');
@@ -69,16 +70,18 @@ try{
   await card('Claude Code').getByRole('button',{name:'更新 1.3.0',exact:true}).waitFor();
   for(const[mode,shape,width]of[['dark','soft',900],['light','panel',620],['dark','glass',460]]){
     await page.evaluate(({mode,shape})=>{document.documentElement.dataset.mode=mode;document.documentElement.dataset.shape=shape},{mode,shape});await page.setViewportSize({width,height:700});
+    await page.evaluate(()=>document.fonts.ready);
     const update=await card('Claude Code').locator('.cli-update-button').boundingBox(),bounds=await card('Claude Code').boundingBox(),gear=await page.getByRole('button',{name:'打开文件夹',exact:true}).boundingBox();
     const name=await card('Claude Code').locator('.launchpad-card-name').boundingBox();
     assert.ok(update.x>=name.x+name.width&&update.x-(name.x+name.width)<=10,'the update label follows the tool name');
     assert.ok(Math.abs(update.y+update.height/2-(name.y+name.height/2))<2,'on the name line');
     assert.ok(update.x>=bounds.x&&update.x+update.width<=Math.min(bounds.x+bounds.width,gear.x),'inside the card, clear of the folder button');
     await page.mouse.move(0,0);await card('Claude Code').locator('.cli-update-button').hover();
+    const hoveredUpdate=await card('Claude Code').locator('.cli-update-button').boundingBox();
     const tip=await page.getByRole('tooltip').boundingBox();
-    const expectedLeft=Math.max(8,Math.min(update.x+update.width/2-tip.width/2,width-tip.width-8));
+    const expectedLeft=Math.max(8,Math.min(hoveredUpdate.x+hoveredUpdate.width/2-tip.width/2,width-tip.width-8));
     assert.ok(Math.abs(tip.x-expectedLeft)<1&&tip.x+tip.width<=width-8,'tip is centered beneath the update button and clamped at viewport edges');
-    assert.ok(Math.abs(tip.y-update.y-update.height-8)<1,'centered tip retains the space below the button');
+    assert.ok(Math.abs(tip.y-hoveredUpdate.y-hoveredUpdate.height-8)<1,`centered tip retains the space below the button ${JSON.stringify({mode,shape,update,hoveredUpdate,tip})}`);
     await page.mouse.move(0,0);await card('Claude Code').locator('.cli-update-button').evaluate(el=>el.blur());await card('Claude Code').locator('.cli-update-button').focus();
     assert.ok(Math.abs((await page.getByRole('tooltip').boundingBox()).x-tip.x)<1,'keyboard focus uses the same centered placement');
     await page.screenshot({path:join(directory,`cli-updates-${mode}-${shape}.png`)});
@@ -91,6 +94,24 @@ try{
     await page.evaluate(()=>window.releaseUpdates.claude('cli_update_timeout'));
     await card('Claude Code').getByRole('button',{name:'更新 1.3.0',exact:true}).waitFor();
   }
+  for(const language of ['zh-CN','zh-TW','en','ja','ko','es','fr','de','pt','ru','vi']){
+    const source=await readFile(join(project,'src','i18n',`${language}.ts`),'utf8');
+    const idleLabel=source.match(/'cli_update.label': '([^']+)'/)[1],busyLabel=source.match(/'cli_update.updating': '([^']+)'/)[1];
+    await page.evaluate(language=>window.changeLanguage(language),language);
+    const button=card('Claude Code').locator('.cli-update-button');
+    await page.waitForFunction(label=>document.querySelector('.cli-update-label')?.textContent===label,idleLabel);
+    const idle=await button.boundingBox();
+    await button.click();
+    await page.waitForFunction(label=>document.querySelector('.cli-update-label')?.textContent===label,busyLabel);
+    const busy=await button.boundingBox();
+    assert.deepEqual(busy,idle,`${language}: changing state keeps the button position and size`);
+    assert.equal(await button.locator('.cli-update-label').evaluate(el=>getComputedStyle(el).visibility),'visible');
+    assert.equal(await button.locator('.cli-update-label').evaluate(el=>getComputedStyle(el).color),await button.evaluate(el=>{const probe=document.createElement('span');probe.style.color='var(--bg-app)';el.append(probe);const color=getComputedStyle(probe).color;probe.remove();return color}),'busy uses the theme text color for accent backgrounds');
+    await page.evaluate(()=>window.releaseUpdates.claude('cli_update_timeout'));
+    await page.waitForFunction(()=>document.querySelector('.cli-update-button')?.getAttribute('aria-busy')==='false');
+    assert.deepEqual(await button.boundingBox(),idle,`${language}: failure also keeps the button size`);
+  }
+  await page.evaluate(()=>window.changeLanguage('zh-CN'));
   await page.evaluate(()=>{window.failCheck=false;window.statuses.cursor={tool:'cursor',current:'1.0.70',latest:'2026.10.22-27dcf5f',available:true};window.showLauncher(false)});await page.evaluate(()=>window.showLauncher(true));
   const cursorUpdate=card('Cursor').getByRole('button',{name:'更新 2026.10.22-27dcf5f',exact:true});await cursorUpdate.waitFor();
   for(const edge of ['left','right']){

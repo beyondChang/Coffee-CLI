@@ -1,49 +1,26 @@
-// TaskNoteView — sticky-note presentation of the task board. Same TaskItem
-// data as the to-do list (TaskBoard owns the state and passes it down); this
-// view just renders each task as a roomy note card:
+// TaskNoteView — the pre-input board's sticky notes. TaskBoard owns the notes and passes them down.
 //
-//   ┌─────────────────────────────────────────────┐
-//   │ ● ● ●          2026.6.28  21:48  ⧉  🗑  ▶    │   ← traffic-light status
-//   │                                               │     dots + timestamp
-//   │  (big editable note body — write freely)      │
-//   └─────────────────────────────────────────────┘
+//   collapsed, at rest     │ note text on one line…                  │
+//   collapsed, hovered     │ note text on one li…          🗑  ▶ │   ← a glow follows the pointer; line icons slide in
+//   open (after a click)   │ the whole note                          │
+//                          │ ✎  ⧉  🗑                             ▶ │   ← a row of actions
 //
-// The three dots ARE the status picker (红=进行中 / 黄=待办 / 绿=已完成); clicking
-// one sets the status and the card auto-sorts into that group (working → todo →
-// done), exactly like the list view's section order. Cards can be dragged
-// up/down to reorder within their group. The note body edits `title` (single
-// roomy field — the whole point is escaping the cramped inline input); the
-// list view's `description` field is preserved but not surfaced here.
+// A click opens or closes a note; the edit button under an open note edits it. Cards drag up and down to reorder.
+// The body edits `title`.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useT } from '../../i18n/useT';
 import { TaskEmptyState } from './TaskEmptyState';
-import { STATUS_ORDER, type TaskItem, type TaskStatus } from './task-types';
+import type { TaskItem } from './task-types';
 import { useTextContextMenu } from '../../lib/use-text-context-menu';
-import { bindAutoHideScrollbar } from '../../lib/auto-hide-scrollbar';
 import './TaskNoteView.css';
 
-// Traffic-light dots, top-to-bottom priority. Colors are deliberately the
-// literal macOS-window red/amber/green from the user's mockup, not the theme
-// accent — the three-light metaphor only reads if the colors are fixed.
-const STATUS_DOTS: { status: TaskStatus; color: string }[] = [
-  { status: 'working', color: '#ff5f57' },
-  { status: 'todo', color: '#febc2e' },
-  { status: 'done', color: '#28c840' },
-];
 
-// Note body height. Un-resized notes auto-grow from a roomy default; the
-// bottom-edge handle clamps a manual height between these bounds.
-const DEFAULT_NOTE_HEIGHT = 88;
+// Smallest body while editing, so an empty note still offers room to type.
 const NOTE_MIN_HEIGHT = 44;
-const NOTE_MAX_HEIGHT = 600;
+// Collapsed notes show about two lines; an open note shows all of its text, so only the list scrolls.
+const NOTE_COLLAPSED_HEIGHT = 50;
 
-function formatNoteTime(ts: number): { date: string; time: string } {
-  const d = new Date(ts);
-  const date = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
-  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return { date, time };
-}
 
 interface DropLine {
   id: string;
@@ -58,11 +35,7 @@ interface TaskNoteViewProps {
   // The task mid-removal — kept rendered for one exit animation before the
   // parent drops it from the array (shared 300ms window with the list view).
   removingId: string | null;
-  canSend: boolean;
-  onSetStatus: (id: string, status: TaskStatus) => void;
   onUpdateTitle: (id: string, title: string) => void;
-  // Persists a bottom-edge-resized body height (called once on drop).
-  onSetHeight: (id: string, height: number) => void;
   onRemove: (id: string) => void;
   onDuplicate: (id: string) => void;
   onSend: (task: TaskItem) => void;
@@ -75,14 +48,12 @@ interface TaskNoteViewProps {
 }
 
 export function TaskNoteView({
-  tasks, addingId, removingId, canSend, onSetStatus, onUpdateTitle, onSetHeight, onRemove, onDuplicate, onSend, onReorder, onShowGuide,
+  tasks, addingId, removingId, onUpdateTitle, onRemove, onDuplicate, onSend, onReorder, onShowGuide,
 }: TaskNoteViewProps) {
   const t = useT();
 
-  // Display order: grouped by status (working → todo → done). The array order
-  // within each status group is preserved, so drag-reordering the underlying
-  // array reorders same-status cards; cross-status drags simply regroup.
-  const ordered = STATUS_ORDER.flatMap(s => tasks.filter(task => task.status === s));
+  // Display order is the array order.
+  const ordered = tasks;
 
   // ── Drag (refs to avoid stale closures, mirrors TaskBoard's approach) ──
   const listRef = useRef<HTMLDivElement>(null);
@@ -90,18 +61,37 @@ export function TaskNoteView({
   const dragStartedRef = useRef(false);
   const dropTargetRef = useRef<DropLine | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const [dropLine, setDropLine] = useState<DropLine | null>(null);
 
-  // Live preview height while dragging one card's bottom edge; persisted via
-  // onSetHeight only on pointer-up, so a resize is one disk write, not a stream.
-  const [resizing, setResizing] = useState<{ id: string; height: number } | null>(null);
+  // Notes start collapsed: a click opens or closes one; editing is only through the edit button.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const setOpen = (id: string, open: boolean) => setExpanded(prev => {
+    if (prev.has(id) === open) return prev;
+    const next = new Set(prev);
+    if (open) next.add(id); else next.delete(id);
+    return next;
+  });
+  // A note added with the + button is written straight away; it stays in edit mode until the user clicks away.
+  /* eslint-disable react-hooks/set-state-in-effect -- addingId is an explicit parent signal to start editing the new note. */
+  useEffect(() => {
+    if (!addingId) return;
+    setEditingId(addingId);
+    setExpanded(prev => new Set(prev).add(addingId));
+  }, [addingId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // After a click opens or closes a note, hold its hover buttons back until the pointer leaves the card (a DOM
+  // flag rather than state: it only gates CSS and clears on pointerleave).
+  const quietCard = (id: string) => listRef.current?.querySelector(`[data-note-id="${CSS.escape(id)}"]`)?.setAttribute('data-quiet', '');
 
   const handlePointerDown = (e: React.PointerEvent, id: string) => {
     const target = e.target as HTMLElement;
-    // Never start a drag from an interactive control — the note body needs
-    // click-to-place-caret + text selection, dots/buttons need clicks, and the
-    // bottom-edge handle owns its own resize gesture.
-    if (target.closest('textarea') || target.closest('button') || target.closest('.task-note-resize')) return;
+    // Never start a drag from a button or a body being edited (it needs its caret and selection).
+    // A read-only body (not being edited) drags the card; preventDefault keeps it from selecting text.
+    const body = target.closest('textarea');
+    if ((body && !body.readOnly) || target.closest('button')) return;
+    // Starting a press here must not begin a text selection that sweeps across other notes.
+    e.preventDefault();
 
     const cardEl = target.closest('.task-note-card') as HTMLElement;
     if (!cardEl) return;
@@ -115,12 +105,22 @@ export function TaskNoteView({
     dropTargetRef.current = null;
 
     const THRESHOLD = 6;
+    // Layout before the drag: other notes slide out of the way and the dashed outline slides to the drop slot.
+    let layout: { el: HTMLElement; id: string; top: number; height: number }[] = [];
+    let gap = 0;
+    const shift = (el: HTMLElement, y: number) => {
+      el.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      el.style.transform = y ? `translateY(${y}px)` : '';
+    };
+    const swallowClick = (ev: MouseEvent) => { ev.stopPropagation(); ev.preventDefault(); };
 
     const onMove = (me: PointerEvent) => {
       if (!dragStartedRef.current) {
         if (Math.abs(me.clientX - startX) < THRESHOLD && Math.abs(me.clientY - startY) < THRESHOLD) return;
         dragStartedRef.current = true;
         setDragId(id);
+        // The drop's click must not also open or close the note.
+        window.addEventListener('click', swallowClick, { capture: true, once: true });
         const ghost = cardEl.cloneNode(true) as HTMLDivElement;
         ghost.className = 'task-note-card-ghost';
         // cloneNode copies DOM attributes but not the live textarea `.value`
@@ -142,6 +142,11 @@ export function TaskNoteView({
         ghost.style.top = `${me.clientY - offsetY}px`;
         document.body.appendChild(ghost);
         ghostRef.current = ghost;
+        layout = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-note-id]') ?? [])].map(el => {
+          const r = el.getBoundingClientRect();
+          return { el, id: el.dataset.noteId!, top: r.top, height: r.height };
+        });
+        gap = layout.length > 1 ? Math.max(0, layout[1].top - (layout[0].top + layout[0].height)) : 0;
       }
 
       if (ghostRef.current) {
@@ -149,29 +154,28 @@ export function TaskNoteView({
         ghostRef.current.style.top = `${me.clientY - offsetY}px`;
       }
 
-      if (!listRef.current) return;
-      const cards = listRef.current.querySelectorAll<HTMLElement>('[data-note-id]');
-      let next: DropLine | null = null;
-      for (const card of cards) {
-        const cid = card.dataset.noteId!;
-        if (cid === id) continue;
-        const r = card.getBoundingClientRect();
-        if (me.clientY >= r.top && me.clientY < r.bottom) {
-          next = { id: cid, position: me.clientY < r.top + r.height / 2 ? 'before' : 'after' };
-          break;
-        }
-      }
-      dropTargetRef.current = next;
-      // Only re-render the indicator when the target actually changes.
-      setDropLine(prev =>
-        prev?.id === next?.id && prev?.position === next?.position ? prev : next
-      );
+      if (!layout.length) return;
+      // Insert among the other notes by their original midpoints, then lay everything out in the new order.
+      const self = layout.find(item => item.id === id)!;
+      const others = layout.filter(item => item.id !== id);
+      const slot = others.filter(item => me.clientY > item.top + item.height / 2).length;
+      const order = [...others.slice(0, slot), self, ...others.slice(slot)];
+      let top = layout[0].top;
+      for (const item of order) { shift(item.el, top - item.top); top += item.height + gap; }
+      const next: DropLine | null = slot < others.length ? { id: others[slot].id, position: 'before' } : others.length ? { id: others[slot - 1].id, position: 'after' } : null;
+      // Dropping back where it started is a no-op.
+      const index = layout.indexOf(self);
+      dropTargetRef.current = slot === index ? null : next;
     };
 
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       if (ghostRef.current) { ghostRef.current.remove(); ghostRef.current = null; }
+      // The reorder re-renders notes in their new places; drop the slide offsets without animating back.
+      for (const item of layout) { item.el.style.transition = ''; item.el.style.transform = ''; }
+      // The click from this release arrives before the timer; drop the guard if none came (released outside the window).
+      if (dragStartedRef.current) setTimeout(() => window.removeEventListener('click', swallowClick, { capture: true }));
 
       const drop = dropTargetRef.current;
       if (dragStartedRef.current && drop && drop.id !== id) {
@@ -179,64 +183,22 @@ export function TaskNoteView({
           const dragged = prev.find(task => task.id === id);
           const target = prev.find(task => task.id === drop.id);
           if (!dragged || !target) return prev;
-          // Dropping onto a different-status card adopts that card's status, so
-          // dragging across the red/amber/green groups re-files the note (same
-          // outcome as clicking its dot) instead of snapping back to its old
-          // group. Same-status drags just reorder within the group.
-          const moved = dragged.status === target.status
-            ? dragged
-            : { ...dragged, status: target.status };
           const without = prev.filter(task => task.id !== id);
           const targetIdx = without.findIndex(task => task.id === drop.id);
           if (targetIdx === -1) return prev;
           const insertAt = drop.position === 'before' ? targetIdx : targetIdx + 1;
-          without.splice(insertAt, 0, moved);
+          without.splice(insertAt, 0, dragged);
           return without;
         });
       }
 
       setDragId(null);
-      setDropLine(null);
       dropTargetRef.current = null;
       dragStartedRef.current = false;
     };
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  };
-
-  // ── Bottom-edge resize ──────────────────────────────────────────────────
-  const handleResizeDown = (e: React.PointerEvent, id: string) => {
-    e.preventDefault();
-    e.stopPropagation(); // don't let the card's reorder gesture start
-    const handle = e.currentTarget as HTMLElement;
-    const body = handle
-      .closest('.task-note-card')
-      ?.querySelector('.task-note-body') as HTMLElement | null;
-    const startHeight = body ? body.getBoundingClientRect().height : DEFAULT_NOTE_HEIGHT;
-    const startY = e.clientY;
-    // Pointer capture keeps move/up/cancel coming to this element even if the
-    // pointer leaves the window or focus is stolen (WebView2) — so a resize
-    // can't get stuck mid-gesture and the listeners always tear down. Element
-    // listeners (vs window) also go away with the node if the card unmounts.
-    try { handle.setPointerCapture(e.pointerId); } catch { /* Best-effort operation; failure is non-fatal. */ }
-
-    const onMove = (me: PointerEvent) => {
-      const next = Math.max(NOTE_MIN_HEIGHT, Math.min(NOTE_MAX_HEIGHT, startHeight + (me.clientY - startY)));
-      setResizing({ id, height: Math.round(next) });
-    };
-    const finish = () => {
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', finish);
-      handle.removeEventListener('pointercancel', finish);
-      setResizing(cur => {
-        if (cur && cur.id === id) onSetHeight(id, cur.height);
-        return null;
-      });
-    };
-    handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', finish);
-    handle.addEventListener('pointercancel', finish);
   };
 
   if (ordered.length === 0) {
@@ -250,94 +212,108 @@ export function TaskNoteView({
   return (
     <div ref={listRef} className="task-note-list">
       {ordered.map(task => {
-        const { date, time } = formatNoteTime(task.createdAt);
-        const line = dropLine?.id === task.id ? dropLine.position : null;
+        const open = expanded.has(task.id) || editingId === task.id || addingId === task.id;
+        const edit = () => { setOpen(task.id, true); setEditingId(task.id); };
+        const deleteButton = (className: string) => (
+          <button type="button" className={`task-note-btn task-note-delete ${className}`} aria-label={t('pre_input.delete')} onClick={() => onRemove(task.id)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" /><path d="M14 11v6" />
+              <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        );
+        const sendButton = (className: string) => (
+          <button type="button" className={`task-note-btn task-note-send ${className}`} aria-label={t('pre_input.send')} onClick={() => onSend(task)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+              <polygon points="5 3 21 12 5 21" />
+            </svg>
+          </button>
+        );
         return (
           <div
             key={task.id}
             data-note-id={task.id}
-            data-status={task.status}
             className={[
               'task-note-card',
-              `status-${task.status}`,
+              !open && 'is-collapsed',
               dragId === task.id && 'dragging',
               removingId === task.id && 'removing',
-              line === 'before' && 'drop-before',
-              line === 'after' && 'drop-after',
             ].filter(Boolean).join(' ')}
             style={{ touchAction: 'none' }}
             onPointerDown={e => handlePointerDown(e, task.id)}
+            onPointerLeave={e => { e.currentTarget.removeAttribute('data-quiet'); delete e.currentTarget.dataset.quietAt; }}
+            // The hover glow follows the pointer: a CSS variable on the card, no re-render.
+            onPointerMove={e => {
+              const card = e.currentTarget;
+              card.style.setProperty('--glow-x', `${Math.round(e.clientX - card.getBoundingClientRect().left)}px`);
+              // After a click the hover buttons wait for the pointer to move on a few pixels (no need to leave the
+              // card), so they don't flash in under the click itself.
+              if (card.hasAttribute('data-quiet')) {
+                if (!card.dataset.quietAt) card.dataset.quietAt = `${e.clientX},${e.clientY}`;
+                else {
+                  const [x, y] = card.dataset.quietAt.split(',').map(Number);
+                  if (Math.hypot(e.clientX - x, e.clientY - y) > 6) { card.removeAttribute('data-quiet'); delete card.dataset.quietAt; }
+                }
+              }
+            }}
           >
-            <div className="task-note-head">
-              <div className="task-note-dots" role="group">
-                {STATUS_DOTS.map(d => (
-                  <button
-                    key={d.status}
-                    type="button"
-                    className={`task-note-dot${task.status === d.status ? ' active' : ''}`}
-                    style={{ ['--dot' as string]: d.color }}
-                    onClick={() => onSetStatus(task.id, d.status)}
-                    aria-pressed={task.status === d.status}
-                  />
-                ))}
-              </div>
-
-              <div className="task-note-time">{date} {time}</div>
-
-              <div className="task-note-actions">
-                <button
-                  type="button"
-                  className="task-note-btn task-note-copy"
-                  onClick={() => onDuplicate(task.id)}
-                  disabled={!task.title.trim()}
-                >
-                  {/* Duplicate this note — spawns an identical sticky right after
-                      it; the new card animating in is the feedback. */}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {/* Collapsed: one line of text that never moves. On hover a soft glow follows the pointer and two line
+                icons slide in at the right end — delete, then send — while the text fades out beneath them.
+                Open: the whole note, then a row of actions. */}
+            <div className="task-note-row">
+              <NoteBody
+                value={task.title}
+                open={open}
+                editing={editingId === task.id || addingId === task.id}
+                onToggle={() => { quietCard(task.id); setOpen(task.id, !expanded.has(task.id)); }}
+                // Finishing an edit (the check, or a press elsewhere) folds the note back up.
+                onEditEnd={() => { setEditingId(current => current === task.id ? null : current); setOpen(task.id, false); }}
+                autoFocus={addingId === task.id}
+                placeholder={t('task.note_placeholder')}
+                onChange={next => onUpdateTitle(task.id, next)}
+              />
+            </div>
+            {!open && (
+              <span className="task-note-quick">
+                {deleteButton('task-note-quick-btn')}
+                {/* Send never refuses: TaskBoard sends, or drops the text into the composer, or does nothing. */}
+                {sendButton('task-note-quick-btn')}
+              </span>
+            )}
+            {open && (
+              <span className="task-note-actions" onMouseDown={e => e.preventDefault() /* keep focus in the text: a blur would end editing and fold the note before the click lands */}>
+                {(() => {
+                  const editing = editingId === task.id || addingId === task.id;
+                  // While editing, the pencil becomes a check that finishes editing and folds the note.
+                  const done = (e: React.MouseEvent) => { (e.currentTarget.closest('.task-note-card')?.querySelector('textarea') as HTMLTextAreaElement | null)?.blur(); setEditingId(null); setOpen(task.id, false); };
+                  return (
+                    <button type="button" className="task-note-btn task-note-edit" aria-label={t(editing ? 'pre_input.done' : 'pre_input.edit')} aria-pressed={editing}
+                      onClick={editing ? done : edit}>
+                      {editing ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })()}
+                {/* Duplicate spawns an identical note right after this one; the new card animating in is the feedback. */}
+                <button type="button" className="task-note-btn task-note-copy" aria-label={t('pre_input.copy')} onClick={() => onDuplicate(task.id)} disabled={!task.title.trim()}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  className="task-note-btn task-note-delete"
-                  onClick={() => onRemove(task.id)}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
-                    <path d="M10 11v6" /><path d="M14 11v6" />
-                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className="task-note-btn task-note-send"
-                  onClick={() => onSend(task)}
-                  disabled={!canSend || !task.title.trim()}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                    <polygon points="5 3 21 12 5 21" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <NoteBody
-              value={task.title}
-              height={resizing?.id === task.id ? resizing.height : (task.height ?? null)}
-              autoFocus={addingId === task.id}
-              placeholder={t('task.note_placeholder')}
-              onChange={next => onUpdateTitle(task.id, next)}
-            />
-
-            {/* Bottom-edge resize handle — drag to grow/shrink the note. The
-                `resizing` class drives the CSS deepen+lengthen effect while
-                the pointer drags (Coffee-Note pane-resizer style). */}
-            <div
-              className={`task-note-resize${resizing?.id === task.id ? ' resizing' : ''}`}
-              onPointerDown={e => handleResizeDown(e, task.id)}
-            />
+                {deleteButton('')}
+                <span className="task-note-actions-gap" />
+                {sendButton('')}
+              </span>
+            )}
           </div>
         );
       })}
@@ -351,14 +327,16 @@ export function TaskNoteView({
 
 interface NoteBodyProps {
   value: string;
-  // Explicit user-resized height in px, or null to auto-grow with content.
-  height: number | null;
+  open: boolean;
+  editing: boolean;
+  onToggle: () => void;
+  onEditEnd: () => void;
   autoFocus: boolean;
   placeholder: string;
   onChange: (next: string) => void;
 }
 
-function NoteBody({ value, height, autoFocus, placeholder, onChange }: NoteBodyProps) {
+function NoteBody({ value, open, editing, onToggle, onEditEnd, autoFocus, placeholder, onChange }: NoteBodyProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   // Right-click cut/copy/paste/select menu (same one Gambit/terminal use).
   const { menu: ctxMenu, openMenu: openCtxMenu } = useTextContextMenu();
@@ -366,12 +344,8 @@ function NoteBody({ value, height, autoFocus, placeholder, onChange }: NoteBodyP
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // The resized height is a FLOOR, not a fixed size: the note is at least the
-    // height you dragged (or a roomy default), and still grows to fit longer
-    // content when left un-resized. A manually-shrunk note scrolls instead of
-    // clipping — the size you chose wins, and overflow-y:auto (styled with the
-    // same accent slider as the terminal, see TaskNoteView.css) keeps the
-    // overflow reachable by wheel or drag.
+    // An open note fits all of its text and never scrolls itself: a scroll box nested in the scrolling list made
+    // the wheel jump between the note and the whole panel.
     //
     // scrollHeight depends on the textarea's WIDTH (narrower ⇒ more wrapping ⇒
     // taller). The right panel mounts COLLAPSED (width 0) and animates open
@@ -383,14 +357,13 @@ function NoteBody({ value, height, autoFocus, placeholder, onChange }: NoteBodyP
     let lastW = -1;
     const fit = () => {
       if (el.offsetWidth === 0) return; // collapsed / not laid out — wait for width
-      if (height != null) {
-        // Manually resized: a FIXED height, not a floor. Longer content scrolls
-        // inside the note (overflow-y:auto) — the size the user chose wins, but
-        // the tail stays reachable via the wheel or the accent slider.
-        el.style.height = `${Math.max(NOTE_MIN_HEIGHT, height)}px`;
+      if (!open) {
+        el.style.height = 'auto';
+        el.style.height = `${Math.min(NOTE_COLLAPSED_HEIGHT, Math.max(NOTE_MIN_HEIGHT, el.scrollHeight))}px`;
+        el.scrollTop = 0;
       } else {
         el.style.height = 'auto';
-        el.style.height = `${Math.max(DEFAULT_NOTE_HEIGHT, el.scrollHeight)}px`;
+        el.style.height = `${Math.max(NOTE_MIN_HEIGHT, el.scrollHeight)}px`;
       }
       lastW = el.offsetWidth;
     };
@@ -402,7 +375,28 @@ function NoteBody({ value, height, autoFocus, placeholder, onChange }: NoteBodyP
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [value, height]);
+  }, [value, open]);
+
+  useEffect(() => {
+    if (!editing || !ref.current || document.activeElement === ref.current) return;
+    // Entering edit mode (the edit button) puts the caret at the end, ready to keep writing.
+    const el = ref.current;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [editing]);
+
+  // Any press outside the body ends editing, even on spots that take no focus (empty panel, other notes' headers).
+  useEffect(() => {
+    if (!editing) return;
+    const onPress = (event: PointerEvent) => {
+      // The note's own action row (done, copy, delete, send) must not end editing first: folding the note would
+      // unmount the pressed button and swallow its click.
+      if (ref.current?.closest('.task-note-card')?.querySelector('.task-note-actions')?.contains(event.target as Node)) return;
+      if (ref.current && !ref.current.contains(event.target as Node)) { ref.current.blur(); onEditEnd(); }
+    };
+    document.addEventListener('pointerdown', onPress, true);
+    return () => document.removeEventListener('pointerdown', onPress, true);
+  }, [editing, onEditEnd]);
 
   useEffect(() => {
     if (autoFocus && ref.current) {
@@ -411,28 +405,34 @@ function NoteBody({ value, height, autoFocus, placeholder, onChange }: NoteBodyP
     }
   }, [autoFocus]);
 
-  // Custom floating scrollbar for the note body. WebView2's native textarea
-  // scrollbar keeps re-surfacing its up/down arrow buttons no matter the CSS
-  // (see lib/auto-hide-scrollbar.ts for the full story) — so we hide it and
-  // draw a DOM slider instead, the proven Coffee-Note approach. slim = the
-  // 7px variant; insetBottom 11 clears the bottom-edge resize handle so the
-  // slider can't collide with it.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    return bindAutoHideScrollbar(el, { slim: true, insetBottom: 11 });
-  }, []);
-
+  // Collapsed: a one-line preview ending in an ellipsis when there is more (a textarea cannot clamp lines).
+  // The textarea stays mounted but hidden, keeping its sizing and edit wiring.
+  const preview = !open && !editing;
   return (
     <>
+      {preview && (
+        <div
+          className={`task-note-preview${value ? '' : ' is-empty'}`}
+          role="button"
+          tabIndex={0}
+          aria-expanded={false}
+          onClick={onToggle}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        >{value || placeholder}</div>
+      )}
       <textarea
+        hidden={preview}
         ref={ref}
-        className="task-note-body"
+        className={`task-note-body${open ? '' : ' is-collapsed'}${editing ? ' is-editing' : ''}`}
         value={value}
+        readOnly={!editing}
+        aria-expanded={open}
+        onClick={() => { if (!editing) onToggle(); }}
+        onBlur={onEditEnd}
         placeholder={placeholder}
         rows={2}
         onChange={e => onChange(e.target.value)}
-        onPointerDown={e => e.stopPropagation()}
+        onPointerDown={e => { if (editing) e.stopPropagation(); }}
         onContextMenu={(e) => openCtxMenu(e, onChange)}
       />
       {ctxMenu}

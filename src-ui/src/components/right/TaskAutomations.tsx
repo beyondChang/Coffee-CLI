@@ -1,7 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { useAppState } from '../../store/app-state';
 import { useT } from '../../i18n/useT';
-import { folderName, getAutomations, scheduleNext, scheduleSummary, setAutomations, subscribeAutomations, type AutomationTool } from '../../lib/automations';
+import { folderName, getAutomations, scheduleSummary, subscribeAutomations, type AutomationTool } from '../../lib/automations';
 import { getToolDisplayName } from '../../lib/tool-info';
 import { InlineSvgIcon } from '../InlineSvgIcon';
 import CLAUDE_DATA_URL from '../../icons-inline/claude.svg?inline';
@@ -21,40 +21,40 @@ function ToolMark({ tool }: { tool: AutomationTool }) {
 }
 
 /**
- * Automations at the top of the task list: on or off at a glance, and each prompt sent to the current conversation
+ * Running automations at the top of the task list (paused ones stay on the automations page), each prompt sent to the current conversation
  * like a task. Editing stays on the automations page, which the name opens.
  */
-export function TaskAutomations({ canSend, onSend }: { canSend: boolean; onSend: (prompt: string) => void }) {
+export function TaskAutomations({ onSend }: { onSend: (prompt: string) => void }) {
   const t = useT();
   const { state, dispatch } = useAppState();
-  const automations = useSyncExternalStore(subscribeAutomations, getAutomations, getAutomations);
+  // Only running automations show here; a paused one is managed from the automations page.
+  const all = useSyncExternalStore(subscribeAutomations, getAutomations, getAutomations);
+  const automations = all.filter(item => item.enabled);
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(COLLAPSED_KEY) === '1'; } catch { return false; } });
   if (!automations.length) return null;
   const toggleSection = () => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0'); } catch { /* Best-effort operation; failure is non-fatal. */ } };
-  const when = (ms: number) => new Intl.DateTimeFormat(state.currentLang, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(ms);
-  const on = automations.filter(item => item.enabled).length;
   return <section className="task-automations" aria-label={t('automation.title')}>
     <button type="button" className="task-section-header task-automations-head" aria-expanded={!collapsed} onClick={toggleSection}>
-      <svg className="task-automations-chevron" data-open={!collapsed} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-      <span>{t('automation.title')}</span>
-      <span className="task-automations-count">{on}/{automations.length}</span>
+      <span className="task-automations-dot" aria-hidden="true" />
+      <span>{t('automation.running')}</span>
+      <span className="task-automations-count">· {automations.length}</span>
+      <svg className="task-automations-chevron" data-open={!collapsed} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button>
-    {!collapsed && automations.map(item => <div key={item.id} className="task-card task-automation-card" data-enabled={item.enabled}>
+    {!collapsed && automations.map(item => <div key={item.id} className="task-automation-card"
+      // Like a note: a soft glow follows the pointer across the card.
+      onPointerMove={e => { const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.style.setProperty('--glow-x', `${e.clientX - r.left}px`); }}>
       <div className="task-automation-row">
         <button type="button" className="task-automation-name" onClick={() => dispatch({ type: 'SET_AUTOMATIONS_OPEN', open: true })}>
           <span className="task-automation-line">
             <span className="task-automation-title">{item.name}</span>
-            {item.enabled && item.nextAt !== undefined && <span className="task-automation-next">{when(item.nextAt)}</span>}
           </span>
           <span className="task-automation-sub">
             <span className="task-automation-mark" role="img" aria-label={getToolDisplayName(item.tool)}><ToolMark tool={item.tool} /></span>
             <span className="task-automation-meta">{scheduleSummary(item.schedule, t, state.currentLang)} · {folderName(item.cwd)}</span>
           </span>
         </button>
-        <button type="button" role="switch" className="settings-switch task-automation-switch" aria-checked={item.enabled} aria-label={item.name}
-          onClick={() => setAutomations(current => current.map(a => a.id === item.id ? scheduleNext({ ...a, enabled: !a.enabled }, Date.now()) : a))}><span /></button>
-        <button type="button" className="task-slot task-automation-send" aria-label={t('automation.send_current')} disabled={!canSend} onClick={() => onSend(item.prompt)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="5 3 21 12 5 21" /></svg>
+        <button type="button" className="task-automation-send" aria-label={t('automation.send_current')} onClick={() => onSend(item.prompt)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="5 3 21 12 5 21" /></svg>
         </button>
       </div>
     </div>)}
