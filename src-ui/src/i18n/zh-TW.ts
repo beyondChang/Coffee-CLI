@@ -444,6 +444,10 @@ export const zhTW = {
   'task.prompt.category_placeholder': '分類名（選已有或輸入新的）',
   'task.prompt.body_placeholder': '寫提示詞，整段發給 AI…',
   'task.note_placeholder': '寫點什麼，整段發給 AI…',
+  'task.optimize': '提示詞優化',
+  'task.optimize_busy': '正在優化提示詞…',
+  'task.optimize_failed': '優化失敗，請重試。',
+  'task.optimize_stale': '文本已修改，優化結果未套用。',
   'task.welcome_note': `歡迎來到 Coffee CLI ☕
 
 這張就是「便籤」——隨手寫，寫完點右上角 ▶ 整段發給 AI，不用再擠小輸入框。

@@ -443,6 +443,10 @@ export const pt = {
   'task.prompt.category_placeholder': 'Nome da categoria (escolha ou crie)',
   'task.prompt.body_placeholder': 'Escreva um prompt, envie à IA…',
   'task.note_placeholder': 'Anote algo e envie tudo ao seu agente…',
+  'task.optimize': 'Otimizar prompt',
+  'task.optimize_busy': 'Otimizando o prompt…',
+  'task.optimize_failed': 'Não foi possível otimizar o prompt. Tente novamente.',
+  'task.optimize_stale': 'A nota mudou durante a otimização; o resultado não foi aplicado.',
   'task.welcome_note': `Bem-vindo ao Coffee CLI ☕
 
 Isto é uma nota adesiva: escreva o que quiser e toque em ▶ (canto superior direito) para enviar tudo à sua IA. Sem mais aquela caixinha de texto apertada.

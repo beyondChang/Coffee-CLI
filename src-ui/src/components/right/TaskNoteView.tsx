@@ -17,6 +17,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useT } from '../../i18n/useT';
+import { commands } from '../../tauri';
 import { TaskEmptyState } from './TaskEmptyState';
 import { STATUS_ORDER, type TaskItem, type TaskStatus } from './task-types';
 import { useTextContextMenu } from '../../lib/use-text-context-menu';
@@ -95,6 +96,44 @@ export function TaskNoteView({
   // Live preview height while dragging one card's bottom edge; persisted via
   // onSetHeight only on pointer-up, so a resize is one disk write, not a stream.
   const [resizing, setResizing] = useState<{ id: string; height: number } | null>(null);
+
+  // ── Prompt optimization (built-in model) ───────────────────────────────
+  // One optimization at a time (shared model channel); the result replaces
+  // the note text only if the note is still unchanged since the click, so a
+  // slow model response can never clobber edits typed in the meantime.
+  const [optimizingId, setOptimizingId] = useState<string | null>(null);
+  const [optimizeNotice, setOptimizeNotice] = useState<{ id: string; kind: 'failed' | 'stale' } | null>(null);
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+
+  // Auto-dismiss the notice — the header has no room for a persistent banner.
+  useEffect(() => {
+    if (!optimizeNotice) return;
+    const timer = setTimeout(() => setOptimizeNotice(null), 6000);
+    return () => clearTimeout(timer);
+  }, [optimizeNotice]);
+
+  const handleOptimize = async (task: TaskItem) => {
+    if (optimizingId || !task.title.trim()) return;
+    setOptimizeNotice(null);
+    setOptimizingId(task.id);
+    try {
+      const optimized = (await commands.optimizeTaskPrompt(task.title)).trim();
+      if (!optimized) throw new Error('empty optimization');
+      const fresh = tasksRef.current.find(item => item.id === task.id);
+      if (!fresh || fresh.title !== task.title) {
+        // The note was edited (or removed) while the model was working —
+        // dropping the result keeps the user's newer text intact.
+        setOptimizeNotice({ id: task.id, kind: 'stale' });
+      } else {
+        onUpdateTitle(task.id, optimized);
+      }
+    } catch {
+      setOptimizeNotice({ id: task.id, kind: 'failed' });
+    } finally {
+      setOptimizingId(null);
+    }
+  };
 
   const handlePointerDown = (e: React.PointerEvent, id: string) => {
     const target = e.target as HTMLElement;
@@ -287,6 +326,21 @@ export function TaskNoteView({
               <div className="task-note-actions">
                 <button
                   type="button"
+                  className={`task-note-btn task-note-optimize${optimizingId === task.id ? ' is-busy' : ''}`}
+                  onClick={() => handleOptimize(task)}
+                  disabled={!!optimizingId || !task.title.trim()}
+                  title={optimizingId === task.id ? t('task.optimize_busy') : t('task.optimize')}
+                  aria-label={t('task.optimize')}
+                >
+                  {/* Prompt optimization — rewrites the note through the
+                      built-in model; the replaced text is the feedback. */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+                    <path d="M19 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
                   className="task-note-btn task-note-copy"
                   onClick={() => onDuplicate(task.id)}
                   disabled={!task.title.trim()}
@@ -322,6 +376,12 @@ export function TaskNoteView({
                 </button>
               </div>
             </div>
+
+            {optimizeNotice?.id === task.id && (
+              <p className="task-note-optimize-error" role="alert">
+                {t(optimizeNotice.kind === 'stale' ? 'task.optimize_stale' : 'task.optimize_failed')}
+              </p>
+            )}
 
             <NoteBody
               value={task.title}

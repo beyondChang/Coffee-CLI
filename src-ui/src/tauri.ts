@@ -219,6 +219,8 @@ export const commands = {
    *  Catalogue skills are fetched from their GitHub `source`; installed
    *  skills pass their local `path` instead and the file is read from disk. */
   summarizeToolSkill: (source: string | null, name: string, refresh = false, path: string | null = null) => invoke<string>('summarize_tool_skill', { source, name, refresh, path }),
+  /** Rewrite a task note into a clearer prompt with the configured model. */
+  optimizeTaskPrompt: (text: string) => invoke<string>('optimize_task_prompt', { text }),
   installToolSkill: (tool: string, source: string, name: string) => invoke<SkillInventory>('install_tool_skill', { tool, source, name }),
   removeToolSkill: (tool: string, path: string) => invoke<SkillInventory>('remove_tool_skill', { tool, path }),
   checkToolSkillUpdates: (tool: string) => invoke<SkillInventory>('check_tool_skill_updates', { tool }),

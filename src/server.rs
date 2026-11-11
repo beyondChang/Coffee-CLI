@@ -1371,6 +1371,12 @@ fn save_tasks(data: String, app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Rewrite a task note into a clearer prompt with the configured model.
+#[tauri::command]
+async fn optimize_task_prompt(app: tauri::AppHandle, text: String) -> Result<String, String> {
+    crate::agent::optimize_task_prompt(&app, &text).await
+}
+
 // ─── Saved Passwords (encrypted credential store) ─────────────────────────
 
 const CREDENTIAL_SERVICE: &str = "coffee-cli";
@@ -1885,6 +1891,7 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             fs_paste,
             load_tasks,
             save_tasks,
+            optimize_task_prompt,
             save_password,
             load_password,
             delete_password,

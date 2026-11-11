@@ -443,6 +443,10 @@ export const de = {
   'task.prompt.category_placeholder': 'Kategoriename (vorhanden wählen oder neu eingeben)',
   'task.prompt.body_placeholder': 'Prompt schreiben, an KI senden…',
   'task.note_placeholder': 'Schreib etwas auf und sende alles an deinen Agenten…',
+  'task.optimize': 'Prompt optimieren',
+  'task.optimize_busy': 'Prompt wird optimiert…',
+  'task.optimize_failed': 'Der Prompt konnte nicht optimiert werden. Bitte erneut versuchen.',
+  'task.optimize_stale': 'Die Notiz wurde während der Optimierung geändert; das Ergebnis wurde nicht übernommen.',
   'task.welcome_note': `Willkommen bei Coffee CLI ☕
 
 Das ist ein Notizzettel: Schreib einfach drauflos und tippe oben rechts auf ▶, um alles an deine KI zu schicken. Schluss mit dem engen kleinen Eingabefeld.

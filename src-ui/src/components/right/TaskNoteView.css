@@ -154,6 +154,26 @@
   cursor: not-allowed;
 }
 
+/* Prompt optimization: the busy card spins its sparkle; every optimize
+   button dims while one is in flight (the model channel is single-flight). */
+.task-note-optimize:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.task-note-optimize.is-busy svg {
+  animation: task-note-spin 1s linear infinite;
+}
+@keyframes task-note-spin {
+  to { transform: rotate(360deg); }
+}
+.task-note-optimize-error {
+  margin: 0;
+  padding: 0 12px 6px;
+  color: var(--danger, #da8076);
+  font-size: var(--type-caption);
+  line-height: 1.4;
+}
+
 /* ─── Body — the writing area ────────────────────────────────────────────────── */
 
 .task-note-body {

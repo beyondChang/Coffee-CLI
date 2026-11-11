@@ -445,6 +445,10 @@ export const en = {
   'task.prompt.category_placeholder': 'Category (pick existing or type new)',
   'task.prompt.body_placeholder': 'Write a prompt, send it to AI…',
   'task.note_placeholder': 'Jot something down, send it all to your agent…',
+  'task.optimize': 'Optimize prompt',
+  'task.optimize_busy': 'Optimizing the prompt…',
+  'task.optimize_failed': 'Could not optimize the prompt. Try again.',
+  'task.optimize_stale': 'The note changed while optimizing; the result was not applied.',
   // Seeded once for brand-new users as a roomy welcome note (sticky-note view).
   'task.welcome_note': `Welcome to Coffee CLI ☕
 
