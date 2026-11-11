@@ -1,5 +1,5 @@
 // GambitPromptOptimize — the composer footer's prompt-optimization button,
-// sitting left of the voice (audio input) button. The draft in the input box
+// sitting beside the send button. The draft in the input box
 // is the source text and the optimized prompt is written back into the same
 // box; the flow itself lives in lib/prompt-optimize (shared with the note
 // cards). The notice reads as one of the footer's send-hint lines.

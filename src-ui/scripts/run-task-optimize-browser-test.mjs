@@ -1,6 +1,6 @@
 // Prompt-optimization regression for both surfaces: the task note card
 // (sparkles button left of duplicate) and the composer input box
-// (GambitPromptOptimize left of the audio button).
+// (GambitPromptOptimize beside the send button).
 //
 // Shared contract (lib/prompt-optimize): the result replaces the text only
 // while it is still unchanged since the click (a slow response must never

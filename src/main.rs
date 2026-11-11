@@ -10,7 +10,7 @@ mod session_directory;
 mod opencode_island;
 mod server;
 mod agent;
-mod agent_voice;
+// [voice input disabled] mod agent_voice;
 mod agent_modes;
 mod agent_projects;
 mod agent_experts;

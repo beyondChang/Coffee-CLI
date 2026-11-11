@@ -18,7 +18,7 @@ import { isWorktreePending } from '../../lib/worktree-pending';
 import { createPortal } from 'react-dom';
 import { clipboardRead, clipboardWrite } from '../../lib/clipboard';
 import { subscribeGambitHistory, getGambitHistorySnapshot, pushGambitHistory } from '../../lib/gambit-history';
-import { commands, invoke } from '../../tauri';
+import { commands } from '../../tauri'; // [voice input disabled] invoke was only used by agent_transcribe
 import { useT } from '../../i18n/useT';
 import { useAppState } from '../../store/app-state';
 import { registerFileDropTarget, formatPathsForInsert } from '../../lib/file-drop';
@@ -120,106 +120,106 @@ function wrapImagePathsForSend(text: string): string {
   });
 }
 
-// Read a Blob as a bare base64 string (no data: prefix).
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const comma = result.indexOf(',');
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error('Could not read audio'));
-    reader.readAsDataURL(blob);
-  });
-}
-
-// Thrown when a recording contains no voice-level audio, so transcription is
-// skipped entirely and the UI shows a localized "no voice detected" message.
-class VoiceNoInputError extends Error {
-  constructor() { super('NO_VOICE_INPUT'); this.name = 'VoiceNoInputError'; }
-}
-
-// Decode recorded audio (WebM/Opus or WAV) and re-encode it as a 16 kHz mono
-// 16-bit PCM WAV. Whisper-compatible services often accept the WebM container
-// but decode its Opus audio to nothing (empty `text`), so WAV is the reliable
-// interchange format. Resampling is a hand-written linear interpolation rather
-// than OfflineAudioContext, which produced empty buffers in WebView2.
-async function blobToWav(blob: Blob): Promise<Blob> {
-  const arrayBuffer = await blob.arrayBuffer();
-  const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) throw new Error('Audio decoding is not supported');
-  const ctx = new AudioCtx();
-  let decoded: AudioBuffer;
-  try {
-    decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
-  } catch {
-    throw new Error('Could not decode the recording');
-  } finally {
-    if (ctx.state !== 'closed') void ctx.close().catch(() => {});
-  }
-  const targetRate = 16000;
-  // Mix down to mono by averaging all channels, then linearly resample.
-  const channels: Float32Array[] = [];
-  for (let c = 0; c < decoded.numberOfChannels; c++) channels.push(decoded.getChannelData(c));
-  const srcLength = decoded.length;
-  const srcRate = decoded.sampleRate;
-  const outLength = Math.max(1, Math.round(srcLength * targetRate / srcRate));
-  const samples = new Float32Array(outLength);
-  let peak = 0;
-  let energy = 0;
-  const ratio = srcRate / targetRate;
-  for (let i = 0; i < outLength; i++) {
-    const pos = i * ratio;
-    const i0 = Math.floor(pos);
-    const i1 = Math.min(srcLength - 1, i0 + 1);
-    const frac = pos - i0;
-    let sum = 0;
-    for (let c = 0; c < channels.length; c++) {
-      const ch = channels[c];
-      sum += (ch[i0] ?? 0) * (1 - frac) + (ch[i1] ?? 0) * frac;
-    }
-    const v = sum / channels.length;
-    samples[i] = v;
-    const a = Math.abs(v);
-    if (a > peak) peak = a;
-    energy += v * v;
-  }
-  // If the clip carries no voice-level activity, don't bother the model — a
-  // silent/room-noise recording would just come back as empty text. RMS is used
-  // (not peak) so a single stray click doesn't pass as speech. Threshold sits
-  // just above typical mic noise floor.
-  const rms = Math.sqrt(energy / outLength);
-  if (peak < 0.002 || rms < 0.004) {
-    throw new VoiceNoInputError();
-  }
-  // 44-byte RIFF header + PCM16 body.
-  const buffer = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(buffer);
-  const writeString = (offset: number, text: string) => {
-    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
-  };
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + samples.length * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, targetRate, true);
-  view.setUint32(28, targetRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(36, 'data');
-  view.setUint32(40, samples.length * 2, true);
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    offset += 2;
-  }
-  return new Blob([buffer], { type: 'audio/wav' });
-}
+// [voice input disabled] // Read a Blob as a bare base64 string (no data: prefix).
+// [voice input disabled] function blobToBase64(blob: Blob): Promise<string> {
+// [voice input disabled]   return new Promise((resolve, reject) => {
+// [voice input disabled]     const reader = new FileReader();
+// [voice input disabled]     reader.onload = () => {
+// [voice input disabled]       const result = reader.result as string;
+// [voice input disabled]       const comma = result.indexOf(',');
+// [voice input disabled]       resolve(comma >= 0 ? result.slice(comma + 1) : result);
+// [voice input disabled]     };
+// [voice input disabled]     reader.onerror = () => reject(reader.error ?? new Error('Could not read audio'));
+// [voice input disabled]     reader.readAsDataURL(blob);
+// [voice input disabled]   });
+// [voice input disabled] }
+// [voice input disabled]
+// [voice input disabled] // Thrown when a recording contains no voice-level audio, so transcription is
+// [voice input disabled] // skipped entirely and the UI shows a localized "no voice detected" message.
+// [voice input disabled] class VoiceNoInputError extends Error {
+// [voice input disabled]   constructor() { super('NO_VOICE_INPUT'); this.name = 'VoiceNoInputError'; }
+// [voice input disabled] }
+// [voice input disabled]
+// [voice input disabled] // Decode recorded audio (WebM/Opus or WAV) and re-encode it as a 16 kHz mono
+// [voice input disabled] // 16-bit PCM WAV. Whisper-compatible services often accept the WebM container
+// [voice input disabled] // but decode its Opus audio to nothing (empty `text`), so WAV is the reliable
+// [voice input disabled] // interchange format. Resampling is a hand-written linear interpolation rather
+// [voice input disabled] // than OfflineAudioContext, which produced empty buffers in WebView2.
+// [voice input disabled] async function blobToWav(blob: Blob): Promise<Blob> {
+// [voice input disabled]   const arrayBuffer = await blob.arrayBuffer();
+// [voice input disabled]   const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+// [voice input disabled]   if (!AudioCtx) throw new Error('Audio decoding is not supported');
+// [voice input disabled]   const ctx = new AudioCtx();
+// [voice input disabled]   let decoded: AudioBuffer;
+// [voice input disabled]   try {
+// [voice input disabled]     decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
+// [voice input disabled]   } catch {
+// [voice input disabled]     throw new Error('Could not decode the recording');
+// [voice input disabled]   } finally {
+// [voice input disabled]     if (ctx.state !== 'closed') void ctx.close().catch(() => {});
+// [voice input disabled]   }
+// [voice input disabled]   const targetRate = 16000;
+// [voice input disabled]   // Mix down to mono by averaging all channels, then linearly resample.
+// [voice input disabled]   const channels: Float32Array[] = [];
+// [voice input disabled]   for (let c = 0; c < decoded.numberOfChannels; c++) channels.push(decoded.getChannelData(c));
+// [voice input disabled]   const srcLength = decoded.length;
+// [voice input disabled]   const srcRate = decoded.sampleRate;
+// [voice input disabled]   const outLength = Math.max(1, Math.round(srcLength * targetRate / srcRate));
+// [voice input disabled]   const samples = new Float32Array(outLength);
+// [voice input disabled]   let peak = 0;
+// [voice input disabled]   let energy = 0;
+// [voice input disabled]   const ratio = srcRate / targetRate;
+// [voice input disabled]   for (let i = 0; i < outLength; i++) {
+// [voice input disabled]     const pos = i * ratio;
+// [voice input disabled]     const i0 = Math.floor(pos);
+// [voice input disabled]     const i1 = Math.min(srcLength - 1, i0 + 1);
+// [voice input disabled]     const frac = pos - i0;
+// [voice input disabled]     let sum = 0;
+// [voice input disabled]     for (let c = 0; c < channels.length; c++) {
+// [voice input disabled]       const ch = channels[c];
+// [voice input disabled]       sum += (ch[i0] ?? 0) * (1 - frac) + (ch[i1] ?? 0) * frac;
+// [voice input disabled]     }
+// [voice input disabled]     const v = sum / channels.length;
+// [voice input disabled]     samples[i] = v;
+// [voice input disabled]     const a = Math.abs(v);
+// [voice input disabled]     if (a > peak) peak = a;
+// [voice input disabled]     energy += v * v;
+// [voice input disabled]   }
+// [voice input disabled]   // If the clip carries no voice-level activity, don't bother the model — a
+// [voice input disabled]   // silent/room-noise recording would just come back as empty text. RMS is used
+// [voice input disabled]   // (not peak) so a single stray click doesn't pass as speech. Threshold sits
+// [voice input disabled]   // just above typical mic noise floor.
+// [voice input disabled]   const rms = Math.sqrt(energy / outLength);
+// [voice input disabled]   if (peak < 0.002 || rms < 0.004) {
+// [voice input disabled]     throw new VoiceNoInputError();
+// [voice input disabled]   }
+// [voice input disabled]   // 44-byte RIFF header + PCM16 body.
+// [voice input disabled]   const buffer = new ArrayBuffer(44 + samples.length * 2);
+// [voice input disabled]   const view = new DataView(buffer);
+// [voice input disabled]   const writeString = (offset: number, text: string) => {
+// [voice input disabled]     for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+// [voice input disabled]   };
+// [voice input disabled]   writeString(0, 'RIFF');
+// [voice input disabled]   view.setUint32(4, 36 + samples.length * 2, true);
+// [voice input disabled]   writeString(8, 'WAVE');
+// [voice input disabled]   writeString(12, 'fmt ');
+// [voice input disabled]   view.setUint32(16, 16, true);
+// [voice input disabled]   view.setUint16(20, 1, true);
+// [voice input disabled]   view.setUint16(22, 1, true);
+// [voice input disabled]   view.setUint32(24, targetRate, true);
+// [voice input disabled]   view.setUint32(28, targetRate * 2, true);
+// [voice input disabled]   view.setUint16(32, 2, true);
+// [voice input disabled]   view.setUint16(34, 16, true);
+// [voice input disabled]   writeString(36, 'data');
+// [voice input disabled]   view.setUint32(40, samples.length * 2, true);
+// [voice input disabled]   let offset = 44;
+// [voice input disabled]   for (let i = 0; i < samples.length; i++) {
+// [voice input disabled]     const s = Math.max(-1, Math.min(1, samples[i]));
+// [voice input disabled]     view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+// [voice input disabled]     offset += 2;
+// [voice input disabled]   }
+// [voice input disabled]   return new Blob([buffer], { type: 'audio/wav' });
+// [voice input disabled] }
 
 // Docked height: Gambit lives flush at the bottom of the center panel.
 // Height is user-resizable via the top edge and persists across sessions,
@@ -523,305 +523,305 @@ function GambitImpl({
 
   const { state: appState } = useAppState();
 
-  // ─── Voice input (mic button left of Send) ─────────────────────
-  // Push-to-talk: click once to start recording, click again to stop and
-  // transcribe. The transcript is appended to the draft (space-separated),
-  // so it behaves exactly like typed input and can be edited before sending.
-  const [voiceState, setVoiceState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
-  const [voiceFailed, setVoiceFailed] = useState(false);
-  const [voiceError, setVoiceError] = useState('');
-  const [voiceNoInput, setVoiceNoInput] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingActiveRef = useRef(false);
-  const mimeTypeRef = useRef<string>('audio/webm');
-  // Cancel flag: when the user discards a recording with ×, onstop must not
-  // transcribe — it should drop the captured chunks instead.
-  const voiceCancelledRef = useRef(false);
-  // Live waveform: an AnalyserNode taps the mic stream while recording; a
-  // requestAnimationFrame loop writes per-bar heights straight to the DOM
-  // (refs, not React state) so 60fps animation never re-renders Gambit.
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const waveformBarsRef = useRef<Array<HTMLSpanElement | null>>([]);
-  const rafRef = useRef<number | null>(null);
-  const waveformLevelsRef = useRef<number[]>([]);
-  const WAVEFORM_BARS = 28;
-  // Voice-activity timing. `heardVoiceRef` flips true once speech is detected.
-  // Started → if still silent after AUTO_CLOSE_SILENT_MS, cancel (never send).
-  // Heard speech → after AUTO_FINISH_SILENT_MS of silence, stop and transcribe
-  //                the text into the input box (the user sends it themselves).
-  const heardVoiceRef = useRef(false);
-  const silentMsRef = useRef(0);        // consecutive silence accumulated
-  const recordedMsRef = useRef(0);      // elapsed recording time since start
-  const lastTickRef = useRef(0);
-  const AUTO_CLOSE_SILENT_MS = 3000;
-  const AUTO_FINISH_SILENT_MS = 1000;
-  const MAX_CLIP_SECONDS = 180;
-  // Hooks the waveform loop calls when the silence timers fire. Assigned below
-  // once cancelVoice/finishVoice exist (they need the refs above, so a ref
-  // avoids a circular useCallback dependency).
-  const voiceHooksRef = useRef<{ onAutoClose: () => void; onAutoFinish: () => void }>({
-    onAutoClose: () => {},
-    onAutoFinish: () => {},
-  });
-  const stopWaveform = useCallback(() => {
-    if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    analyserRef.current = null;
-    const ctx = audioContextRef.current;
-    audioContextRef.current = null;
-    if (ctx && ctx.state !== 'closed') { void ctx.close().catch(() => {}); }
-  }, []);
-  useEffect(() => {
-    if (!voiceFailed) return;
-    const t = setTimeout(() => setVoiceFailed(false), 2500);
-    return () => clearTimeout(t);
-  }, [voiceFailed]);
-  useEffect(() => () => {
-    // Clean up any active capture on unmount so the mic is never left on.
-    recordingActiveRef.current = false;
-    mediaRecorderRef.current?.stop();
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    const ctx = audioContextRef.current;
-    audioContextRef.current = null;
-    if (ctx && ctx.state !== 'closed') { void ctx.close().catch(() => {}); }
-  }, []);
-  // Whether the WebView supports media capture at all (WebView2/Safari do;
-  // some embedded contexts disable it). Hides the button when unavailable.
-  const voiceSupported = typeof MediaRecorder !== 'undefined'
-    && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-  // Tap the mic stream and paint a live bar waveform. Each bar is smoothed
-  // toward the current audio level (fast attack, slow release) for an organic
-  // "voice recording" feel rather than a jittery equalizer.
-  const startWaveform = useCallback((stream: MediaStream) => {
-    try {
-      const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      audioContextRef.current = ctx;
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.7;
-      source.connect(analyser);
-      analyserRef.current = analyser;
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      const levels = waveformLevelsRef.current;
-      if (levels.length !== WAVEFORM_BARS) levels.length = WAVEFORM_BARS;
-      heardVoiceRef.current = false;
-      silentMsRef.current = 0;
-      recordedMsRef.current = 0;
-      lastTickRef.current = performance.now();
-      const tick = () => {
-        const node = analyserRef.current;
-        if (!node) return;
-        node.getByteTimeDomainData(data);
-        // RMS of the time-domain waveform → 0..1 loudness.
-        let sum = 0;
-        for (let i = 0; i < data.length; i++) {
-          const v = (data[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / data.length);
-        // Noise gate: below this level we treat the mic as silent so the bars
-        // rest flat instead of twitching to room noise. Above it, map the
-        // loudness to 0..1 so real speech drives the animation.
-        const GATE = 0.012;
-        const raw = Math.max(0, (rms - GATE) / (1 - GATE));
-        const level = Math.min(1, Math.pow(raw, 0.8) * 1.6);
-        const bars = waveformBarsRef.current;
-        const now = performance.now();
-        // Voice-activity bookkeeping, independent of the decorative bars.
-        // Speech counts as heard at level ≥ 0.06; otherwise we accumulate
-        // silence and fire the auto-close / auto-finish timers.
-        const dt = now - lastTickRef.current;
-        lastTickRef.current = now;
-        recordedMsRef.current += dt;
-        // Long-audio limit of the async adapter: unisound itself allows 5 h,
-        // but polling only waits MAX_CLIP_SECONDS (180 s). Finish and transcribe
-        // at that point rather than recording audio that will time out.
-        if (recordingActiveRef.current && heardVoiceRef.current && recordedMsRef.current >= MAX_CLIP_SECONDS * 1000) {
-          voiceHooksRef.current.onAutoFinish();
-          return;
-        }
-        if (level >= 0.06) {
-          heardVoiceRef.current = true;
-          silentMsRef.current = 0;
-        } else {
-          silentMsRef.current += dt;
-        }
-        if (heardVoiceRef.current) {
-          if (silentMsRef.current >= AUTO_FINISH_SILENT_MS) { void voiceHooksRef.current.onAutoFinish(); return; }
-        } else if (silentMsRef.current >= AUTO_CLOSE_SILENT_MS) {
-          void voiceHooksRef.current.onAutoClose();
-          return;
-        }
-        for (let i = 0; i < WAVEFORM_BARS; i++) {
-          let target: number;
-          if (level < 0.02) {
-            // Silent: everything settles to a flat line.
-            target = 0;
-          } else {
-            // Speech: vary bar heights per index so the shape ripples with the
-            // amplitude, biased toward the centre like the reference.
-            const center = 1 - Math.abs(i - (WAVEFORM_BARS - 1) / 2) / ((WAVEFORM_BARS - 1) / 2);
-            const wobble = 0.5 + 0.5 * Math.sin(now / 70 + i * 0.9);
-            target = Math.max(0, Math.min(1, level * (0.35 + center * 0.4) * (0.55 + wobble * 0.45)));
-          }
-          const prev = levels[i] ?? 0;
-          // Fast attack, slow release; snap to rest when silent.
-          levels[i] = target > prev ? prev + (target - prev) * 0.6 : prev + (target - prev) * (level < 0.02 ? 0.35 : 0.2);
-          const bar = bars[i];
-          if (bar) bar.style.transform = `scaleY(${(0.06 + levels[i] * 0.94).toFixed(3)})`;
-        }
-        rafRef.current = requestAnimationFrame(tick);
-      };
-      rafRef.current = requestAnimationFrame(tick);
-    } catch {
-      // Waveform is decorative only — recording still works without it.
-      stopWaveform();
-    }
-  }, [stopWaveform]);
-  const transcribeChunks = useCallback(async (chunks: Blob[], mimeType: string) => {
-    if (chunks.length === 0) { setVoiceState('idle'); setVoiceError('No audio was recorded'); setVoiceFailed(true); return; }
-    setVoiceState('transcribing');
-    try {
-      // Decode the recorder's WebM/Opus and re-encode as 16 kHz mono WAV.
-      // Many whisper-compatible services read the WebM container duration but
-      // fail to decode its Opus audio (they return `text: ""`), so WAV is the
-      // reliable interchange format. Decoding + resampling is done manually so
-      // it doesn't depend on OfflineAudioContext quirks in WebView2.
-      const source = new Blob(chunks, { type: mimeType });
-      const wav = await blobToWav(source);
-      const audioBase64 = await blobToBase64(wav);
-      const text = await invoke<string>('agent_transcribe', { audioBase64, mimeType: 'audio/wav' });
-      const trimmed = text.trim();
-      // Append to whatever the user already drafted (space-separated). The
-      // user reviews and sends it themselves — voice input never auto-sends.
-      if (trimmed) {
-        const current = draftRef.current;
-        onDraftChangeRef.current(current.trim() ? `${current.trim()} ${trimmed}` : trimmed);
-      }
-    } catch (err) {
-      // A silent clip never reaches the model — show a clear "no voice" message.
-      if (err instanceof VoiceNoInputError) {
-        setVoiceError('');
-        setVoiceNoInput(true);
-        setVoiceFailed(true);
-        return;
-      }
-      console.error('[Gambit] voice transcription failed', err);
-      setVoiceError(err instanceof Error ? err.message : String(err));
-      setVoiceFailed(true);
-    } finally {
-      setVoiceState('idle');
-    }
-  }, []);
-  const toggleVoice = useCallback(async () => {
-    if (recordingActiveRef.current) {
-      // Stop recording -> the recorder's onstop handler transcribes.
-      recordingActiveRef.current = false;
-      stopWaveform();
-      try { mediaRecorderRef.current?.stop(); } catch { /* already stopped */ }
-      return;
-    }
-    // Start recording.
-    setVoiceFailed(false);
-    setVoiceError('');
-    setVoiceNoInput(false);
-    const recorderType = (() => {
-      if (typeof MediaRecorder === 'undefined') return null;
-      const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/wav', 'audio/mp4'];
-      return candidates.find((c) => MediaRecorder.isTypeSupported(c)) ?? null;
-    })();
-    if (!recorderType) { setVoiceFailed(true); return; }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      mimeTypeRef.current = recorderType.split(';')[0];
-      audioChunksRef.current = [];
-      voiceCancelledRef.current = false;
-      const recorder = new MediaRecorder(stream, { mimeType: recorderType });
-      mediaRecorderRef.current = recorder;
-      recorder.ondataavailable = (ev) => {
-        if (ev.data && ev.data.size > 0) audioChunksRef.current.push(ev.data);
-      };
-      recorder.onstop = () => {
-        // Release the mic regardless of transcription outcome.
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        mediaRecorderRef.current = null;
-        stopWaveform();
-        const chunks = audioChunksRef.current;
-        audioChunksRef.current = [];
-        const cancelled = voiceCancelledRef.current;
-        voiceCancelledRef.current = false;
-        recordingActiveRef.current = false;
-        // Always return the UI to idle — this is what makes × actually close.
-        if (cancelled) { setVoiceState('idle'); return; }
-        void transcribeChunks(chunks, mimeTypeRef.current);
-      };
-      recordingActiveRef.current = true;
-      setVoiceState('recording');
-      startWaveform(stream);
-      // Emit a chunk every 250 ms so audio is captured incrementally even if
-      // the final flush is missed (WebView2 occasionally drops the single
-      // on-stop blob, which surfaced as an empty recording).
-      recorder.start(250);
-    } catch {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      stopWaveform();
-      setVoiceState('idle');
-      setVoiceFailed(true);
-    }
-  }, [transcribeChunks, startWaveform, stopWaveform]);
-  // Discard the current recording without transcribing (the × button, and the
-  // "3 s of silence after start" auto-close).
-  const cancelVoice = useCallback(() => {
-    if (!recordingActiveRef.current) return;
-    voiceCancelledRef.current = true;
-    recordingActiveRef.current = false;
-    audioChunksRef.current = [];
-    stopWaveform();
-    setVoiceState('idle');
-    try { mediaRecorderRef.current?.stop(); } catch { /* already stopped */ }
-  }, [stopWaveform]);
-  // Finish the current recording and transcribe it into the input box (auto-
-  // finish after 1 s of silence once speech was heard). The text is written
-  // into the draft; sending stays a deliberate user action.
-  const finishVoice = useCallback(() => {
-    if (!recordingActiveRef.current) return;
-    voiceCancelledRef.current = false;
-    recordingActiveRef.current = false;
-    stopWaveform();
-    try { mediaRecorderRef.current?.stop(); } catch { /* already stopped */ }
-  }, [stopWaveform]);
-  useEffect(() => {
-    voiceHooksRef.current = { onAutoClose: cancelVoice, onAutoFinish: finishVoice };
-  }, [cancelVoice, finishVoice]);
-  // Alt key toggles voice input: start recording when idle, cancel when recording.
-  // Ignore Alt held together with other modifiers (Alt+Tab, Alt+F4, AltGr text
-  // entry) and auto-repeat. Only the composer's own window reacts.
-  useEffect(() => {
-    if (!voiceSupported) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Alt' || e.repeat || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      // AltGr reports as Alt+Ctrl on Windows; guarded above. Skip when typing
-      // in a different field or a modal/menu is open.
-      const target = e.target as HTMLElement | null;
-      if (target && target !== textareaRef.current && (target.closest('input, textarea, [contenteditable="true"]'))) return;
-      if (document.querySelector('.claude-control-menu')) return;
-      if (voiceState === 'transcribing') return;
-      e.preventDefault();
-      if (voiceState === 'recording') cancelVoice();
-      else void toggleVoice();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [voiceSupported, voiceState, cancelVoice, toggleVoice]);
+// [voice input disabled]   // ─── Voice input (mic button left of Send) ─────────────────────
+// [voice input disabled]   // Push-to-talk: click once to start recording, click again to stop and
+// [voice input disabled]   // transcribe. The transcript is appended to the draft (space-separated),
+// [voice input disabled]   // so it behaves exactly like typed input and can be edited before sending.
+// [voice input disabled]   const [voiceState, setVoiceState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
+// [voice input disabled]   const [voiceFailed, setVoiceFailed] = useState(false);
+// [voice input disabled]   const [voiceError, setVoiceError] = useState('');
+// [voice input disabled]   const [voiceNoInput, setVoiceNoInput] = useState(false);
+// [voice input disabled]   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+// [voice input disabled]   const streamRef = useRef<MediaStream | null>(null);
+// [voice input disabled]   const audioChunksRef = useRef<Blob[]>([]);
+// [voice input disabled]   const recordingActiveRef = useRef(false);
+// [voice input disabled]   const mimeTypeRef = useRef<string>('audio/webm');
+// [voice input disabled]   // Cancel flag: when the user discards a recording with ×, onstop must not
+// [voice input disabled]   // transcribe — it should drop the captured chunks instead.
+// [voice input disabled]   const voiceCancelledRef = useRef(false);
+// [voice input disabled]   // Live waveform: an AnalyserNode taps the mic stream while recording; a
+// [voice input disabled]   // requestAnimationFrame loop writes per-bar heights straight to the DOM
+// [voice input disabled]   // (refs, not React state) so 60fps animation never re-renders Gambit.
+// [voice input disabled]   const analyserRef = useRef<AnalyserNode | null>(null);
+// [voice input disabled]   const audioContextRef = useRef<AudioContext | null>(null);
+// [voice input disabled]   const waveformBarsRef = useRef<Array<HTMLSpanElement | null>>([]);
+// [voice input disabled]   const rafRef = useRef<number | null>(null);
+// [voice input disabled]   const waveformLevelsRef = useRef<number[]>([]);
+// [voice input disabled]   const WAVEFORM_BARS = 28;
+// [voice input disabled]   // Voice-activity timing. `heardVoiceRef` flips true once speech is detected.
+// [voice input disabled]   // Started → if still silent after AUTO_CLOSE_SILENT_MS, cancel (never send).
+// [voice input disabled]   // Heard speech → after AUTO_FINISH_SILENT_MS of silence, stop and transcribe
+// [voice input disabled]   //                the text into the input box (the user sends it themselves).
+// [voice input disabled]   const heardVoiceRef = useRef(false);
+// [voice input disabled]   const silentMsRef = useRef(0);        // consecutive silence accumulated
+// [voice input disabled]   const recordedMsRef = useRef(0);      // elapsed recording time since start
+// [voice input disabled]   const lastTickRef = useRef(0);
+// [voice input disabled]   const AUTO_CLOSE_SILENT_MS = 3000;
+// [voice input disabled]   const AUTO_FINISH_SILENT_MS = 1000;
+// [voice input disabled]   const MAX_CLIP_SECONDS = 180;
+// [voice input disabled]   // Hooks the waveform loop calls when the silence timers fire. Assigned below
+// [voice input disabled]   // once cancelVoice/finishVoice exist (they need the refs above, so a ref
+// [voice input disabled]   // avoids a circular useCallback dependency).
+// [voice input disabled]   const voiceHooksRef = useRef<{ onAutoClose: () => void; onAutoFinish: () => void }>({
+// [voice input disabled]     onAutoClose: () => {},
+// [voice input disabled]     onAutoFinish: () => {},
+// [voice input disabled]   });
+// [voice input disabled]   const stopWaveform = useCallback(() => {
+// [voice input disabled]     if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+// [voice input disabled]     analyserRef.current = null;
+// [voice input disabled]     const ctx = audioContextRef.current;
+// [voice input disabled]     audioContextRef.current = null;
+// [voice input disabled]     if (ctx && ctx.state !== 'closed') { void ctx.close().catch(() => {}); }
+// [voice input disabled]   }, []);
+// [voice input disabled]   useEffect(() => {
+// [voice input disabled]     if (!voiceFailed) return;
+// [voice input disabled]     const t = setTimeout(() => setVoiceFailed(false), 2500);
+// [voice input disabled]     return () => clearTimeout(t);
+// [voice input disabled]   }, [voiceFailed]);
+// [voice input disabled]   useEffect(() => () => {
+// [voice input disabled]     // Clean up any active capture on unmount so the mic is never left on.
+// [voice input disabled]     recordingActiveRef.current = false;
+// [voice input disabled]     mediaRecorderRef.current?.stop();
+// [voice input disabled]     streamRef.current?.getTracks().forEach((track) => track.stop());
+// [voice input disabled]     if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+// [voice input disabled]     const ctx = audioContextRef.current;
+// [voice input disabled]     audioContextRef.current = null;
+// [voice input disabled]     if (ctx && ctx.state !== 'closed') { void ctx.close().catch(() => {}); }
+// [voice input disabled]   }, []);
+// [voice input disabled]   // Whether the WebView supports media capture at all (WebView2/Safari do;
+// [voice input disabled]   // some embedded contexts disable it). Hides the button when unavailable.
+// [voice input disabled]   const voiceSupported = typeof MediaRecorder !== 'undefined'
+// [voice input disabled]     && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+// [voice input disabled]   // Tap the mic stream and paint a live bar waveform. Each bar is smoothed
+// [voice input disabled]   // toward the current audio level (fast attack, slow release) for an organic
+// [voice input disabled]   // "voice recording" feel rather than a jittery equalizer.
+// [voice input disabled]   const startWaveform = useCallback((stream: MediaStream) => {
+// [voice input disabled]     try {
+// [voice input disabled]       const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+// [voice input disabled]       if (!AudioCtx) return;
+// [voice input disabled]       const ctx = new AudioCtx();
+// [voice input disabled]       audioContextRef.current = ctx;
+// [voice input disabled]       const source = ctx.createMediaStreamSource(stream);
+// [voice input disabled]       const analyser = ctx.createAnalyser();
+// [voice input disabled]       analyser.fftSize = 256;
+// [voice input disabled]       analyser.smoothingTimeConstant = 0.7;
+// [voice input disabled]       source.connect(analyser);
+// [voice input disabled]       analyserRef.current = analyser;
+// [voice input disabled]       const data = new Uint8Array(analyser.frequencyBinCount);
+// [voice input disabled]       const levels = waveformLevelsRef.current;
+// [voice input disabled]       if (levels.length !== WAVEFORM_BARS) levels.length = WAVEFORM_BARS;
+// [voice input disabled]       heardVoiceRef.current = false;
+// [voice input disabled]       silentMsRef.current = 0;
+// [voice input disabled]       recordedMsRef.current = 0;
+// [voice input disabled]       lastTickRef.current = performance.now();
+// [voice input disabled]       const tick = () => {
+// [voice input disabled]         const node = analyserRef.current;
+// [voice input disabled]         if (!node) return;
+// [voice input disabled]         node.getByteTimeDomainData(data);
+// [voice input disabled]         // RMS of the time-domain waveform → 0..1 loudness.
+// [voice input disabled]         let sum = 0;
+// [voice input disabled]         for (let i = 0; i < data.length; i++) {
+// [voice input disabled]           const v = (data[i] - 128) / 128;
+// [voice input disabled]           sum += v * v;
+// [voice input disabled]         }
+// [voice input disabled]         const rms = Math.sqrt(sum / data.length);
+// [voice input disabled]         // Noise gate: below this level we treat the mic as silent so the bars
+// [voice input disabled]         // rest flat instead of twitching to room noise. Above it, map the
+// [voice input disabled]         // loudness to 0..1 so real speech drives the animation.
+// [voice input disabled]         const GATE = 0.012;
+// [voice input disabled]         const raw = Math.max(0, (rms - GATE) / (1 - GATE));
+// [voice input disabled]         const level = Math.min(1, Math.pow(raw, 0.8) * 1.6);
+// [voice input disabled]         const bars = waveformBarsRef.current;
+// [voice input disabled]         const now = performance.now();
+// [voice input disabled]         // Voice-activity bookkeeping, independent of the decorative bars.
+// [voice input disabled]         // Speech counts as heard at level ≥ 0.06; otherwise we accumulate
+// [voice input disabled]         // silence and fire the auto-close / auto-finish timers.
+// [voice input disabled]         const dt = now - lastTickRef.current;
+// [voice input disabled]         lastTickRef.current = now;
+// [voice input disabled]         recordedMsRef.current += dt;
+// [voice input disabled]         // Long-audio limit of the async adapter: unisound itself allows 5 h,
+// [voice input disabled]         // but polling only waits MAX_CLIP_SECONDS (180 s). Finish and transcribe
+// [voice input disabled]         // at that point rather than recording audio that will time out.
+// [voice input disabled]         if (recordingActiveRef.current && heardVoiceRef.current && recordedMsRef.current >= MAX_CLIP_SECONDS * 1000) {
+// [voice input disabled]           voiceHooksRef.current.onAutoFinish();
+// [voice input disabled]           return;
+// [voice input disabled]         }
+// [voice input disabled]         if (level >= 0.06) {
+// [voice input disabled]           heardVoiceRef.current = true;
+// [voice input disabled]           silentMsRef.current = 0;
+// [voice input disabled]         } else {
+// [voice input disabled]           silentMsRef.current += dt;
+// [voice input disabled]         }
+// [voice input disabled]         if (heardVoiceRef.current) {
+// [voice input disabled]           if (silentMsRef.current >= AUTO_FINISH_SILENT_MS) { void voiceHooksRef.current.onAutoFinish(); return; }
+// [voice input disabled]         } else if (silentMsRef.current >= AUTO_CLOSE_SILENT_MS) {
+// [voice input disabled]           void voiceHooksRef.current.onAutoClose();
+// [voice input disabled]           return;
+// [voice input disabled]         }
+// [voice input disabled]         for (let i = 0; i < WAVEFORM_BARS; i++) {
+// [voice input disabled]           let target: number;
+// [voice input disabled]           if (level < 0.02) {
+// [voice input disabled]             // Silent: everything settles to a flat line.
+// [voice input disabled]             target = 0;
+// [voice input disabled]           } else {
+// [voice input disabled]             // Speech: vary bar heights per index so the shape ripples with the
+// [voice input disabled]             // amplitude, biased toward the centre like the reference.
+// [voice input disabled]             const center = 1 - Math.abs(i - (WAVEFORM_BARS - 1) / 2) / ((WAVEFORM_BARS - 1) / 2);
+// [voice input disabled]             const wobble = 0.5 + 0.5 * Math.sin(now / 70 + i * 0.9);
+// [voice input disabled]             target = Math.max(0, Math.min(1, level * (0.35 + center * 0.4) * (0.55 + wobble * 0.45)));
+// [voice input disabled]           }
+// [voice input disabled]           const prev = levels[i] ?? 0;
+// [voice input disabled]           // Fast attack, slow release; snap to rest when silent.
+// [voice input disabled]           levels[i] = target > prev ? prev + (target - prev) * 0.6 : prev + (target - prev) * (level < 0.02 ? 0.35 : 0.2);
+// [voice input disabled]           const bar = bars[i];
+// [voice input disabled]           if (bar) bar.style.transform = `scaleY(${(0.06 + levels[i] * 0.94).toFixed(3)})`;
+// [voice input disabled]         }
+// [voice input disabled]         rafRef.current = requestAnimationFrame(tick);
+// [voice input disabled]       };
+// [voice input disabled]       rafRef.current = requestAnimationFrame(tick);
+// [voice input disabled]     } catch {
+// [voice input disabled]       // Waveform is decorative only — recording still works without it.
+// [voice input disabled]       stopWaveform();
+// [voice input disabled]     }
+// [voice input disabled]   }, [stopWaveform]);
+// [voice input disabled]   const transcribeChunks = useCallback(async (chunks: Blob[], mimeType: string) => {
+// [voice input disabled]     if (chunks.length === 0) { setVoiceState('idle'); setVoiceError('No audio was recorded'); setVoiceFailed(true); return; }
+// [voice input disabled]     setVoiceState('transcribing');
+// [voice input disabled]     try {
+// [voice input disabled]       // Decode the recorder's WebM/Opus and re-encode as 16 kHz mono WAV.
+// [voice input disabled]       // Many whisper-compatible services read the WebM container duration but
+// [voice input disabled]       // fail to decode its Opus audio (they return `text: ""`), so WAV is the
+// [voice input disabled]       // reliable interchange format. Decoding + resampling is done manually so
+// [voice input disabled]       // it doesn't depend on OfflineAudioContext quirks in WebView2.
+// [voice input disabled]       const source = new Blob(chunks, { type: mimeType });
+// [voice input disabled]       const wav = await blobToWav(source);
+// [voice input disabled]       const audioBase64 = await blobToBase64(wav);
+// [voice input disabled]       const text = await invoke<string>('agent_transcribe', { audioBase64, mimeType: 'audio/wav' });
+// [voice input disabled]       const trimmed = text.trim();
+// [voice input disabled]       // Append to whatever the user already drafted (space-separated). The
+// [voice input disabled]       // user reviews and sends it themselves — voice input never auto-sends.
+// [voice input disabled]       if (trimmed) {
+// [voice input disabled]         const current = draftRef.current;
+// [voice input disabled]         onDraftChangeRef.current(current.trim() ? `${current.trim()} ${trimmed}` : trimmed);
+// [voice input disabled]       }
+// [voice input disabled]     } catch (err) {
+// [voice input disabled]       // A silent clip never reaches the model — show a clear "no voice" message.
+// [voice input disabled]       if (err instanceof VoiceNoInputError) {
+// [voice input disabled]         setVoiceError('');
+// [voice input disabled]         setVoiceNoInput(true);
+// [voice input disabled]         setVoiceFailed(true);
+// [voice input disabled]         return;
+// [voice input disabled]       }
+// [voice input disabled]       console.error('[Gambit] voice transcription failed', err);
+// [voice input disabled]       setVoiceError(err instanceof Error ? err.message : String(err));
+// [voice input disabled]       setVoiceFailed(true);
+// [voice input disabled]     } finally {
+// [voice input disabled]       setVoiceState('idle');
+// [voice input disabled]     }
+// [voice input disabled]   }, []);
+// [voice input disabled]   const toggleVoice = useCallback(async () => {
+// [voice input disabled]     if (recordingActiveRef.current) {
+// [voice input disabled]       // Stop recording -> the recorder's onstop handler transcribes.
+// [voice input disabled]       recordingActiveRef.current = false;
+// [voice input disabled]       stopWaveform();
+// [voice input disabled]       try { mediaRecorderRef.current?.stop(); } catch { /* already stopped */ }
+// [voice input disabled]       return;
+// [voice input disabled]     }
+// [voice input disabled]     // Start recording.
+// [voice input disabled]     setVoiceFailed(false);
+// [voice input disabled]     setVoiceError('');
+// [voice input disabled]     setVoiceNoInput(false);
+// [voice input disabled]     const recorderType = (() => {
+// [voice input disabled]       if (typeof MediaRecorder === 'undefined') return null;
+// [voice input disabled]       const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/wav', 'audio/mp4'];
+// [voice input disabled]       return candidates.find((c) => MediaRecorder.isTypeSupported(c)) ?? null;
+// [voice input disabled]     })();
+// [voice input disabled]     if (!recorderType) { setVoiceFailed(true); return; }
+// [voice input disabled]     try {
+// [voice input disabled]       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+// [voice input disabled]       streamRef.current = stream;
+// [voice input disabled]       mimeTypeRef.current = recorderType.split(';')[0];
+// [voice input disabled]       audioChunksRef.current = [];
+// [voice input disabled]       voiceCancelledRef.current = false;
+// [voice input disabled]       const recorder = new MediaRecorder(stream, { mimeType: recorderType });
+// [voice input disabled]       mediaRecorderRef.current = recorder;
+// [voice input disabled]       recorder.ondataavailable = (ev) => {
+// [voice input disabled]         if (ev.data && ev.data.size > 0) audioChunksRef.current.push(ev.data);
+// [voice input disabled]       };
+// [voice input disabled]       recorder.onstop = () => {
+// [voice input disabled]         // Release the mic regardless of transcription outcome.
+// [voice input disabled]         streamRef.current?.getTracks().forEach((track) => track.stop());
+// [voice input disabled]         streamRef.current = null;
+// [voice input disabled]         mediaRecorderRef.current = null;
+// [voice input disabled]         stopWaveform();
+// [voice input disabled]         const chunks = audioChunksRef.current;
+// [voice input disabled]         audioChunksRef.current = [];
+// [voice input disabled]         const cancelled = voiceCancelledRef.current;
+// [voice input disabled]         voiceCancelledRef.current = false;
+// [voice input disabled]         recordingActiveRef.current = false;
+// [voice input disabled]         // Always return the UI to idle — this is what makes × actually close.
+// [voice input disabled]         if (cancelled) { setVoiceState('idle'); return; }
+// [voice input disabled]         void transcribeChunks(chunks, mimeTypeRef.current);
+// [voice input disabled]       };
+// [voice input disabled]       recordingActiveRef.current = true;
+// [voice input disabled]       setVoiceState('recording');
+// [voice input disabled]       startWaveform(stream);
+// [voice input disabled]       // Emit a chunk every 250 ms so audio is captured incrementally even if
+// [voice input disabled]       // the final flush is missed (WebView2 occasionally drops the single
+// [voice input disabled]       // on-stop blob, which surfaced as an empty recording).
+// [voice input disabled]       recorder.start(250);
+// [voice input disabled]     } catch {
+// [voice input disabled]       streamRef.current?.getTracks().forEach((track) => track.stop());
+// [voice input disabled]       streamRef.current = null;
+// [voice input disabled]       stopWaveform();
+// [voice input disabled]       setVoiceState('idle');
+// [voice input disabled]       setVoiceFailed(true);
+// [voice input disabled]     }
+// [voice input disabled]   }, [transcribeChunks, startWaveform, stopWaveform]);
+// [voice input disabled]   // Discard the current recording without transcribing (the × button, and the
+// [voice input disabled]   // "3 s of silence after start" auto-close).
+// [voice input disabled]   const cancelVoice = useCallback(() => {
+// [voice input disabled]     if (!recordingActiveRef.current) return;
+// [voice input disabled]     voiceCancelledRef.current = true;
+// [voice input disabled]     recordingActiveRef.current = false;
+// [voice input disabled]     audioChunksRef.current = [];
+// [voice input disabled]     stopWaveform();
+// [voice input disabled]     setVoiceState('idle');
+// [voice input disabled]     try { mediaRecorderRef.current?.stop(); } catch { /* already stopped */ }
+// [voice input disabled]   }, [stopWaveform]);
+// [voice input disabled]   // Finish the current recording and transcribe it into the input box (auto-
+// [voice input disabled]   // finish after 1 s of silence once speech was heard). The text is written
+// [voice input disabled]   // into the draft; sending stays a deliberate user action.
+// [voice input disabled]   const finishVoice = useCallback(() => {
+// [voice input disabled]     if (!recordingActiveRef.current) return;
+// [voice input disabled]     voiceCancelledRef.current = false;
+// [voice input disabled]     recordingActiveRef.current = false;
+// [voice input disabled]     stopWaveform();
+// [voice input disabled]     try { mediaRecorderRef.current?.stop(); } catch { /* already stopped */ }
+// [voice input disabled]   }, [stopWaveform]);
+// [voice input disabled]   useEffect(() => {
+// [voice input disabled]     voiceHooksRef.current = { onAutoClose: cancelVoice, onAutoFinish: finishVoice };
+// [voice input disabled]   }, [cancelVoice, finishVoice]);
+// [voice input disabled]   // Alt key toggles voice input: start recording when idle, cancel when recording.
+// [voice input disabled]   // Ignore Alt held together with other modifiers (Alt+Tab, Alt+F4, AltGr text
+// [voice input disabled]   // entry) and auto-repeat. Only the composer's own window reacts.
+// [voice input disabled]   useEffect(() => {
+// [voice input disabled]     if (!voiceSupported) return;
+// [voice input disabled]     const onKey = (e: KeyboardEvent) => {
+// [voice input disabled]       if (e.key !== 'Alt' || e.repeat || e.ctrlKey || e.metaKey || e.shiftKey) return;
+// [voice input disabled]       // AltGr reports as Alt+Ctrl on Windows; guarded above. Skip when typing
+// [voice input disabled]       // in a different field or a modal/menu is open.
+// [voice input disabled]       const target = e.target as HTMLElement | null;
+// [voice input disabled]       if (target && target !== textareaRef.current && (target.closest('input, textarea, [contenteditable="true"]'))) return;
+// [voice input disabled]       if (document.querySelector('.claude-control-menu')) return;
+// [voice input disabled]       if (voiceState === 'transcribing') return;
+// [voice input disabled]       e.preventDefault();
+// [voice input disabled]       if (voiceState === 'recording') cancelVoice();
+// [voice input disabled]       else void toggleVoice();
+// [voice input disabled]     };
+// [voice input disabled]     window.addEventListener('keydown', onKey);
+// [voice input disabled]     return () => window.removeEventListener('keydown', onKey);
+// [voice input disabled]   }, [voiceSupported, voiceState, cancelVoice, toggleVoice]);
 
   // Auto-grow the textarea to fit its content as the user types.
   useLayoutEffect(() => {
@@ -1277,46 +1277,9 @@ function GambitImpl({
           </span>
         )}
 
-        {voiceFailed && (
-          <span className="gambit-send-hint gambit-send-hint--voice" role="status" title={voiceError || undefined}>
-            {voiceNoInput ? t('gambit.voice_no_input') : voiceError ? t('gambit.voice_failed_reason', { error: voiceError }) : t('gambit.voice_failed_hint')}
-          </span>
-        )}
-
-        {/* Prompt optimization — left of the audio input button, same slot
-            while recording (the voice bar replaces the mic button). */}
+        {/* [voice input disabled] Voice-recording (mic) input: push-to-talk button,
+            live waveform and transcription status. */}
         <GambitPromptOptimize draft={draft} onDraftChange={onDraftChange} />
-
-        {voiceSupported && voiceState === 'recording' && (
-          <div className="gambit-voice-bar" role="group" aria-label={t('gambit.voice_listening_hint')}>
-            <button type="button" className="gambit-voice-bar-cancel" aria-label={t('gambit.voice_cancel')} onClick={cancelVoice}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg>
-            </button>
-            <div className="gambit-voice-wave" aria-hidden="true">
-              {Array.from({ length: WAVEFORM_BARS }, (_, i) => (
-                <span key={i} ref={(el) => { waveformBarsRef.current[i] = el; }} className="gambit-voice-wave-bar" />
-              ))}
-            </div>
-            <button type="button" className="gambit-voice-bar-confirm" aria-label={t('gambit.voice_stop')} onClick={() => { void toggleVoice(); }}>
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 14 V3 M3 8 L8 3 L13 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
-          </div>
-        )}
-
-        {voiceSupported && voiceState !== 'recording' && (
-          <button
-            type="button"
-            className="gambit-voice"
-            aria-label={t('gambit.voice')}
-            aria-pressed={false}
-            disabled={voiceState === 'transcribing'}
-            onClick={() => { void toggleVoice(); }}
-          >
-            {voiceState === 'transcribing'
-              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><path d="M12 2v3.6M12 18.4V22M2 12h3.6M18.4 12H22M4.9 4.9l2.5 2.5M16.6 16.6l2.5 2.5M19.1 4.9l-2.5 2.5M7.4 16.6l-2.5 2.5" strokeLinecap="round"/></svg>
-              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>}
-          </button>
-        )}
 
         <button
           className={`gambit-send${sendFailed ? ' gambit-send--failed' : ''}${!running && !draft.trim() ? ' gambit-send--empty' : ''}`}

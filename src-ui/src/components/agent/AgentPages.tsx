@@ -280,19 +280,20 @@ interface ModelSettings {
 }
 const DEFAULT_URL = { openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com' };
 
-/** Unisound (u2-asr) hosts use the async task workflow instead of OpenAI's /audio/transcriptions. */
-function isUnisoundUrl(url: string): boolean {
-  try { const host = new URL(url.trim()).hostname.toLowerCase(); return host === 'unisound.com' || host.endsWith('.unisound.com'); }
-  catch { return false; }
-}
-
-type ModelKind = 'text' | 'voice';
+// [voice input disabled] /** Unisound (u2-asr) hosts use the async task workflow instead of OpenAI's /audio/transcriptions. */
+// [voice input disabled] function isUnisoundUrl(url: string): boolean {
+// [voice input disabled]   try { const host = new URL(url.trim()).hostname.toLowerCase(); return host === 'unisound.com' || host.endsWith('.unisound.com'); }
+// [voice input disabled]   catch { return false; }
+// [voice input disabled] }
+// [voice input disabled]
+// [voice input disabled] type ModelKind = 'text' | 'voice';
+type ModelKind = 'text';
 const MODEL_ENDPOINTS: Record<ModelKind, { get: string; save: string; test: string; title: I18nKey }> = {
   text: { get: 'agent_get_model', save: 'agent_save_model', test: 'agent_test_model', title: 'agent.model.title' },
-  voice: { get: 'agent_get_voice_model', save: 'agent_save_voice_model', test: 'agent_test_voice_model', title: 'agent.voice.title' },
+  // [voice input disabled] voice: { get: 'agent_get_voice_model', save: 'agent_save_voice_model', test: 'agent_test_voice_model', title: 'agent.voice.title' },
 };
 
-/** One model form; text and voice each read and save their own independent settings. */
+/** One model form; text settings are independent of voice settings. */
 function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?: ReactNode }) {
   const t = useT();
   const endpoints = MODEL_ENDPOINTS[kind];
@@ -347,9 +348,9 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
           <AgentPasteInput label={t('agent.model.url')} type="url" value={config.baseUrl} placeholder={DEFAULT_URL[config.provider]} onValue={setBaseUrl} openMenu={openMenu} />
           <AgentPasteInput label={t('agent.model.id')} value={config.model} maxLength={200} placeholder={t('agent.model.id_placeholder')} onValue={setModel} openMenu={openMenu} />
           <AgentPasteInput label={t('agent.model.api_key')} secret value={config.apiKey} autoComplete="off" placeholder={t('agent.model.api_key_placeholder')} onValue={setKey} openMenu={openMenu} />
-          {/* A full-width note goes last: inserted between two fields it takes
+          {/* [voice input disabled] A full-width note goes last: inserted between two fields it takes
               the next grid row and leaves that pair out of step. */}
-          {kind === 'voice' && isUnisoundUrl(config.baseUrl) && <p className="agent-field-hint" role="status">{t('agent.voice.unisound_hint')}</p>}
+          {/* [voice input disabled] {kind === 'voice' && isUnisoundUrl(config.baseUrl) && <p className="agent-field-hint" role="status">{t('agent.voice.unisound_hint')}</p>} */}
           <div className="agent-form-footer"><button type="button" className="agent-button quiet" disabled={loading || saving || testing} onClick={() => void test()}>{testing ? t('agent.model.testing') : t('agent.model.test')}</button><button type="submit" className="agent-button primary" disabled={loading || saving || testing}>{saving ? t('agent.model.saving') : t('agent.model.save')}</button><span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span></div>
         </fieldset>
         {error && <p className="agent-feedback error" role="alert">{formatAgentError(error, t)}</p>}
@@ -643,7 +644,7 @@ function AgentHelpModal({ onClose }: { onClose: () => void }) {
   </dialog>, document.body);
 }
 
-/** Text and voice model configuration, work modes and channels: the "Super Assistant" section of the settings page. */
+/** Text model configuration, work modes and channels: the "Super Assistant" section of the settings page. */
 export function AgentSettings() {
   const t = useT();
   const { state } = useAppState();
@@ -651,7 +652,7 @@ export function AgentSettings() {
   // The intro paragraph is gone; keep the instructions reachable via a compact
   // button beside the model heading instead of a block of body text up top.
   const helpButton = <button type="button" className="agent-settings-help-button" title={t('agent.settings.help')} aria-label={t('agent.settings.help')} onClick={() => setHelpOpen(true)}>?</button>;
-  return <><div className="agent-settings-scroll"><div className="agent-settings-content"><AgentModelSection kind="text" helpButton={helpButton} /><AgentModelSection kind="voice" /><AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
+  return <><div className="agent-settings-scroll"><div className="agent-settings-content"><AgentModelSection kind="text" helpButton={helpButton} />{/* [voice input disabled] <AgentModelSection kind="voice" /> */}<AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
 }
 
 /** A Super Assistant tab: the conversation. Its configuration moved into the settings page. */

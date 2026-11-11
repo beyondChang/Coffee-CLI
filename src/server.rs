@@ -1443,9 +1443,9 @@ fn credential_set_backend(backend: String) -> Result<String, String> {
 async fn check_network_port(host: String, port: u16) -> Result<bool, String> {
     use std::time::Duration;
     use std::net::ToSocketAddrs;
-    
+
     let target = format!("{}:{}", host, port);
-    
+
     // Run blocking network check in a dedicated blocking task to avoid stalling the async runtime
     let reachable = tauri::async_runtime::spawn_blocking(move || {
         match target.to_socket_addrs() {
@@ -1823,10 +1823,10 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::agent_sentinel::agent_sentinel_report,
             crate::agent::agent_save_model,
             crate::agent::agent_test_model,
-            crate::agent_voice::agent_get_voice_model,
-            crate::agent_voice::agent_save_voice_model,
-            crate::agent_voice::agent_test_voice_model,
-            crate::agent_voice::agent_transcribe,
+            // [voice input disabled] crate::agent_voice::agent_get_voice_model,
+            // [voice input disabled] crate::agent_voice::agent_save_voice_model,
+            // [voice input disabled] crate::agent_voice::agent_test_voice_model,
+            // [voice input disabled] crate::agent_voice::agent_transcribe,
             crate::agent::agent_get_english_delegation,
             crate::agent::agent_set_english_delegation,
             crate::agent::agent_get_conversation,
