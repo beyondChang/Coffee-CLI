@@ -351,9 +351,10 @@ function AgentModelSection({ kind, helpButton }: { kind: ModelKind; helpButton?:
           {/* [voice input disabled] A full-width note goes last: inserted between two fields it takes
               the next grid row and leaves that pair out of step. */}
           {/* [voice input disabled] {kind === 'voice' && isUnisoundUrl(config.baseUrl) && <p className="agent-field-hint" role="status">{t('agent.voice.unisound_hint')}</p>} */}
-          <div className="agent-form-footer"><button type="button" className="agent-button quiet" disabled={loading || saving || testing} onClick={() => void test()}>{testing ? t('agent.model.testing') : t('agent.model.test')}</button><button type="submit" className="agent-button primary" disabled={loading || saving || testing}>{saving ? t('agent.model.saving') : t('agent.model.save')}</button><span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span></div>
+          <div className="agent-form-footer"><button type="button" className="agent-button quiet" disabled={loading || saving || testing} onClick={() => void test()}>{testing ? t('agent.model.testing') : t('agent.model.test')}</button><button type="submit" className="agent-button primary" disabled={loading || saving || testing}>{saving ? t('agent.model.saving') : t('agent.model.save')}</button>{error
+            ? <span className="agent-feedback error" role="alert">{formatAgentError(error, t)}</span>
+            : <span className="agent-feedback" role="status">{loading ? t('agent.model.loading') : feedback && t(feedback)}</span>}</div>
         </fieldset>
-        {error && <p className="agent-feedback error" role="alert">{formatAgentError(error, t)}</p>}
       </form>
       {menu}
   </section>;
