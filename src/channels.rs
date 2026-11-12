@@ -128,6 +128,53 @@ struct RuntimeState {
     login: Option<WeixinLogin>,
 }
 
+/// Build an HTTP client with smart proxy detection.
+/// If a proxy is configured via environment variables (HTTPS_PROXY/HTTP_PROXY)
+/// but the proxy server is unreachable, we skip it instead of failing every request.
+fn build_http_client() -> reqwest::Client {
+    let mut builder = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
+
+    // Try proxy from environment variables, with liveness check
+    let proxy_url = std::env::var("HTTPS_PROXY")
+        .ok()
+        .or_else(|| std::env::var("https_proxy").ok())
+        .or_else(|| std::env::var("HTTP_PROXY").ok())
+        .or_else(|| std::env::var("http_proxy").ok());
+
+    if let Some(url) = proxy_url {
+        if is_proxy_reachable(&url) {
+            if let Ok(proxy) = reqwest::Proxy::all(&url) {
+                builder = builder.proxy(proxy);
+            }
+        }
+    }
+
+    builder
+        .build()
+        .expect("HTTP client")
+}
+
+fn is_proxy_reachable(proxy_url: &str) -> bool {
+    let parsed = match reqwest::Url::parse(proxy_url) {
+        Ok(u) => u,
+        Err(_) => return false,
+    };
+    let host = match parsed.host_str() {
+        Some(h) => h,
+        None => return false,
+    };
+    let port = parsed.port().unwrap_or(8080);
+
+    use std::net::TcpStream;
+    use std::time::Duration;
+
+    std::net::ToSocketAddrs::to_socket_addrs(&(host, port))
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .and_then(|addr| TcpStream::connect_timeout(&addr, Duration::from_millis(1500)).ok())
+        .is_some()
+}
+
 pub struct ChannelRuntime {
     state: Mutex<RuntimeState>,
     client: reqwest::Client,
@@ -150,10 +197,7 @@ impl Default for ChannelRuntime {
                 pairing: None,
                 login: None,
             }),
-            client: reqwest::Client::builder()
-                .redirect(reqwest::redirect::Policy::none())
-                .build()
-                .expect("HTTP client"),
+            client: build_http_client(),
         }
     }
 }

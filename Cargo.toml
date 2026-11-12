@@ -23,7 +23,7 @@ tempfile = "3"
 portable-pty = "0.9"
 # Local Agent and message-channel tasks run on Tauri's async runtime.
 tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "system-proxy"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 uuid = { version = "1", features = ["v4"] }
 
 # Regex (used by terminal.rs for ANSI strip)
