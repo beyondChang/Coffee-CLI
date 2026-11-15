@@ -17,6 +17,21 @@ const context = vm.createContext({
   renamed: { 'claude:renamed': 'Custom session title' },
   orchestration: { tasks: [] }, state: { terminals: [] }, projectExtras: new Map(), openSessions: new Set(), PROJECT_PREVIEW: 5, toolFilter: '', projectScope: 'all', projectFolders: [], t: () => 'Super Assistant',
 });
+// HistoryBoard folds an OMP/Pi continuation into its root card, so it asks
+// whether a running tab's token identifies a card. Take the real matcher
+// from history-cache.ts rather than a copy: a stub here would let the two
+// drift apart unnoticed.
+const historyCacheFile = new URL('../src/lib/history-cache.ts', import.meta.url);
+const historyCacheTree = ts.createSourceFile(historyCacheFile.pathname, readFileSync(historyCacheFile, 'utf8'), ts.ScriptTarget.Latest, true);
+const historyCacheSource = historyCacheTree.statements.filter(node => !ts.isImportDeclaration(node))
+  .map(node => node.getText(historyCacheTree).replace(/^export /, '')).join('\n');
+context.sessionMatchesResumeToken = vm.runInNewContext(
+  ts.transpileModule(`${historyCacheSource};
+    sessionMatchesResumeToken;`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText,
+  { isTauri: false, console: { error() {} }, setTimeout, clearTimeout },
+);
 function evaluate(name) {
   assert.ok(expressions.has(name), `Missing actual ${name}`);
   const compiled = ts.transpileModule(`(${expressions.get(name)})`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
