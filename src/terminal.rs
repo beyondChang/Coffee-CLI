@@ -618,11 +618,18 @@ fn omp_session_header(path: &std::path::Path) -> Option<(String, String, bool)> 
 
 /// Windows has no `/dev` TTY path, so omp keeps no terminal-sessions breadcrumb
 /// there and a fresh tab cannot be attributed to its PTY the Unix way. Instead,
-/// the tab's own session is the EARLIEST non-fork session file CREATED after
-/// the tab launched in omp's session store:
-/// - Creation time (not mtime) is the discriminator — transcripts are appended
-///   continuously, so an older tab's actively-growing file must never be
-///   claimed by a later tab in the same project.
+/// the tab's own session is the EARLIEST non-fork session file that APPEARED
+/// after the tab launched in omp's session store:
+/// - "Appeared after the launch" is decided by [`omp_session_files`], a
+///   snapshot of the store taken before the PTY starts — not by comparing
+///   timestamps. A file's creation time comes from the filesystem clock,
+///   which lags `SystemTime` by up to ~1 ms on NTFS, so a strict
+///   `created >= launched_at` test drops the tab's OWN freshly written file
+///   and hands the tab a later sibling instead. A snapshot has no such skew.
+/// - Creation time still orders the candidates among themselves (the
+///   filesystem clock is consistent across files), so the earliest one wins.
+///   Transcripts are appended continuously, so an older tab's actively-growing
+///   file must never be claimed by a later tab in the same project.
 /// - Fork files (title-generator forks and auto-continuations, marked by
 ///   `parentSession`/`continuationOf`) never belong to a fresh tab.
 /// - Files created later belong to tabs launched later, so the caller stops at
@@ -630,15 +637,21 @@ fn omp_session_header(path: &std::path::Path) -> Option<(String, String, bool)> 
 /// The project match uses the header's `cwd` (omp writes no bucket-name
 /// decoder contract), normalized for drive-letter case and separator style.
 #[cfg(windows)]
-pub(crate) fn omp_fresh_session_token(root: &std::path::Path, project_cwd: &str, since: std::time::SystemTime) -> Option<String> {
+pub(crate) fn omp_fresh_session_token(
+    root: &std::path::Path,
+    project_cwd: &str,
+    preexisting: &std::collections::HashSet<std::path::PathBuf>,
+) -> Option<String> {
     let want = project_cwd.replace('/', "\\").to_lowercase();
     let mut best: Option<(std::time::SystemTime, String)> = None;
     for bucket in std::fs::read_dir(root).ok()?.flatten() {
         for entry in std::fs::read_dir(bucket.path()).ok()?.flatten() {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) != Some("jsonl") { continue; }
+            // A file that was already there when the tab launched belongs to
+            // an earlier tab, however recent its creation time looks.
+            if preexisting.contains(&path) { continue; }
             let Ok(created) = entry.metadata().ok()?.created() else { continue };
-            if created < since { continue; }
             let Some((id, cwd, forked)) = omp_session_header(&path) else { continue };
             if forked || cwd.replace('/', "\\").to_lowercase() != want { continue; }
             if best.as_ref().is_some_and(|(t, _)| created >= *t) { continue; }
@@ -646,6 +659,21 @@ pub(crate) fn omp_fresh_session_token(root: &std::path::Path, project_cwd: &str,
         }
     }
     best.map(|(_, id)| id)
+}
+
+/// Every session file currently in omp's store. Taken before a tab starts so
+/// the files that already existed can be told apart from the ones the tab
+/// itself causes to appear.
+#[cfg(windows)]
+pub(crate) fn omp_session_files(root: &std::path::Path) -> std::collections::HashSet<std::path::PathBuf> {
+    let mut files = std::collections::HashSet::new();
+    for bucket in std::fs::read_dir(root).ok().into_iter().flatten().flatten() {
+        for entry in std::fs::read_dir(bucket.path()).ok().into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("jsonl") { files.insert(path); }
+        }
+    }
+    files
 }
 
 // ─── Spawn ────────────────────────────────────────────────
@@ -1420,9 +1448,11 @@ mod tests {
         // A pre-existing session in the same project (an older tab's transcript).
         let old_id = uuid::Uuid::new_v4().to_string();
         write("2026-01-01T00-00-00-000Z_old.jsonl", header(&old_id, None));
-        // `since` is taken after the old file exists, before the fresh ones.
-        std::thread::sleep(std::time::Duration::from_millis(80));
-        let since = std::time::SystemTime::now();
+
+        // The snapshot is taken once the old file exists and before the fresh
+        // ones appear — the same moment the app takes it, before the PTY starts.
+        let preexisting = omp_session_files(&root);
+        assert!(preexisting.contains(&bucket.join("2026-01-01T00-00-00-000Z_old.jsonl")));
 
         // Title-generator fork: same project, fresh, but never a tab's own session.
         let fork_id = uuid::Uuid::new_v4().to_string();
@@ -1444,9 +1474,41 @@ mod tests {
         let later = uuid::Uuid::new_v4().to_string();
         write("2026-01-05T00-00-00-000Z_later.jsonl", header(&later, None));
 
-        let token = omp_fresh_session_token(&root, cwd, since);
+        let token = omp_fresh_session_token(&root, cwd, &preexisting);
         assert_eq!(token.as_deref(), Some(mine.as_str()),
-            "must pick the earliest own-project non-fork file created after launch");
+            "must pick the earliest own-project non-fork file that appeared after launch");
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // The pre-launch snapshot is what separates this tab's session from an
+    // earlier tab's. Without it a stale file that merely looks recent wins.
+    #[cfg(windows)]
+    #[test]
+    fn omp_fresh_session_token_ignores_files_that_predate_the_launch() {
+        let root = std::env::temp_dir().join(format!("omp-fresh-snapshot-{}", uuid::Uuid::new_v4()));
+        let bucket = root.join("--D--test-project--");
+        std::fs::create_dir_all(&bucket).unwrap();
+        let cwd = "D:\\test\\project";
+        let header = |session_id: &str| serde_json::json!({
+            "type": "session", "id": session_id, "cwd": cwd,
+            "timestamp": "2026-11-15T00:00:00Z",
+        }).to_string();
+
+        // The old tab's transcript: present at launch, so it must be ignored
+        // even though it is the ONLY own-project file at that moment.
+        let old = uuid::Uuid::new_v4().to_string();
+        std::fs::write(bucket.join("old.jsonl"), header(&old) + "\n").unwrap();
+        let preexisting = omp_session_files(&root);
+
+        assert_eq!(omp_fresh_session_token(&root, cwd, &preexisting), None,
+            "a file that already existed must never be claimed by a fresh tab");
+
+        // The tab's own session appears now: it is claimed.
+        let mine = uuid::Uuid::new_v4().to_string();
+        std::fs::write(bucket.join("mine.jsonl"), header(&mine) + "\n").unwrap();
+        assert_eq!(omp_fresh_session_token(&root, cwd, &preexisting).as_deref(), Some(mine.as_str()),
+            "the file that appeared after the launch belongs to this tab");
 
         std::fs::remove_dir_all(&root).ok();
     }

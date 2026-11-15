@@ -52,6 +52,8 @@ mod shell_probe;
 mod linux_blur;
 #[cfg(target_os = "windows")]
 mod windows_path;
+#[cfg(test)]
+mod test_support;
 
 use anyhow::Result;
 

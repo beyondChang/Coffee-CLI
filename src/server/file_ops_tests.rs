@@ -22,19 +22,7 @@ impl Drop for Fixture {
 }
 
 fn dir_link(target: &Path, link: &Path) {
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(target, link).unwrap();
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // Junctions need no Developer Mode or elevation, including on CI.
-        let result = std::process::Command::new("powershell.exe")
-            .args(["-NoProfile", "-NonInteractive", "-Command",
-                "New-Item -ItemType Junction -Path $env:COFFEE_TEST_LINK -Target $env:COFFEE_TEST_TARGET -ErrorAction Stop | Out-Null"])
-            .env("COFFEE_TEST_LINK", link).env("COFFEE_TEST_TARGET", target)
-            .creation_flags(0x0800_0000).output().unwrap();
-        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
-    }
+    crate::test_support::dir_link(target, link);
 }
 
 #[test]

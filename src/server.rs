@@ -1088,6 +1088,20 @@ fn tier_terminal_start_blocking(
         }
     }
 
+    // Snapshot omp's session store BEFORE the PTY starts. The Windows
+    // attribution below tells "this tab's own session" from "an earlier
+    // tab's" by which files already existed at launch, because the
+    // filesystem clock lags SystemTime and a timestamp comparison drops
+    // the tab's own freshly written file.
+    #[cfg(windows)]
+    let omp_preexisting = if tool.as_deref() == Some("omp") {
+        crate::tools::find("omp")
+            .and_then(|t| Some(history_root(t, t.history_shape.as_ref()?, &dirs::home_dir()?)))
+            .map(|root| terminal::omp_session_files(&root))
+    } else { None };
+    // Unix attributes the session through omp's TTY breadcrumb and compares
+    // its mtime against this instant; Windows uses the snapshot above.
+    #[cfg(unix)]
     let launched_at = std::time::SystemTime::now();
     terminal::spawn(
         app.clone(),
@@ -1138,14 +1152,17 @@ fn tier_terminal_start_blocking(
         }
         // Windows ConPTY exposes no TTY path, so omp writes no breadcrumb and
         // the PTY cannot be attributed that way. A fresh tab's own session is
-        // instead the earliest non-fork session file CREATED after launch in
-        // omp's store (see omp_fresh_session_token); `follow=false` because
-        // files created later belong to tabs launched later.
+        // instead the earliest non-fork session file that appeared after the
+        // launch (see omp_fresh_session_token); `follow=false` because files
+        // created later belong to tabs launched later.
         #[cfg(windows)]
-        if let Some(root) = crate::tools::find("omp").and_then(|t| Some(history_root(t, t.history_shape.as_ref()?, &dirs::home_dir()?))) {
+        if let (Some(root), Some(preexisting)) = (
+            crate::tools::find("omp").and_then(|t| Some(history_root(t, t.history_shape.as_ref()?, &dirs::home_dir()?))),
+            omp_preexisting,
+        ) {
             let project_cwd = actual_cwd.clone();
             watch_session_token(app.clone(), terminal_session.clone(), session_id.clone(), false, move || {
-                terminal::omp_fresh_session_token(&root, &project_cwd, launched_at)
+                terminal::omp_fresh_session_token(&root, &project_cwd, &preexisting)
             });
         }
     }

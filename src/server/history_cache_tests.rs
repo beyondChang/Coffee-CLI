@@ -232,18 +232,7 @@ fn history_walk_follows_directory_links_with_a_depth_limit() {
     std::fs::create_dir_all(&root).unwrap();
     std::fs::create_dir_all(&target).unwrap();
     write_jsonl(&target.join("session.jsonl"), &[CODEX_HEADER, CODEX_USER]);
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(&target, &link).unwrap();
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        let output = std::process::Command::new("powershell.exe")
-            .args(["-NoProfile", "-NonInteractive", "-Command",
-                "New-Item -ItemType Junction -Path $env:COFFEE_TEST_LINK -Target $env:COFFEE_TEST_TARGET -ErrorAction Stop | Out-Null"])
-            .env("COFFEE_TEST_LINK", &link).env("COFFEE_TEST_TARGET", &target)
-            .creation_flags(0x0800_0000).output().unwrap();
-        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    }
+    crate::test_support::dir_link(&target, &link);
     let mut found = Vec::new();
     collect_jsonl_paths_with_mtime(root.clone(), 2, "codex", &mut found);
     assert_eq!(found.len(), 1);
@@ -251,10 +240,7 @@ fn history_walk_follows_directory_links_with_a_depth_limit() {
     found.clear();
     collect_jsonl_paths_with_mtime(root, 1, "codex", &mut found);
     assert!(found.is_empty());
-    #[cfg(unix)]
-    std::fs::remove_file(link).unwrap();
-    #[cfg(windows)]
-    std::fs::remove_dir(link).unwrap();
+    crate::test_support::remove_dir_link(&link);
     let _ = std::fs::remove_dir_all(directory);
 }
 
