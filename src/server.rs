@@ -1122,14 +1122,30 @@ fn tier_terminal_start_blocking(
             });
         }
     }
-    #[cfg(unix)]
     if tool.as_deref() == Some("omp") {
-        let tty = terminal_session.lock().ok()
-            .and_then(|map| map.get(&session_id).map(|s| s._master.clone()))
-            .and_then(|master| master.lock().ok().and_then(|m| m.as_ref().and_then(|m| m.tty_name())));
-        if let Some(tty) = tty {
-            watch_session_token(app.clone(), terminal_session.clone(), session_id.clone(), true, move || {
-                terminal::omp_terminal_token(&tty, launched_at)
+        // Unix: omp records each terminal's current session in a breadcrumb
+        // keyed by the PTY's TTY name — exact per-tab attribution.
+        #[cfg(unix)]
+        {
+            let tty = terminal_session.lock().ok()
+                .and_then(|map| map.get(&session_id).map(|s| s._master.clone()))
+                .and_then(|master| master.lock().ok().and_then(|m| m.as_ref().and_then(|m| m.tty_name())));
+            if let Some(tty) = tty {
+                watch_session_token(app.clone(), terminal_session.clone(), session_id.clone(), true, move || {
+                    terminal::omp_terminal_token(&tty, launched_at)
+                });
+            }
+        }
+        // Windows ConPTY exposes no TTY path, so omp writes no breadcrumb and
+        // the PTY cannot be attributed that way. A fresh tab's own session is
+        // instead the earliest non-fork session file CREATED after launch in
+        // omp's store (see omp_fresh_session_token); `follow=false` because
+        // files created later belong to tabs launched later.
+        #[cfg(windows)]
+        if let Some(root) = crate::tools::find("omp").and_then(|t| Some(history_root(t, t.history_shape.as_ref()?, &dirs::home_dir()?))) {
+            let project_cwd = actual_cwd.clone();
+            watch_session_token(app.clone(), terminal_session.clone(), session_id.clone(), false, move || {
+                terminal::omp_fresh_session_token(&root, &project_cwd, launched_at)
             });
         }
     }

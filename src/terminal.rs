@@ -596,6 +596,58 @@ pub(crate) fn omp_terminal_token(tty: &std::path::Path, since: std::time::System
     omp_breadcrumb_token(&std::fs::read_to_string(crumb).ok()?)
 }
 
+/// Header row of an omp/pi transcript: `{type:"session", id, cwd, …}` plus the
+/// fork markers when the file belongs to a title-generator fork or an
+/// auto-continuation. `None` while the header hasn't been written yet.
+#[cfg(windows)]
+fn omp_session_header(path: &std::path::Path) -> Option<(String, String, bool)> {
+    use std::io::BufRead;
+    let file = std::fs::File::open(path).ok()?;
+    for line in std::io::BufReader::new(file).lines().map_while(Result::ok).take(4) {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+        if value.get("type").and_then(|v| v.as_str()) != Some("session") { continue; }
+        let id = value.get("id").and_then(|v| v.as_str())?;
+        if uuid::Uuid::parse_str(id).is_err() { return None; }
+        let forked = value.get("parentSession").and_then(|v| v.as_str()).is_some()
+            || value.get("continuationOf").and_then(|v| v.as_str()).is_some();
+        let cwd = value.get("cwd").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        return Some((id.to_string(), cwd, forked));
+    }
+    None
+}
+
+/// Windows has no `/dev` TTY path, so omp keeps no terminal-sessions breadcrumb
+/// there and a fresh tab cannot be attributed to its PTY the Unix way. Instead,
+/// the tab's own session is the EARLIEST non-fork session file CREATED after
+/// the tab launched in omp's session store:
+/// - Creation time (not mtime) is the discriminator — transcripts are appended
+///   continuously, so an older tab's actively-growing file must never be
+///   claimed by a later tab in the same project.
+/// - Fork files (title-generator forks and auto-continuations, marked by
+///   `parentSession`/`continuationOf`) never belong to a fresh tab.
+/// - Files created later belong to tabs launched later, so the caller stops at
+///   the first hit (`follow=false`).
+/// The project match uses the header's `cwd` (omp writes no bucket-name
+/// decoder contract), normalized for drive-letter case and separator style.
+#[cfg(windows)]
+pub(crate) fn omp_fresh_session_token(root: &std::path::Path, project_cwd: &str, since: std::time::SystemTime) -> Option<String> {
+    let want = project_cwd.replace('/', "\\").to_lowercase();
+    let mut best: Option<(std::time::SystemTime, String)> = None;
+    for bucket in std::fs::read_dir(root).ok()?.flatten() {
+        for entry in std::fs::read_dir(bucket.path()).ok()?.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("jsonl") { continue; }
+            let Ok(created) = entry.metadata().ok()?.created() else { continue };
+            if created < since { continue; }
+            let Some((id, cwd, forked)) = omp_session_header(&path) else { continue };
+            if forked || cwd.replace('/', "\\").to_lowercase() != want { continue; }
+            if best.as_ref().is_some_and(|(t, _)| created >= *t) { continue; }
+            best = Some((created, id));
+        }
+    }
+    best.map(|(_, id)| id)
+}
+
 // ─── Spawn ────────────────────────────────────────────────
 
 pub(crate) fn shell_working_directory(path: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
@@ -1340,6 +1392,63 @@ mod tests {
         let mut custom = vec!["wrapper-arg".to_string()];
         assert_eq!(claude_launch_token(&mut custom, false), None);
         assert_eq!(custom, vec!["wrapper-arg".to_string()]);
+    }
+
+    // Regression for the Windows duplicate-card bug: a fresh omp tab has no
+    // TTY breadcrumb on ConPTY, so its token must come from the earliest
+    // non-fork session file created after launch — never from an older tab's
+    // appended transcript, a title-generator fork, or another project.
+    #[cfg(windows)]
+    #[test]
+    fn omp_fresh_session_token_picks_own_tab_session_only() {
+        let root = std::env::temp_dir().join(format!("omp-fresh-test-{}", std::process::id()));
+        let bucket = root.join("--D--test-project--");
+        std::fs::create_dir_all(&bucket).unwrap();
+        let cwd = "D:\\test\\project";
+        let write = |name: &str, header: String| {
+            std::fs::write(bucket.join(name), header + "\n").unwrap();
+        };
+        let header = |session_id: &str, parent: Option<&str>| {
+            let mut value = serde_json::json!({
+                "type": "session", "id": session_id, "cwd": cwd,
+                "timestamp": "2026-11-15T00:00:00Z",
+            });
+            if let Some(parent) = parent { value["parentSession"] = serde_json::json!(parent); }
+            value.to_string()
+        };
+
+        // A pre-existing session in the same project (an older tab's transcript).
+        let old_id = uuid::Uuid::new_v4().to_string();
+        write("2026-01-01T00-00-00-000Z_old.jsonl", header(&old_id, None));
+        // `since` is taken after the old file exists, before the fresh ones.
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        let since = std::time::SystemTime::now();
+
+        // Title-generator fork: same project, fresh, but never a tab's own session.
+        let fork_id = uuid::Uuid::new_v4().to_string();
+        write(
+            "2026-01-02T00-00-00-000Z_fork.jsonl",
+            header(&fork_id, Some("01a1dcf3-695e-718a-afdb-161855fafda7")),
+        );
+        // Another project's fresh session.
+        let other = serde_json::json!({
+            "type": "session", "id": uuid::Uuid::new_v4().to_string(),
+            "cwd": "D:\\other\\project", "timestamp": "2026-11-15T00:00:00Z",
+        })
+        .to_string();
+        write("2026-01-03T00-00-00-000Z_other.jsonl", other);
+        // Two own-project fresh sessions: the EARLIEST one is this tab's.
+        let mine = uuid::Uuid::new_v4().to_string();
+        write("2026-01-04T00-00-00-000Z_mine.jsonl", header(&mine, None));
+        std::thread::sleep(std::time::Duration::from_millis(60));
+        let later = uuid::Uuid::new_v4().to_string();
+        write("2026-01-05T00-00-00-000Z_later.jsonl", header(&later, None));
+
+        let token = omp_fresh_session_token(&root, cwd, since);
+        assert_eq!(token.as_deref(), Some(mine.as_str()),
+            "must pick the earliest own-project non-fork file created after launch");
+
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
