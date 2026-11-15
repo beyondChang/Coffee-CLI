@@ -14,22 +14,24 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { SegmentedTabs } from './SegmentedTabs';
-import { AgentSettings } from '../agent/AgentPages';
 import { useAppState, useAppDispatch, HOTKEY_SCHEMES, type HotkeyScheme, type ThemeColor, type ThemeMode, type ThemeShape, type IconTheme } from '../../store/app-state';
 import { playNotifySound } from '../../lib/notify-sound';
 import { useT } from '../../i18n/useT';
 import { IS_MACOS, IS_WINDOWS } from '../../lib/platform';
+import { KEEP_RUNNING_LABEL, setCloseBehavior, useCloseBehavior } from '../../lib/close-behavior';
 import { TERM_COLOR_SCHEMES } from '../center/TierTerminal';
 import { commands, isTauri, type FontInfo } from '../../tauri';
 import { FontPicker } from './FontPicker';
 import { VoiceSettings } from './VoiceSettings';
+import { MobileSettings } from './MobileSettings';
+import { REMOTE } from '../../remote/bridge';
 import { SettingsSlider } from './SettingsSlider';
 import { setUiScale, useUiScale } from '../../lib/ui-scale';
 import { THEME_COLORS, THEME_MODES, THEME_SHAPES, ICON_ART_THEMES, LANGUAGES, isMaskTintTheme } from '../../lib/personalization';
 import './SettingsModal.css';
 
-type Section = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'gambit' | 'sound' | 'voice' | 'language' | 'agent' | 'feedback';
-const SECTION_IDS: Section[] = ['general', 'appearance', 'wallpaper', 'terminal', 'gambit', 'sound', 'voice', 'language', 'agent', 'feedback'];
+type Section = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'gambit' | 'sound' | 'voice' | 'mobile' | 'language' | 'feedback';
+const SECTION_IDS: Section[] = ['general', 'appearance', 'wallpaper', 'terminal', 'gambit', 'sound', 'voice', 'mobile', 'language', 'feedback'];
 
 // Trailing "opens outside the app" affordance on the feedback cards.
 const ExternalLinkArrow = () => (
@@ -55,11 +57,6 @@ function readSoundPref(key: string): boolean {
 
 
 const ICONS: Record<Section, ReactNode> = {
-  agent: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
-    </svg>
-  ),
   appearance: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /><circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
@@ -94,6 +91,11 @@ const ICONS: Record<Section, ReactNode> = {
       <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M19 10v1a7 7 0 0 1-14 0v-1" /><path d="M12 18v4" />
     </svg>
   ),
+  mobile: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="12" height="20" x="6" y="2" rx="2" /><path d="M11 18h2" />
+    </svg>
+  ),
   language: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" />
@@ -117,9 +119,10 @@ const ICONS: Record<Section, ReactNode> = {
 
 export function SettingsModal() {
   const { state } = useAppState();
+  const closeBehavior = useCloseBehavior();
   const dispatch = useAppDispatch();
   const t = useT();
-  // Held in app state so other places can open a section (Coffee Agent's channel status opens 'agent').
+  // Held in app state so other places can open a section.
   // Wallpaper, sound and shortcuts were sections of their own; a request for one opens the section that holds it now.
   const requested = state.settingsSection === 'wallpaper' ? 'appearance' : state.settingsSection === 'sound' || state.settingsSection === 'gambit' ? 'general' : state.settingsSection;
   const section: Section = SECTION_IDS.includes(requested as Section) ? requested as Section : 'general';
@@ -188,7 +191,11 @@ export function SettingsModal() {
     if (shellCaps === null) commands.detectShells().then(setShellCaps).catch(() => {});
   }, [open, section, fonts, shellCaps]);
 
-  if (!open) return null;
+  // Stays mounted after close until the fade-out finishes, then unmounts.
+  const [mounted, setMounted] = useState(open);
+  useEffect(() => { if (open) setMounted(true); }, [open]);
+
+  if (!open && !mounted) return null;
 
   // ── Handlers (identical to the former left-panel ThemeMenu/Lang wiring) ──
   const setTheme = (th: ThemeColor) => dispatch({ type: 'SET_THEME', theme: th });
@@ -290,15 +297,19 @@ export function SettingsModal() {
     { id: 'appearance', label: t('settings.appearance') },
     { id: 'terminal',   label: t('settings.terminal') },
     { id: 'voice',      label: t('settings.voice') },
+    // Web 端 access is managed on the desktop, never from a browser.
+    ...(REMOTE ? [] : [{ id: 'mobile' as const, label: t('settings.mobile') }]),
     { id: 'language',   label: t('settings.language') },
-    { id: 'agent',      label: 'Coffee Agent' },
     { id: 'feedback',   label: t('settings.feedback') },
   ];
   const currentLabel = SECTIONS.find(s => s.id === section)?.label ?? '';
 
   return (
     // A page over the centre area, like usage and tool settings, not a dialog over the whole window.
-    <div className="settings-page">
+    <div
+      className={open ? 'settings-page' : 'settings-page settings-page--closing'}
+      onAnimationEnd={e => { if (e.target === e.currentTarget && !open) setMounted(false); }}
+    >
       <div className="settings-modal settings-modal--page" role="region" aria-label={t('settings.title')}>
         <aside className="settings-rail">
           {/* The page covers the whole window, so its first entry leads back. */}
@@ -335,8 +346,7 @@ export function SettingsModal() {
             <span className="settings-header-title">{currentLabel}</span>
           </header>
 
-          <div className={`settings-body${section === 'agent' ? ' settings-body--agent' : ''}`}>
-            {section === 'agent' && <AgentSettings />}
+          <div className="settings-body">
             {section === 'appearance' && (
               <>
                 <div className="settings-section-head">
@@ -619,6 +629,17 @@ export function SettingsModal() {
                     </div>
                   </div>
                 </div>
+                {/* Closing the window; a browser has no window of its own to close. */}
+                {!REMOTE && <div className="settings-sound-list">
+                  <div className="settings-sound-row settings-choice-row">
+                    <div className="settings-sound-title">{t('settings.close')}</div>
+                    <div className="settings-choice">
+                      <SegmentedTabs compact label={t('settings.close')} value={closeBehavior} onChange={setCloseBehavior}
+                        options={[{ value: 'ask', content: t('settings.close.ask') }, { value: 'keep', content: t(KEEP_RUNNING_LABEL) }, { value: 'quit', content: t('settings.close.quit') }]} />
+                      <div className="settings-choice-hint">{t(closeBehavior === 'ask' ? 'settings.close.ask_hint' : closeBehavior === 'quit' ? 'settings.close.quit_hint' : IS_WINDOWS ? 'settings.close.tray_hint' : IS_MACOS ? 'settings.close.menubar_hint' : 'settings.close.minimize_hint')}</div>
+                    </div>
+                  </div>
+                </div>}
               </>
             )}
 
@@ -665,11 +686,11 @@ export function SettingsModal() {
                           {soundFiles[row.preview] && <button type="button" className="settings-sound-remove" aria-label={t('settings.sound.remove')} onClick={() => clearSound(row.preview)}>
                             <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" /></svg>
                           </button>}
-                          <button type="button" className="settings-sound-link" onClick={() => { void pickSound(row.preview); }}>{t('settings.sound.change')}</button>
+                          <button type="button" className="settings-sound-play" aria-label={t('settings.sound.preview')} onClick={() => playNotifySound(row.preview)}>
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 6.5v11l9-5.5z" strokeLinejoin="round" stroke="currentColor" strokeWidth="1.5" /></svg>
+                          </button>
+                          <button type="button" className="settings-voice-scan settings-sound-change" onClick={() => { void pickSound(row.preview); }}>{t('settings.sound.change')}</button>
                         </span>
-                        <button type="button" className="settings-sound-play" aria-label={t('settings.sound.preview')} onClick={() => playNotifySound(row.preview)}>
-                          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14z" /></svg>
-                        </button>
                       </>}
                       <button type="button" role="switch" className="settings-switch" aria-checked={row.value} aria-label={t(row.labelKey)} onClick={() => row.set(!row.value)}><span /></button>
                     </div>
@@ -681,6 +702,7 @@ export function SettingsModal() {
             )}
 
             {section === 'voice' && <VoiceSettings />}
+            {section === 'mobile' && <MobileSettings />}
 
             {section === 'language' && (
               <div className="settings-lang-list">

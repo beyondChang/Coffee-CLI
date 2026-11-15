@@ -3,6 +3,8 @@ import { directoryFailure } from './session-directory';
 import { recordSessionReply } from './session-replies';
 import { readLaunchControls, setSessionControls, clearSessionControls } from './session-controls';
 import { invoke, type ToolConfigEntry } from '../tauri';
+import { REMOTE } from '../remote/bridge';
+import { dropMirrorSource, mirrorCall, mirrorSource, mirrorTarget, registerMirrorActions } from './session-mirror';
 import { emptyClaudeState, finishTurn, reduceClaudeEvent, object, list, text, type ClaudeState, type ClaudeModel, type ClaudeCommand, type Json, coldReturn } from './claude-protocol';
 
 interface Client {
@@ -25,7 +27,7 @@ const EMPTY = emptyClaudeState();
 
 function client(id: string): Client {
   let c = clients.get(id);
-  if (!c) { c = { state: emptyClaudeState(), generation: crypto.randomUUID(), listeners: new Set(), owners: 0 }; clients.set(id, c); }
+  if (!c) { c = { state: emptyClaudeState(), generation: crypto.randomUUID(), listeners: new Set(), owners: 0 }; clients.set(id, c); if (!REMOTE) { const own = c; own.listeners.add(mirrorSource('claude', id, () => own.state)); } }
   return c;
 }
 function publish(c: Client, immediate = false) {
@@ -76,6 +78,7 @@ async function readSettings(id: string, c: Client) {
 // Tabs restarted as a new conversation: which session they continue, and the prompt waiting to be sent.
 const continuations = new Map<string, { continueFrom: Json; prompt: string }>();
 const COLD_RETURN_NEVER = 'coffee:claude-cold-return-never';
+const EFFORT_PREFERENCE = 'coffee:claude-effort';
 
 function restoreHistoryPage(state: ClaudeState, data: string): ClaudeState {
   for (const line of data.split(/\r?\n/)) {
@@ -107,6 +110,18 @@ async function initializeClaude(id: string, c: Client, cwd: string | null, resum
   const init = result.initialization;
   c.state = { ...c.state, nativeId: result.sessionId, historyCursor: restoreHistory ? result.history.cursor : c.state.historyCursor, models: list(init.models) as ClaudeModel[], commands: list(init.commands) as ClaudeCommand[], permissionMode: text(init.current_permission_mode) || 'default', bypassAvailable: result.bypassAvailable === true };
   await readSettings(id, c);
+  // Apply a confirmed Coffee preference before the first prompt. Models advertise their own supported levels.
+  if (ready) {
+    let effort: string | null = null;
+    try { effort = localStorage.getItem(EFFORT_PREFERENCE); } catch { /* optional preference */ }
+    const model = c.state.models.find(model => model.value === c.state.model || model.resolvedModel === c.state.model);
+    if (effort && effort !== c.state.effort && model?.supportsEffort && model.supportedEffortLevels?.includes(effort)) {
+      try {
+        await invoke('claude_session_control', { id, generation, request: { subtype: 'apply_flag_settings', settings: { effortLevel: effort } } });
+      } catch { /* The CLI can reject an optional saved preference under its current policy. */ }
+      await readSettings(id, c);
+    }
+  }
   if (c.startupExit) throw new Error(c.startupExit);
   c.state = { ...c.state, ready, status: ready ? 'idle' : 'starting', error: undefined, errorKey: undefined };
   void controls.then(value => {
@@ -116,6 +131,12 @@ async function initializeClaude(id: string, c: Client, cwd: string | null, resum
 }
 
 export function retainClaudeSession(id: string, cwd: string | null, resumeToken?: string): () => void {
+  // In the browser the desktop runs the session; this only follows it.
+  if (REMOTE) {
+    const c = client(id); c.owners++;
+    const stop = mirrorTarget('claude', id, state => { c.state = state as ClaudeState; publish(c, true); });
+    return () => { stop(); if (!--c.owners) clients.delete(id); };
+  }
   const c = client(id);
   c.cwd = cwd;
   clearTimeout(c.closeTimer); c.owners++;
@@ -152,13 +173,14 @@ export function retainClaudeSession(id: string, cwd: string | null, resumeToken?
       clearTimeout(c.publishTimer);
       clearSessionControls(id, c.generation);
       continuations.delete(id);
-      clients.delete(id);
+      clients.delete(id); dropMirrorSource('claude', id);
     }, 300);
   };
 }
 
 /** A person's send: returning to a long idle conversation asks first, because resuming it rewrites the whole context. */
 export async function sendClaudeInteractive(id: string, prompt: string): Promise<boolean> {
+  if (REMOTE) return mirrorCall('claude', 'sendClaudeInteractive', [id, prompt]);
   const c = client(id);
   if (c.state.coldReturn) return false;
   let dismissed = false;
@@ -170,6 +192,7 @@ export async function sendClaudeInteractive(id: string, prompt: string): Promise
 }
 /** Settles the held prompt in this conversation; returns it so `cancel` can put it back in the composer. */
 export async function settleClaudeColdReturn(id: string, choice: 'full' | 'never' | 'cancel'): Promise<string> {
+  if (REMOTE) return mirrorCall('claude', 'settleClaudeColdReturn', [id, choice]);
   const c = client(id), held = c.state.coldReturn, prompt = held?.prompt ?? '';
   c.state = { ...c.state, coldReturn: undefined }; publish(c, true);
   if (choice === 'never') { try { localStorage.setItem(COLD_RETURN_NEVER, '1'); } catch { /* optional preference */ } }
@@ -179,6 +202,7 @@ export async function settleClaudeColdReturn(id: string, choice: 'full' | 'never
 }
 /** Prepares a new conversation with a pointer to this one, forwarding a prompt only when the cold-return card held it. */
 export function continueClaudeInNewConversation(id: string, newId: string): boolean {
+  if (REMOTE) return false; // Continuing in a new conversation starts from the desktop.
   const c = client(id), prompt = c.state.coldReturn?.prompt ?? '';
   if (!c.state.ready || c.state.busy || c.restarting || !c.state.nativeId || !c.state.messages.length || c.state.requests.length || c.state.backgroundTasks.length) return false;
   const messages = c.state.messages, lastPrompt = messages.findLast(m => m.role === 'user'), reply = messages.findLast(m => m.role === 'assistant');
@@ -187,6 +211,7 @@ export function continueClaudeInNewConversation(id: string, newId: string): bool
   return true;
 }
 export async function sendClaudeMessage(id: string, prompt: string, orchestrationDelivery?: string): Promise<boolean> {
+  if (REMOTE) return mirrorCall('claude', 'sendClaudeMessage', [id, prompt, orchestrationDelivery]);
   const c = client(id);
   if (!c.state.ready || c.restarting) return false;
   const snapshot = c.state;
@@ -199,6 +224,7 @@ export async function sendClaudeMessage(id: string, prompt: string, orchestratio
 }
 
 export async function loadClaudeHistory(id: string): Promise<void> {
+  if (REMOTE) return mirrorCall('claude', 'loadClaudeHistory', [id]);
   const c = client(id);
   // Older pages are read through the live session; a previewed tab waits until it has connected.
   if (!c.state.ready || !c.state.historyCursor || c.state.loadingHistory) return;
@@ -216,6 +242,7 @@ export async function loadClaudeHistory(id: string): Promise<void> {
 }
 
 export async function controlClaude(id: string, request: Json): Promise<Json> {
+  if (REMOTE) return mirrorCall('claude', 'controlClaude', [id, request]);
   const c = client(id);
   if (!c.state.ready && (request.subtype !== 'interrupt' || !c.state.nativeId)) throw new Error('Claude 尚未就绪');
   if (request.subtype === 'set_permission_mode' && request.mode === 'bypassPermissions' && !c.state.bypassAvailable) return restartWithBypass(id, c);
@@ -231,6 +258,7 @@ export async function controlClaude(id: string, request: Json): Promise<Json> {
   let errorKey: ClaudeState['errorKey'];
   try {
     const result = await invoke<Json>('claude_session_control', { id, generation, request });
+    if (clients.get(id) !== c || c.generation !== generation) return result;
     const patch: Partial<ClaudeState> = request.subtype === 'interrupt' ? {} : { error: c.state.ready ? undefined : c.state.error, errorKey: c.state.ready ? undefined : c.state.errorKey };
     if (request.subtype === 'set_model') patch.model = text(request.model);
     if (request.subtype === 'set_permission_mode') patch.permissionMode = text(request.mode);
@@ -242,17 +270,23 @@ export async function controlClaude(id: string, request: Json): Promise<Json> {
     }
     if (request.subtype === 'set_model' || request.subtype === 'apply_flag_settings') {
       let settings: Json;
-      try { settings = await invoke<Json>('claude_session_control', { id, generation: c.generation, request: { subtype: 'get_settings' } }); }
-      catch (error) { c.state = { ...c.state, ready: false }; errorKey = 'claude.error.settings_readback'; throw error; }
+      try { settings = await invoke<Json>('claude_session_control', { id, generation, request: { subtype: 'get_settings' } }); }
+      catch (error) { errorKey = 'claude.error.settings_readback'; throw error; }
+      if (clients.get(id) !== c || c.generation !== generation) return result;
       const applied = object(settings.applied);
       if (typeof applied.model === 'string') patch.model = applied.model;
-      if (typeof applied.effort === 'string') patch.effort = applied.effort;
+      const effort = text(applied.effort) || text(applied.effortLevel) || text(object(settings.effective).effortLevel);
+      if (effort) patch.effort = effort;
       if (typeof applied.ultracodeRequested === 'boolean' || typeof applied.ultracode === 'boolean') patch.ultracode = requestedUltracode(applied, {});
     }
-    c.state = { ...c.state, ...patch }; publish(c, true); return result;
+    c.state = { ...c.state, ...patch };
+    if (request.subtype === 'apply_flag_settings' && typeof object(request.settings).effortLevel === 'string' && c.state.effort) {
+      try { localStorage.setItem(EFFORT_PREFERENCE, c.state.effort); } catch { /* optional preference */ }
+    }
+    publish(c, true); return result;
   } catch (error) {
-    if (interrupting && c.generation !== generation) return {}; // force stop already replaced the process
-    c.state = { ...c.state, ...(interrupting ? { interruptRequested: false } : {}), error: String(error), errorKey }; publish(c, true); throw error;
+    if (clients.get(id) !== c || c.generation !== generation) return {}; // the session closed or its process was replaced
+    c.state = { ...c.state, ...(errorKey === 'claude.error.settings_readback' ? { ready: false } : {}), ...(interrupting ? { interruptRequested: false } : {}), error: String(error), errorKey }; publish(c, true); throw error;
   }
 }
 
@@ -336,7 +370,11 @@ function restartWithBypass(id: string, c: Client): Promise<Json> {
 }
 
 export async function respondClaude(id: string, requestId: string, response: Json): Promise<void> {
+  if (REMOTE) return mirrorCall('claude', 'respondClaude', [id, requestId, response]);
   const c = client(id);
   await invoke('claude_session_respond', { id, generation: c.generation, requestId, response });
   c.state = { ...c.state, requests: c.state.requests.filter(r => r.id !== requestId), status: 'working' }; publish(c, true);
 }
+
+// What a browser may ask the desktop to do in a claude conversation.
+registerMirrorActions('claude', { sendClaudeInteractive, settleClaudeColdReturn, sendClaudeMessage, loadClaudeHistory, controlClaude, respondClaude });

@@ -1,3 +1,4 @@
+import { onSharedStorage } from './storage-mirror';
 // Renamed sessions - localStorage-backed custom title table.
 //
 // Same local-marker design as pinned-sessions.ts / hidden-sessions.ts:
@@ -46,12 +47,11 @@ function emit(): void {
   for (const l of listeners) l();
 }
 
+// Renamed on the other side (desktop or a browser following it).
+onSharedStorage(STORAGE_KEY, () => { names = load(); emit(); });
+
 function key(tool: string, id: string): string {
   return `${tool}:${id}`;
-}
-
-export function getCustomName(tool: string, id: string): string | undefined {
-  return names[key(tool, id)];
 }
 
 /** Set (or replace) a custom title. Empty / whitespace-only clears the

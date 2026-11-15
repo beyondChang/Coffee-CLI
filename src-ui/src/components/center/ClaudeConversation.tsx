@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { startErrorText } from '../../lib/start-error';
 import { useWorktreePending } from '../../lib/worktree-pending';
 import { diffLines } from 'diff';
@@ -204,34 +204,43 @@ function ToolBody({ content, path, plain, previewHeight, expanded, bodyRef, onTo
   </div>;
 }
 
+/** Expansion outlives the row: the virtual list may unmount a block that just grew, and remounting must not collapse it. */
+const toolExpansion = new Map<string, boolean>();
+const ToolExpansionKey = createContext('');
+function useToolExpanded(): [boolean, () => void] {
+  const key = useContext(ToolExpansionKey);
+  const [expanded, setExpanded] = useState(() => toolExpansion.get(key) ?? false);
+  const toggle = useCallback(() => setExpanded(value => { if (key) { if (value) toolExpansion.delete(key); else toolExpansion.set(key, true); } return !value; }), [key]);
+  return [expanded, toggle];
+}
+
 function ToolContent({ content, path, plain = false, previewHeight = 95 }: { content: string; path: string; plain?: boolean; previewHeight?: number }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, toggle] = useToolExpanded();
   const [ref, overflow] = useOverflow(previewHeight, [content]);
   return <div className={`claude-expandable${overflow ? ' has-tab' : ''}`}>
-    <ToolBody content={content} path={path} plain={plain} previewHeight={previewHeight} expanded={expanded} bodyRef={ref} onToggle={overflow ? () => setExpanded(value => !value) : undefined} />
-    {overflow && <ExpandTab expanded={expanded} onToggle={() => setExpanded(value => !value)} />}
+    <ToolBody content={content} path={path} plain={plain} previewHeight={previewHeight} expanded={expanded} bodyRef={ref} onToggle={overflow ? toggle : undefined} />
+    {overflow && <ExpandTab expanded={expanded} onToggle={toggle} />}
   </div>;
 }
 
 /** Bash input and output share one frame, so one tab under it opens both. */
 function BashIO({ command, output, failed }: { command: string; output?: string; failed: string }) {
   const t = useT();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, toggle] = useToolExpanded();
   const [inRef, inOverflow] = useOverflow(180, [command]);
   const [outRef, outOverflow] = useOverflow(180, [output]);
   const overflow = inOverflow || (output !== undefined && outOverflow);
-  const toggle = () => setExpanded(value => !value);
   return <div className={`claude-expandable${overflow ? ' has-tab' : ''}`}>
     <div className="claude-io">
       <div className="claude-io-row"><span>{t('claude.input')}</span><ToolBody content={command} path="command.sh" plain={false} previewHeight={180} expanded={expanded} bodyRef={inRef} onToggle={inOverflow ? toggle : undefined} /></div>
       {output !== undefined && <div className={`claude-io-row ${failed}`}><span>{t('claude.output')}</span><ToolBody content={output} path="output.txt" plain previewHeight={180} expanded={expanded} bodyRef={outRef} onToggle={outOverflow ? toggle : undefined} /></div>}
     </div>
-    {overflow && <ExpandTab expanded={expanded} onToggle={() => setExpanded(value => !value)} />}
+    {overflow && <ExpandTab expanded={expanded} onToggle={toggle} />}
   </div>;
 }
 
 function EditDiff({ before, after, path }: { before: string; after: string; path: string }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, toggle] = useToolExpanded();
   const mode = useDataAttr('data-mode');
   const [tokens, setTokens] = useState<[LineTokens[] | null, LineTokens[] | null]>([null, null]);
   const rows = useMemo(() => {
@@ -257,12 +266,12 @@ function EditDiff({ before, after, path }: { before: string; after: string; path
   const render = (value: string | undefined, index: number | undefined, side: 0 | 1) => index && tokens[side]?.[index - 1] ? tokens[side]![index - 1].map((t, i) => <span key={i} style={{ color: t.color }}>{t.content}</span>) : value;
   const long = rows.length > 6 || before.length + after.length > 800;
   return <div className={`claude-expandable${long ? ' has-tab' : ''}`}><div className={`claude-diff ${expanded ? 'is-expanded' : ''}`}>
-    <ToolCopy content={after} expanded={expanded} onToggle={long ? () => setExpanded(value => !value) : undefined} />
+    <ToolCopy content={after} expanded={expanded} onToggle={long ? toggle : undefined} />
     <div className="claude-diff-scroll">{rows.length ? rows.map((r, i) => <div className="claude-diff-row" key={i}>
       <div className={`${r.changed ? r.old !== undefined ? 'is-removed' : 'is-gap' : ''}`}><span className="claude-line-number">{r.oldLine}</span><code>{render(r.old, r.oldLine, 0)}</code></div>
       <div className={`${r.changed ? r.next !== undefined ? 'is-added' : 'is-gap' : ''}`}><span className="claude-line-number">{r.nextLine}</span><code>{render(r.next, r.nextLine, 1)}</code></div>
     </div>) : <Code content={after} path={path} />}</div>
-  </div>{long && <ExpandTab expanded={expanded} onToggle={() => setExpanded(value => !value)} />}</div>;
+  </div>{long && <ExpandTab expanded={expanded} onToggle={toggle} />}</div>;
 }
 
 export const ClaudeTool = memo(function ClaudeTool({ message }: { message: ClaudeMessage }) {
@@ -277,7 +286,7 @@ export const ClaudeTool = memo(function ClaudeTool({ message }: { message: Claud
   const removed = changes.filter(c => c.removed).reduce((n, c) => n + c.count, 0), added = changes.filter(c => c.added).reduce((n, c) => n + c.count, 0);
   const showBody = bodyOpen;
   const output = message.output ?? '';
-  return <section className={`claude-tool claude-tool--${message.toolStatus ?? 'running'}`}>
+  return <ToolExpansionKey.Provider value={`${message.id}:${name}`}><section className={`claude-tool claude-tool--${message.toolStatus ?? 'running'}`}>
     <div className="claude-tool-heading">
       <button onClick={() => setBodyOpen(v => !v)} aria-expanded={showBody}><strong>{search?.title ?? orchestrationToolLabel(name, t) ?? name}</strong></button>
       {path ? <button className="claude-file-path" onClick={() => void commands.showInFolder(path)}>{description}</button> : <span>{description}</span>}
@@ -289,7 +298,7 @@ export const ClaudeTool = memo(function ClaudeTool({ message }: { message: Claud
       {edit ? <EditDiff before={before} after={after} path={path} /> : write ? message.toolStatus === 'running' && input.content === undefined ? <span className="claude-tool-pending">{t('diff.loading')}</span> : <ToolContent content={text(input.content)} path={path} /> : bash ? <BashIO command={text(input.command)} output={message.output !== undefined ? output || t('claude.no_output') : undefined} failed={message.toolStatus === 'failed' && !message.interrupted ? 'is-error' : ''} /> : <><ToolContent content={JSON.stringify(input, null, 2)} path="input.json" />{message.output !== undefined && <ToolContent content={output || t('claude.no_output')} path="output.txt" plain />}</>}
       {edit || write ? message.toolStatus === 'failed' && <pre className={message.interrupted ? 'claude-interrupted' : 'claude-tool-error'}>{output}</pre> : null}
     </div>}
-  </section>;
+  </section></ToolExpansionKey.Provider>;
 });
 
 function Question({ id, pending }: { id: string; pending: ClaudeRequest }) {
@@ -356,6 +365,7 @@ export function ClaudeConversation({ sessionId, cwd, resumeToken, isActive, isVi
   const conversationMenu = useConversationMenu(scrollRef, sessionId, isActive);
   const pinned = useRef(true);
   const pointerHeld = useRef(false);
+  const scrollbarHeld = useRef(false);
   const lastScrollTop = useRef(0);
   const prependAnchor = useRef<{ firstId: string; messageId: string; offset: number; top: number; height: number; applied: boolean } | null>(null);
   const [copied, setCopied] = useState('');
@@ -407,9 +417,17 @@ export function ClaudeConversation({ sessionId, cwd, resumeToken, isActive, isVi
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, [isActive, s.busy, s.requests.length, sessionId]);
   const pauseFollow = useCallback(() => { prependAnchor.current = null; pinned.current = false; setScrolled(true); }, []);
-  useEffect(() => { const scroll = scrollRef.current; if (!scroll) return; return bindAutoHideScrollbar(scroll, { wide: true, onDragStart: pauseFollow }); }, [pauseFollow]);
+  useEffect(() => { const scroll = scrollRef.current; if (!scroll) return; return bindAutoHideScrollbar(scroll, { wide: true, onDragStart: () => { scrollbarHeld.current = true; pointerHeld.current = true; pauseFollow(); } }); }, [pauseFollow]);
   useEffect(() => {
-    const release = () => { pointerHeld.current = false; };
+    const release = () => {
+      if (!pointerHeld.current) return;
+      pointerHeld.current = false;
+      const draggedScrollbar = scrollbarHeld.current;
+      scrollbarHeld.current = false;
+      // Re-follow only once the drag ends: following mid-drag fights the slider and jitters.
+      const scroll = scrollRef.current;
+      if (draggedScrollbar && scroll?.clientHeight && scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 2) { pinned.current = true; setScrolled(false); }
+    };
     document.addEventListener('pointerup', release); document.addEventListener('pointercancel', release);
     return () => { document.removeEventListener('pointerup', release); document.removeEventListener('pointercancel', release); };
   }, []);
@@ -434,7 +452,7 @@ export function ClaudeConversation({ sessionId, cwd, resumeToken, isActive, isVi
       // position (macOS WebKit does this after programmatic jumps), so stay at the end.
       if (pointerHeld.current) pinned.current = false;
       else if (pinned.current) scroll.scrollTop = scroll.scrollHeight;
-    } else if (scroll.scrollTop > lastScrollTop.current && distance < 2) pinned.current = true;
+    } else if (scroll.scrollTop > lastScrollTop.current && distance < 2 && !pointerHeld.current) pinned.current = true;
     lastScrollTop.current = scroll.scrollTop;
     setScrolled(!pinned.current);
   }, []);

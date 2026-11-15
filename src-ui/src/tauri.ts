@@ -190,6 +190,7 @@ export const commands = {
   updateCli: (tool: string) => invoke<CliUpdateStatus>('update_cli', { tool }),
   orchestrationGet: () => invoke<import('./lib/orchestration').OrchestrationSnapshot>('orchestration_get'),
   orchestrationSetMode: (mode: string) => invoke<import('./lib/orchestration').OrchestrationSnapshot>('orchestration_set_mode', { mode }),
+  orchestrationSetPick: (sessionId: string, tools: string[]) => invoke<import('./lib/orchestration').OrchestrationSnapshot>('orchestration_set_pick', { sessionId, tools }),
   orchestrationSetAgent: (tool: string, enabled: boolean) => invoke<import('./lib/orchestration').OrchestrationSnapshot>('orchestration_set_agent', { tool, enabled }),
   orchestrationSync: (sessions: unknown[]) => invoke<import('./lib/orchestration').ResultDelivery[]>('orchestration_sync', { sessions }),
   orchestrationCloseGroup: (id: string, keepChildren: boolean) => invoke<import('./lib/orchestration').OrchestrationSnapshot>('orchestration_close_group', { id, keepChildren }),
@@ -198,6 +199,15 @@ export const commands = {
   orchestrationDetachWorker: (taskId: string) => invoke<import('./lib/orchestration').OrchestrationSnapshot>('orchestration_detach_worker', { taskId }),
   orchestrationPending: (requestId: string) => invoke<boolean>('orchestration_pending', { requestId }),
   orchestrationResolve: (requestId: string, result: unknown) => invoke<void>('orchestration_resolve', { requestId, result }),
+  mobileRpcStatus: () => invoke<MobileRpcStatus>('mobile_rpc_status'),
+  mobileRpcSetEnabled: (enabled: boolean) => invoke<MobileRpcStatus>('mobile_rpc_set_enabled', { enabled }),
+  mobileRpcBeginPairing: () => invoke<MobileRpcPairing>('mobile_rpc_begin_pairing'),
+  mobileRpcCancelPairing: () => invoke<void>('mobile_rpc_cancel_pairing'),
+  mobileRpcSessionsChanged: () => invoke<void>('mobile_rpc_sessions_changed'),
+  mobileRpcRevokeDevice: (publicKey: string) => invoke<MobileRpcStatus>('mobile_rpc_revoke_device', { publicKey }),
+  mobileRpcFirewallStatus: () => invoke<MobileRpcFirewall>('mobile_rpc_firewall_status'),
+  mobileRpcFirewallAllow: () => invoke<MobileRpcFirewall>('mobile_rpc_firewall_allow'),
+  mobileRpcResolve: (requestId: string, result: unknown) => invoke<void>('mobile_rpc_resolve', { requestId, result }),
   getToolControl: (kind: 'computer' | 'browser') => invoke<ToolControlStatus>('get_tool_control', { kind }),
   checkToolControl: (kind: 'computer' | 'browser') => invoke<ToolControlStatus>('check_tool_control', { kind }),
   installBrowserControl: () => invoke<ToolControlStatus>('install_browser_control'),
@@ -241,6 +251,11 @@ export const commands = {
   windowMinimize: () => invoke<void>('window_minimize'),
   windowMaximize: () => invoke<void>('window_maximize'),
   windowClose: () => invoke<void>('window_close'),
+  appCloseAck: (seq: number) => invoke<void>('app_close_ack', { seq }),
+  appQuit: () => invoke<void>('app_quit'),
+  /** Hide to the notification area on Windows; minimize on Linux. */
+  appKeepRunning: () => invoke<void>('app_keep_running'),
+  appTrayMenu: (menu: { open: string; quit: string; sessions: { id: string; label: string }[] }) => invoke<void>('app_tray_menu', { menu }),
 
   // Tier Terminal API
   tierTerminalStart: (sessionId: string, tool: string | null, cols: number, rows: number, themeMode: string, locale?: string, toolData?: string, cwd?: string, resumeToken?: string, shell?: string, strictCwd = false) =>
@@ -331,6 +346,7 @@ export const commands = {
   readClipboardImage: () => invoke<string | null>('read_clipboard_image'),
 
   listDirectory: (path: string) => invoke<DirEntryInfo[]>('list_directory', { path }),
+  folderPickerPlaces: () => invoke<FolderPickerPlaces>('folder_picker_places'),
   checkProjectDirectories: (paths: string[]) => invoke<{ path: string; status: import('./lib/session-directory').DirectoryStatus }[]>('check_project_directories', { paths }),
   listSystemFonts: () => invoke<FontInfo[]>('list_system_fonts'),
 
@@ -447,3 +463,11 @@ export interface ToolConfigEntry {
    *  Empty falls through to the built-in scan path. */
   history_path: string;
 }
+
+export interface MobileRpcDevice { publicKey: string; name: string; pairedAt: number; platform?: string }
+export interface MobileRpcStatus { enabled: boolean; port: number; publicKey: string; devices: MobileRpcDevice[]; connected: string[]; host: string | null; hosts: string[]; remoteHost?: string | null; clients: number; protocol: number }
+export interface MobileRpcFirewall { state: 'open' | 'blocked' | 'public_network' | 'unknown' }
+export interface MobileRpcPairing { uri: string; host: string; hosts: string[]; remoteHost?: string | null; port: number; publicKey: string; code: string; expiresAt: number }
+
+export interface FolderPickerPlace { name: string; path: string; kind: 'home' | 'desktop' | 'documents' | 'downloads' | 'drive' }
+export interface FolderPickerPlaces { home: string | null; separator: string; places: FolderPickerPlace[] }

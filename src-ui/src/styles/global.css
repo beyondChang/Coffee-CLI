@@ -40,6 +40,16 @@
 }
 
 /* ─── Monospace Terminal Font (embedded — no system font dependency) ── */
+/* JetBrains Mono, bundled under SIL OFL 1.1; see /fonts/OFL-JetBrainsMono.txt.
+   Variable font, so bold output keeps the same face. */
+@font-face {
+    font-family: 'JetBrainsMono';
+    src: url('/fonts/JetBrainsMono-Variable.ttf') format('truetype');
+    font-weight: 100 800;
+    font-style: normal;
+    font-display: swap;
+}
+
 @font-face {
     font-family: 'CascadiaMono';
     src: url('/fonts/CascadiaMono-Regular.woff2') format('woff2');
@@ -86,7 +96,6 @@
     font-display: swap;
     unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
-
 
 /* ─── Base Reset ─────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; cursor: default !important; }
@@ -197,6 +206,9 @@ textarea,
 }
 
 :root {
+    /* Every on/off switch (settings, app config, library) fills with this when on,
+       whatever the theme accent is, so switches read the same everywhere. */
+    --switch-on: #007aff;
     /* Local Inter font for English, premium system fallbacks for CJK */
     /* Per-glyph cascade covering the 11 UI languages (de/en/es/fr/pt/vi/ru
        handled by Inter; zh-CN/zh-TW/ja/ko by OS faces below). Mac faces
@@ -1830,6 +1842,19 @@ html.is-macos #root {
     border-radius: 0 !important;
     clip-path: none !important;
 }
+/* Web (a browser, or the remote UI on a phone): the page is the whole
+   surface, so there is no window to round and nothing transparent behind it.
+   Padding keeps content clear of a phone's notch and home indicator
+   (index.html declares viewport-fit=cover). .is-web is set by initViewport. */
+html.is-web body {
+    background: var(--bg-app);
+}
+html.is-web #root {
+    border-radius: 0 !important;
+    clip-path: none !important;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    box-sizing: border-box;
+}
 /* The native traffic lights ignore webview zoom, so the macOS titlebar
    counter-zooms to stay at 100% and keep its height, brand inset and tabs
    aligned with them. Widths that must line up with the zoomed panels below
@@ -1840,7 +1865,6 @@ html.is-macos .titlebar {
 html.is-macos .titlebar-left-slot:not(.is-collapsed) {
     width: calc(var(--w-left) * var(--ui-scale));
 }
-
 
 /* ─── Custom Titlebar ────────────────────────────────── */
 /* Settings covers the window: the bar keeps only the window controls. The tab slot stays mounted
@@ -2195,33 +2219,6 @@ body.resizing-panels .pane-resizer {
     color: var(--text-2);
 }
 
-.icon-btn {
-    padding: 6px;
-    border: none;
-    background: none;
-    color: var(--text-2);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-family: var(--font);
-    font-weight: 600;
-}
-
-.icon-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-1);
-}
-
-.icon-btn.xs {
-    padding: 3px;
-    font-size: 13px;
-    border-radius: 4px;
-}
-
 .section-title {
     display: flex;
     justify-content: space-between;
@@ -2309,20 +2306,6 @@ body.gambit-docked .multi-agent-grid-standalone {
     display: flex;
 }
 .sep { margin: 0 6px; opacity: 0.5; }
-@keyframes slideUpFade {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes sp-orb-bounce {
-    0%, 80%, 100% {
-        transform: scale(0.6);
-        opacity: 0.4;
-    }
-    40% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
 .empty-state {
     display: flex;
     flex-direction: column;
@@ -2366,6 +2349,51 @@ body.gambit-docked .multi-agent-grid-standalone {
     width: 0;
     min-width: 0;
 }
+
+/* Compact (narrower than 1000px, phones included): the side panels become
+   drawers over the center instead of docked columns, one open at a time,
+   with a dimmed scrim behind that closes it. A drawer has one fixed width of
+   its own (the docked widths belong to the desktop layout and are left
+   alone): 320px on a narrow window, 84% on a phone so a strip of the
+   conversation stays visible and closes it when tapped. Opaque on every
+   shape, or the conversation would show through the list. */
+.app-layout.is-compact {
+    --drawer-w: min(320px, calc(100vw - 48px));
+    --w-left: var(--drawer-w);
+    --w-right: var(--drawer-w);
+}
+[data-width="xs"] .app-layout.is-compact { --drawer-w: 84vw; }
+.app-layout.is-compact > .panel-left,
+.app-layout.is-compact > .panel-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    /* Above the docked composer (z-index 200), which would otherwise float over the list. */
+    z-index: 210;
+    background: linear-gradient(var(--bg-panel), var(--bg-panel)), var(--bg-app) !important;
+    box-shadow: 0 0 0 1px var(--border), 0 12px 40px rgba(0, 0, 0, 0.35);
+    /* Keep the drawer's last row (Settings) above the iPhone home indicator. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* The center is the only column left, so it takes any width down to a phone's. */
+.app-layout.is-compact .panel-center { min-width: 0; }
+.app-layout.is-compact > .panel-left { left: 0; }
+.app-layout.is-compact > .panel-right { right: 0; }
+.app-layout.is-compact > .panel-left.is-collapsed,
+.app-layout.is-compact > .panel-right.is-collapsed {
+    width: 0;
+    min-width: 0;
+    box-shadow: none;
+}
+.drawer-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 205;
+    background: rgba(0, 0, 0, 0.35);
+    animation: drawer-scrim-in 250ms ease-out;
+}
+@keyframes drawer-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .drawer-scrim { animation: none; } }
 
 .compiler-top {
     flex: 1;
@@ -2420,14 +2448,6 @@ body.gambit-docked .multi-agent-grid-standalone {
     from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
-@keyframes summaryFadeIn {
-    from { opacity: 0; transform: translateY(-2px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes dotBounce {
-    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-    40%            { transform: translateY(-4px); opacity: 1; }
-}
 
 /* ═══════════════════════════════════════════════════════
    SHAPE-SPECIFIC VISUAL OVERRIDES
@@ -2462,7 +2482,6 @@ body.gambit-docked .multi-agent-grid-standalone {
     display: none;
 }
 
-[data-shape="slab"] .task-card,
 [data-shape="slab"] .launchpad-card,
 [data-shape="slab"] .guide-card,
 [data-shape="slab"] .remote-form-card,
@@ -2653,7 +2672,6 @@ html.is-windows[data-frost="frost"] #root {
     background: transparent;
 }
 
-[data-shape="glass"] .task-card,
 [data-shape="glass"] .task-note-card,
 [data-shape="glass"] .task-prompt-card,
 [data-shape="glass"] .guide-card,
@@ -2870,8 +2888,7 @@ html.is-windows[data-frost="frost"] #root {
    rgb(from var(--accent) r g b / a) is relative-color syntax; engines that
    don't support it drop the background declaration and fall back to the
    base solid --accent (the safe non-glass look), never to broken. */
-[data-shape="glass"] .gambit-send,
-[data-shape="glass"] .task-fab-simple {
+[data-shape="glass"] .gambit-send {
     color: #fff;
     background: rgb(from var(--accent, #c4956a) r g b / 0.45);
     backdrop-filter: blur(12px) saturate(160%);
@@ -2881,13 +2898,6 @@ html.is-windows[data-frost="frost"] #root {
         inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
         inset 0 -1px 0 0 rgba(0, 0, 0, 0.10);
 }
-/* FAB hover: base .task-fab-simple:hover swaps in an opaque --accent-hover
-   fill at equal specificity, which would clobber the frost. Re-tint it so
-   hover stays glass (a touch more saturated), not a flat solid. */
-[data-shape="glass"] .task-fab-simple:hover {
-    background: rgb(from var(--accent-hover, var(--accent, #c4956a)) r g b / 0.62);
-}
-
 /* Chrome flare ::before/::after paint quarter-arc bridges in
    opaque var(--bg-terminal) from the active tab into the terminal
    bg below. In glass that bg is translucent --glass-tint, so the
@@ -2943,9 +2953,6 @@ html.is-windows[data-frost="frost"] #root {
 ) {
     --border: var(--accent);
     --border-input: var(--accent);
-    /* --border doubles as the pin switch's track fill: keep that one neutral
-       so the OFF state doesn't come out looking like the ON state. */
-    --switch-track: rgba(0, 0, 0, 0.16);
 }
 
 /* Glass blur on left panel would tint it differently from center/right.
@@ -3185,9 +3192,51 @@ html.is-windows[data-frost="frost"] #root {
 [data-mode="light"][data-background="basalt"] #root {
     background: url('/backgrounds/basalt-light.png') center / cover no-repeat, var(--bg-app);
 }
-[data-background="basalt"] #root::before,
 [data-background="basalt"] #root::after {
     display: none;
+}
+/* The stone layer is mostly dark pores: on a near-black theme they vanish,
+   and on a light one its pale grain vanishes. A second pass of the same
+   grain, inverted for dark, keeps the material visible on every palette. */
+[data-background="basalt"] #root::before {
+    background: url('/backgrounds/basalt-dark.png') center / cover no-repeat;
+    -webkit-mask-image: none;
+            mask-image: none;
+    filter: invert(1);
+    opacity: var(--basalt-grain, .3);
+}
+[data-mode="light"][data-background="basalt"] #root::before {
+    filter: none;
+    opacity: var(--basalt-grain, .55);
+}
+/* Graphite on stone (the default): black basalt as on the EchoBird site, large
+   stones at raised contrast under a faint diagonal sheen, no pale grain. */
+[data-background="basalt"][data-theme="obsidian"]:not([data-mode="light"]) {
+    --bg-app: #101112;
+    --bg-panel: #151617;
+    --bg-input: #18191a;
+    --bg-input-focus: #1d1e1f;
+    --border: #232527;
+    --border-input: #2b2d30;
+    --bg-terminal: #101112;
+}
+[data-background="basalt"][data-theme="obsidian"]:not([data-mode="light"]) #root {
+    background: var(--bg-app);
+}
+[data-background="basalt"][data-theme="obsidian"]:not([data-mode="light"]) #root::before {
+    background:
+        linear-gradient(135deg, #ffffff08, transparent 45%, #0005),
+        url('/backgrounds/basalt-dark.png') center / max(2400px, 190vw) auto no-repeat;
+    filter: contrast(1.35);
+    opacity: 1;
+}
+/* The black pores alone vanish on a black base; a faint lifted copy at the same
+   scale picks the stones out without turning the surface grey. */
+[data-background="basalt"][data-theme="obsidian"]:not([data-mode="light"]) #root::after {
+    display: block;
+    background: url('/backgrounds/basalt-dark.png') center / max(2400px, 190vw) auto no-repeat;
+    filter: invert(1) contrast(1.35);
+    opacity: var(--basalt-lift, .16);
 }
 
 .character-background,
@@ -3236,11 +3285,16 @@ html.is-windows[data-frost="frost"] #root {
 [data-shape="carbon"] .ctx-menu,
 [data-shape="monogram"] .ctx-menu,
 [data-shape="carbon"] .term-ctx-menu,
-[data-shape="monogram"] .term-ctx-menu,
-[data-shape="carbon"] .history-search-dialog,
-[data-shape="monogram"] .history-search-dialog {
+[data-shape="monogram"] .term-ctx-menu {
     background-color: color-mix(in oklab, var(--bg-app) 76%, transparent) !important;
     background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+/* Search is a whole page of results to read: opaque, or the stone and the list behind it show through. */
+[data-shape="carbon"] .history-search-dialog,
+[data-shape="monogram"] .history-search-dialog {
+    background-color: var(--bg-app) !important;
+    background-image: linear-gradient(var(--bg-panel), var(--bg-panel)) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
@@ -3292,5 +3346,12 @@ html.is-windows[data-frost="frost"] #root {
 /* The app's one on/off switch: Settings rows and the composer's effort menu share it. */
 .settings-switch { position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: 0; border: 0; border-radius: 12px; background: var(--bg-hover); box-shadow: inset 0 0 0 1px var(--border-input); cursor: pointer; transition: background 150ms; }
 .settings-switch > span { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 150ms; }
-.settings-switch[aria-checked="true"] { background: var(--accent); box-shadow: none; }
+.settings-switch[aria-checked="true"] { background: var(--switch-on); box-shadow: none; }
 .settings-switch[aria-checked="true"] > span { transform: translateX(16px); }
+
+/* ─── Phones (data-width="xs") ───────────────────────── */
+/* Safari on iPhone zooms the page into any field under 16px and does not zoom back out; this
+   includes xterm's hidden input, which takes the keyboard for a terminal. */
+:root[data-width="xs"] :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, select, [contenteditable="true"]) { font-size: max(16px, 1em); }
+/* Big enough for a fingertip. */
+:root[data-width="xs"] .chrome-tab-add { width: 36px; height: 36px; }

@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 import { commands, isTauri } from '../../tauri';
 import { useAppState, useAppDispatch, schemeLabels } from '../../store/app-state';
 import { IS_MACOS } from '../../lib/platform';
+import { IS_WEB, useCompact } from '../../lib/viewport';
 import { useT } from '../../i18n/useT';
 import { isConversationSession } from '../../lib/chat-tools';
 import { Changelog } from './Changelog';
@@ -50,10 +51,14 @@ export function TitleBar() {
   // column visibly squish-then-rebound (or expand-then-shrink) on every
   // toggle. Removing the window-edge move trades a non-standard "trim
   // collapsed window" effect for zero flicker — the right call.
+  // Narrow: the panels are drawers, so the buttons show and toggle the open drawer instead.
+  const compact = useCompact();
+  const leftShown = compact ? state.drawer === 'left' : !state.leftPanelHidden;
+  const rightShown = compact ? state.drawer === 'right' : !state.rightPanelHidden;
   const toggleLeft  = () => dispatch({ type: 'TOGGLE_LEFT_PANEL' });
   const toggleRight = () => dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
   const activeTab = state.terminals.find(t => t.id === state.activeTerminalId);
-  const claudeComposerLocked = isConversationSession(activeTab) && !state.agentPageActive && !state.diffTabActive;
+  const claudeComposerLocked = isConversationSession(activeTab) && !state.diffTabActive;
   const gambitOpen = claudeComposerLocked || state.gambitOpen;
 
   // Drag is wired as a single JS path: mousedown anywhere on the bar (except
@@ -89,7 +94,7 @@ export function TitleBar() {
           far-left strip belongs to the left sidebar (and hosts the macOS
           traffic lights). Collapses in lockstep with the panel via the shared
           --w-left var + the same 250ms curve. */}
-      <div id="titlebar-brand-slot" className={`titlebar-left-slot${state.leftPanelHidden ? ' is-collapsed' : ''}`} />
+      <div id="titlebar-brand-slot" className={`titlebar-left-slot${!leftShown || compact ? ' is-collapsed' : ''}`} />
       {/* Tool tabs (Windows-Terminal style) render here — CenterPanel portals
           its .chrome-tabs-header into this slot so the tabs sit on the drag bar
           above the center column, with the layout toggles + window controls to
@@ -109,12 +114,9 @@ export function TitleBar() {
           No separator between groups — VS Code's titlebar uses pure
           proximity to group, which stays clean whether 2 or 4 icons
           are showing. */}
-      {/* Sharp-corner 24×24 glyphs — strokeWidth 1.8 so the icons read
-          at the same optical weight as Phosphor/Lucide at 16px render.
-          Internal dividers are inset (y=4 → y=20) so they STOP before
-          the outer border instead of crossing through it — avoids the
-          "crossed-lines" look the user flagged. Active signal still travels
-          via .is-active background only. */}
+      {/* Rounded 24×24 glyphs (rx=2, strokeWidth 2, round caps) shared by
+          all layout toggles so the panels and the keyboard read as one set.
+          Active signal travels via .is-active background only. */}
       <div className="titlebar-layout-toggles" data-toggle-display={state.titlebarToggleDisplay}>
         <Changelog />
         {/* Left panel · Gambit · right panel — the three hinted chrome toggles,
@@ -122,14 +124,14 @@ export function TitleBar() {
             (left panel on the left, right on the right) and the default Alt+QWE
             keys read left-to-right. */}
         <button
-          className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted${state.leftPanelHidden ? '' : ' is-active'}`}
+          className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted${leftShown ? ' is-active' : ''}`}
           onClick={toggleLeft}
           aria-label={`Toggle left panel (${hk.left})`}
-          aria-pressed={!state.leftPanelHidden}
+          aria-pressed={leftShown}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter">
-            <rect x="3" y="3" width="18" height="18" />
-            <line x1="9" y1="4" x2="9" y2="20" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <path d="M9 4v16" />
           </svg>
           <span className="titlebar-hotkey-hint">{hk.left}</span>
         </button>
@@ -157,14 +159,14 @@ export function TitleBar() {
           <span className="titlebar-hotkey-hint">{hk.gambit}</span>
         </button>
         <button
-          className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted${state.rightPanelHidden ? '' : ' is-active'}`}
+          className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted${rightShown ? ' is-active' : ''}`}
           onClick={toggleRight}
           aria-label={`Toggle right panel (${hk.right})`}
-          aria-pressed={!state.rightPanelHidden}
+          aria-pressed={rightShown}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter">
-            <rect x="3" y="3" width="18" height="18" />
-            <line x1="15" y1="4" x2="15" y2="20" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <path d="M15 4v16" />
           </svg>
           <span className="titlebar-hotkey-hint">{hk.right}</span>
         </button>
@@ -173,7 +175,7 @@ export function TitleBar() {
             configured titlebar display mode, except "hidden" intentionally
             degrades to icon-only so Settings always remains reachable. */}
         {/* Settings lives at the left sidebar's bottom; here only while that sidebar is hidden, so it stays reachable. */}
-        {state.leftPanelHidden && <button
+        {(state.leftPanelHidden || compact) && <button
           className={`titlebar-btn titlebar-btn--layout titlebar-btn--hinted titlebar-btn--settings${state.settingsOpen ? ' is-active' : ''}`}
           onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
           aria-label={t('settings.title')}
@@ -192,7 +194,8 @@ export function TitleBar() {
           tauri.macos.conf.json), so we omit our own controls; the layout
           toggles above stay on the right and the left drag region hosts the
           native lights. */}
-      {!IS_MACOS && (
+      {/* A browser or phone has its own window controls. */}
+      {!IS_MACOS && !IS_WEB && (
         <div className="titlebar-controls">
           <button className="titlebar-btn" onClick={minimize} id="t-min">
             <svg width="10" height="10" viewBox="0 0 10 10">

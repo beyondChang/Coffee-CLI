@@ -1,8 +1,10 @@
 // Coffee CLI — Global App State (React Context)
 
-import { createContext, useContext, useLayoutEffect, useReducer, useRef } from 'react';
+import { createContext, useContext, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { isConversationSession, supportsEnhancedTool } from '../lib/chat-tools';
+import { REMOTE, remoteRequest } from '../remote/bridge';
+import { isCompact } from '../lib/viewport';
 import { supportsAdditionalAgentStatus } from '../lib/terminal-agent-status';
 import { insertSessionSplit, removeSessionSplit, replaceSplitSession, splitSessionIds, setSessionSplitRatio, type SessionSplitLayout, type SplitEdge } from '../lib/session-split-layout';
 
@@ -160,11 +162,24 @@ export interface TerminalSession {
   /** Local launch timestamp used to reject older history files when binding
    *  a live conversation to this terminal tab. */
   startedAt?: number;
+  /** In the browser: this tab shows one of the desktop's terminals rather than its own. */
+  mirror?: boolean;
 }
+
+/** Settings a browser shows exactly as the desktop has them; changing one there changes the desktop's. */
+export const MIRRORED_SETTINGS = ['currentTheme', 'themeMode', 'currentShape', 'currentLang', 'iconTheme', 'bgPath', 'bgType', 'wallpaperOpacity', 'termColorScheme', 'termFont', 'defaultShell', 'gambitEnterToSend', 'hotkeyScheme', 'titlebarToggleDisplay', 'preInputButton', 'diffMode'] as const;
+export type MirroredSettings = Pick<AppState, typeof MIRRORED_SETTINGS[number]>;
+export function pickMirroredSettings(state: AppState): MirroredSettings {
+  return Object.fromEntries(MIRRORED_SETTINGS.map(key => [key, state[key]])) as MirroredSettings;
+}
+/** The actions that change those settings. */
+export const SETTINGS_ACTIONS = new Set<Action['type']>(['SET_THEME', 'SET_THEME_MODE', 'SET_SHAPE', 'SET_ICON_THEME', 'SET_LANG', 'SET_BG', 'CLEAR_BG', 'SET_WALLPAPER_OPACITY', 'SET_TERM_SCHEME', 'SET_TERM_FONT', 'SET_DEFAULT_SHELL', 'SET_GAMBIT_ENTER_TO_SEND', 'SET_HOTKEY_SCHEME', 'SET_TITLEBAR_TOGGLE_DISPLAY', 'SET_PRE_INPUT_BUTTON', 'SET_DIFF_MODE']);
+
+/** A desktop terminal a browser mirrors (see SYNC_MIRROR_TABS). */
+export interface MirrorTab { id: string; tool: ToolType; cwd: string | null; title: string; claudeMode?: ClaudeMode; codexMode?: ClaudeMode; opencodeMode?: ClaudeMode; piMode?: ClaudeMode; worktree?: TerminalSession['worktree']; parentId?: string; status?: AgentStatus }
 
 // ─── State Shape ─────────────────────────────────────────────────────────────
 
-export type AgentPage = 'agent' | 'config';
 
 export interface AppState {
   // UI
@@ -186,7 +201,7 @@ export interface AppState {
 
   // Terminal foreground color override ('' = use theme default)
   termColorScheme: string;
-  // Terminal font family override ('' = bundled CascadiaMono + fallbacks)
+  // Terminal font family override ('' = bundled JetBrainsMono + fallbacks)
   termFont: string;
   // Default shell id for new terminal tabs ('' = Auto / platform fallback).
   // Resolved to a concrete program at spawn time on the Rust side. See
@@ -197,8 +212,6 @@ export interface AppState {
   terminals: TerminalSession[];
   activeTerminalId: string | null;
   sessionSplit: SessionSplitLayout | null;
-  agentPages: AgentPage[];
-  agentPageActive: AgentPage | null;
   tabOrder: string[];
 
   // Gambit (global floating compose window). Visibility is app-wide so the
@@ -228,6 +241,8 @@ export interface AppState {
   // Default both panels visible — matches first-time user expectation.
   leftPanelHidden: boolean;
   rightPanelHidden: boolean;
+  /** The side panel open as a drawer while the window is too narrow to dock them; this screen only, never saved. */
+  drawer: 'left' | 'right' | null;
 
   // Right-panel task board form. 'list' = compact to-do checklist (default),
   // 'note' = big sticky-note cards (traffic-light status + timestamp + roomy
@@ -299,7 +314,7 @@ export function resolveDiffContext(session: TerminalSession | null | undefined):
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
 
-type Action =
+export type Action =
   | { type: 'SET_USAGE_OPEN'; open: boolean }
   | { type: 'SET_AUTOMATIONS_OPEN'; open: boolean }
   | { type: 'SET_TOOL_SETTINGS_OPEN'; open: boolean }
@@ -315,6 +330,8 @@ type Action =
   | { type: 'OPEN_SESSION_SPLIT'; id: string; targetId: string; edge: SplitEdge }
   | { type: 'CLOSE_SESSION_SPLIT'; id: string }
   | { type: 'RESIZE_SESSION_SPLIT'; path: string; ratio: number }
+  | { type: 'SYNC_MIRROR_TABS'; tabs: MirrorTab[] }
+  | { type: 'MIRROR_SETTINGS'; settings: Partial<MirroredSettings> }
   | { type: 'LAUNCH_TERMINAL_TOOL'; id: string; tool: ToolType; cwd?: string; toolData?: string; resumeToken?: string; strictCwd?: boolean; claudeMode?: ClaudeMode; codexMode?: ClaudeMode; opencodeMode?: ClaudeMode; piMode?: ClaudeMode; parentId?: string; background?: boolean }
   | { type: 'REMOVE_TERMINAL'; id: string }
   | { type: 'CLOSE_TERMINAL_GROUP'; id: string; childIds: string[]; keepChildren: boolean }
@@ -340,11 +357,13 @@ type Action =
   | { type: 'SET_GAMBIT_ENTER_TO_SEND'; value: boolean }
   | { type: 'SET_HOTKEY_SCHEME'; value: HotkeyScheme }
   | { type: 'SET_TITLEBAR_TOGGLE_DISPLAY'; value: TitlebarToggleDisplay }
-  | { type: 'SET_GAMBIT_DRAFT'; id: string; draft: string }
+  | { type: 'SET_GAMBIT_DRAFT'; id: string; draft: string; fromOtherScreen?: boolean }
+  | { type: 'MIRROR_DRAFTS'; drafts: Record<string, string> }
   | { type: 'APPEND_GAMBIT_DRAFT'; id: string; text: string }
   | { type: 'SET_SESSION_TOKEN'; id: string; token: string }
   | { type: 'TOGGLE_LEFT_PANEL' }
   | { type: 'TOGGLE_RIGHT_PANEL' }
+  | { type: 'CLOSE_DRAWER' }
   | { type: 'SAVE_PRE_INPUT'; text: string }
   | { type: 'TAKE_PRE_INPUT'; count: number }
   | { type: 'SET_PRE_INPUT_BUTTON'; value: boolean }
@@ -352,14 +371,12 @@ type Action =
   | { type: 'SET_DIFF_SELECTION'; selection: DiffSelection }
   | { type: 'CLEAR_DIFF' }
   | { type: 'SET_DIFF_MODE'; mode: 'overlay' | 'tab' }
-  | { type: 'SET_DIFF_TAB_ACTIVE'; active: boolean }
-  | { type: 'OPEN_AGENT_PAGE'; page: AgentPage }
-  | { type: 'CLOSE_AGENT_PAGE'; page: AgentPage };
+  | { type: 'SET_DIFF_TAB_ACTIVE'; active: boolean };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
-export function getTabOrder(state: Pick<AppState, 'terminals' | 'agentPages' | 'tabOrder'>): string[] {
-  const ids = [...state.terminals.map(tab => tab.id), ...state.agentPages.map(page => `agent:${page}`)];
+export function getTabOrder(state: Pick<AppState, 'terminals' | 'tabOrder'>): string[] {
+  const ids = state.terminals.map(tab => tab.id);
   const saved = (state.tabOrder ?? []).filter(id => ids.includes(id));
   return [...saved, ...ids.filter(id => !saved.includes(id))];
 }
@@ -373,9 +390,7 @@ function splitForSession(state: AppState, id: string, targetId: string, edge: Sp
 }
 
 function reducer(state: AppState, action: Action): AppState {
-  // Coffee Agent's configuration lives in settings; its old tab opens that section instead.
-  if (action.type === 'OPEN_AGENT_PAGE' && action.page === 'config') return { ...state, settingsOpen: true, settingsSection: 'agent', usageOpen: false, toolSettingsOpen: false, automationsOpen: false };
-  if ((state.usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen) && !(action.type === 'LAUNCH_TERMINAL_TOOL' && action.background) && ['ADD_TERMINAL', 'LAUNCH_TERMINAL_TOOL', 'SET_ACTIVE_TERMINAL', 'OPEN_AGENT_PAGE', 'OPEN_SESSION_SPLIT', 'SET_DIFF_SELECTION', 'SET_DIFF_TAB_ACTIVE'].includes(action.type)) state = { ...state, usageOpen: false, toolSettingsOpen: false, settingsOpen: false, automationsOpen: false };
+  if ((state.usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen) && !(action.type === 'LAUNCH_TERMINAL_TOOL' && action.background) && ['ADD_TERMINAL', 'LAUNCH_TERMINAL_TOOL', 'SET_ACTIVE_TERMINAL', 'OPEN_SESSION_SPLIT', 'SET_DIFF_SELECTION', 'SET_DIFF_TAB_ACTIVE'].includes(action.type)) state = { ...state, usageOpen: false, toolSettingsOpen: false, settingsOpen: false, automationsOpen: false };
   switch (action.type) {
     case 'SET_USAGE_OPEN':
       return { ...state, usageOpen: action.open, toolSettingsOpen: false, ...(action.open ? { settingsOpen: false, automationsOpen: false } : {}) };
@@ -388,7 +403,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (!session?.tool) return state;
       const layout = splitForSession(state, action.id, action.targetId, action.edge);
       if (!layout || !splitSessionIds(layout).includes(action.id)) return state;
-      return { ...state, sessionSplit: layout, activeTerminalId: action.id, agentPageActive: null, diffTabActive: false,
+      return { ...state, sessionSplit: layout, activeTerminalId: action.id, diffTabActive: false,
         terminals: session.isHidden ? state.terminals.map(t => t.id === session.id ? { ...t, isHidden: false } : t) : state.terminals };
     }
     case 'CLOSE_SESSION_SPLIT': {
@@ -458,7 +473,6 @@ function reducer(state: AppState, action: Action): AppState {
         sessionSplit: action.split ? layout : state.sessionSplit,
         terminals: existing.isHidden ? state.terminals.map(t => t.id === existing.id ? { ...t, isHidden: false } : t) : state.terminals,
         activeTerminalId: existing.id,
-        agentPageActive: null,
         diffTabActive: false,
       };
       const session = action.session.tool && !action.session.startedAt
@@ -470,9 +484,51 @@ function reducer(state: AppState, action: Action): AppState {
         terminals: [...state.terminals, session],
         tabOrder: [...getTabOrder(state), session.id],
         activeTerminalId: session.id,
-        agentPageActive: null,
         diffTabActive: false,
       };
+    }
+    case 'MIRROR_SETTINGS': {
+      const next: Partial<MirroredSettings> = {};
+      for (const key of MIRRORED_SETTINGS) if (key in action.settings && action.settings[key] !== state[key]) Object.assign(next, { [key]: action.settings[key] });
+      return Object.keys(next).length ? { ...state, ...next } : state;
+    }
+    case 'SYNC_MIRROR_TABS': {
+      // The browser shows the desktop's tabs: new ones appear, closed ones go, and what the
+      // desktop says about each (title, folder, mode) wins. Only which tab is shown is the browser's own.
+      const wanted = new Map(action.tabs.map(tab => [tab.id, tab]));
+      const fromDesktop = (desk: MirrorTab, base?: TerminalSession): TerminalSession => ({
+        ...base, id: desk.id, tool: desk.tool, folderPath: desk.cwd, toolTitle: desk.title || base?.toolTitle, mirror: true,
+        claudeMode: desk.claudeMode, codexMode: desk.codexMode, opencodeMode: desk.opencodeMode, piMode: desk.piMode, worktree: desk.worktree, parentId: desk.parentId,
+        agentStatus: desk.status,
+      });
+      const same = (tab: TerminalSession, desk: MirrorTab) => tab.mirror && tab.tool === desk.tool && tab.folderPath === desk.cwd && (desk.title || tab.toolTitle) === tab.toolTitle
+        && tab.claudeMode === desk.claudeMode && tab.codexMode === desk.codexMode && tab.opencodeMode === desk.opencodeMode && tab.piMode === desk.piMode
+        && tab.worktree?.path === desk.worktree?.path && tab.parentId === desk.parentId && tab.agentStatus === desk.status;
+      // A blank launch page whose tool was just started on the desktop becomes that desktop tab.
+      const kept = state.terminals.filter(tab => !tab.mirror || wanted.has(tab.id)).map(tab => {
+        const desk = wanted.get(tab.id);
+        return desk && !same(tab, desk) ? fromDesktop(desk, tab) : tab;
+      });
+      const known = new Set(kept.map(tab => tab.id));
+      const added = action.tabs.filter(tab => !known.has(tab.id)).map(desk => fromDesktop(desk));
+      let terminals = [...kept, ...added];
+      const ids = new Set(terminals.map(tab => tab.id));
+      // The desktop's tabs in the desktop's order; tabs only this screen has (a blank launch page) stay after them.
+      const deskOrder = action.tabs.map(tab => tab.id);
+      let order = [...deskOrder, ...getTabOrder(state).filter(id => ids.has(id) && !wanted.has(id))];
+      const orderChanged = order.length !== getTabOrder(state).length || order.some((id, i) => id !== getTabOrder(state)[i]);
+      if (!orderChanged && kept.length === state.terminals.length && !added.length && kept.every((tab, i) => tab === state.terminals[i])) return state;
+      const byId = new Map(terminals.map(tab => [tab.id, tab]));
+      terminals = order.flatMap(id => byId.get(id) ?? []);
+      let active = state.activeTerminalId && ids.has(state.activeTerminalId) ? state.activeTerminalId : null;
+      // Opening the page, or the shown tab going away, lands on a desktop tab rather than the launch page.
+      const activeTab = terminals.find(tab => tab.id === active);
+      if (!activeTab || activeTab.tool === null && !state.terminals.some(tab => tab.mirror)) active = (added[0] ?? terminals.find(tab => tab.tool !== null))?.id ?? active;
+      if (!active) {
+        const blank: TerminalSession = { id: crypto.randomUUID(), tool: null, folderPath: null };
+        terminals = [...terminals, blank]; order = [...order, blank.id]; active = blank.id;
+      }
+      return { ...state, terminals, tabOrder: order, activeTerminalId: active };
     }
     case 'LAUNCH_TERMINAL_TOOL': {
       const previous = state.terminals.find(tab => tab.id === action.id);
@@ -498,7 +554,6 @@ function reducer(state: AppState, action: Action): AppState {
         terminals: previous ? state.terminals.map(tab => tab.id === action.id ? session : tab) : [...state.terminals, session],
         tabOrder: previous ? state.tabOrder : [...order.slice(0, index), action.id, ...order.slice(index)],
         activeTerminalId: action.background ? state.activeTerminalId : action.id,
-        agentPageActive: action.background ? state.agentPageActive : null,
         diffTabActive: action.background ? state.diffTabActive : false,
       };
     }
@@ -558,14 +613,13 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state, tabOrder: next,
         terminals: [...state.terminals].sort((a, b) => next.indexOf(a.id) - next.indexOf(b.id)),
-        agentPages: [...state.agentPages].sort((a, b) => next.indexOf(`agent:${a}`) - next.indexOf(`agent:${b}`)),
       };
     }
     case 'SET_ACTIVE_TERMINAL':
       // Activating a terminal tab blurs the diff tab (they're peer tabs in
       // the strip; only one is focused at a time). diffMode is untouched —
       // the diff still renders in its chosen surface, just not focused.
-      return { ...state, activeTerminalId: action.id, diffTabActive: false, agentPageActive: null };
+      return { ...state, activeTerminalId: action.id, diffTabActive: false };
     case 'SET_TERMINAL_TOOL':
       return {
         ...state,
@@ -620,7 +674,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_DEFAULT_SHELL':
       return { ...state, defaultShell: action.shell };
     case 'TOGGLE_GAMBIT':
-      if (!state.agentPageActive && !state.diffTabActive && isConversationSession(state.terminals.find(t => t.id === state.activeTerminalId))) return state;
+      if (!state.diffTabActive && isConversationSession(state.terminals.find(t => t.id === state.activeTerminalId))) return state;
       return { ...state, gambitOpen: !state.gambitOpen };
     // Settings covers the whole window; it and the usage and tool settings pages are open one at a time.
     case 'TOGGLE_SETTINGS':
@@ -635,6 +689,16 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, hotkeyScheme: action.value };
     case 'SET_TITLEBAR_TOGGLE_DISPLAY':
       return { ...state, titlebarToggleDisplay: action.value };
+    case 'MIRROR_DRAFTS': {
+      let changed = false;
+      const terminals = state.terminals.map(t => {
+        const draft = t.mirror ? action.drafts[t.id] : undefined;
+        if (draft === undefined || draft === (t.gambitDraft ?? '')) return t;
+        changed = true;
+        return { ...t, gambitDraft: draft };
+      });
+      return changed ? { ...state, terminals } : state;
+    }
     case 'SET_GAMBIT_DRAFT':
       return {
         ...state,
@@ -650,15 +714,20 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_SESSION_TOKEN':
       return { ...state, terminals: state.terminals.map(t => t.id === action.id && t.resumeToken !== action.token ? { ...t, resumeToken: action.token, ownToken: t.resumeToken && t.resumeToken !== t.ownToken ? t.ownToken : action.token } : t) };
     case 'TOGGLE_LEFT_PANEL': {
+      // Narrow: the toggle opens the drawer and leaves the docked layout's saved choice alone.
+      if (isCompact()) return { ...state, drawer: state.drawer === 'left' ? null : 'left' };
       const next = !state.leftPanelHidden;
       try { localStorage.setItem('cc-left-hidden', next ? '1' : '0'); } catch { /* Best-effort operation; failure is non-fatal. */ }
       return { ...state, leftPanelHidden: next };
     }
     case 'TOGGLE_RIGHT_PANEL': {
+      if (isCompact()) return { ...state, drawer: state.drawer === 'right' ? null : 'right' };
       const next = !state.rightPanelHidden;
       try { localStorage.setItem('cc-right-hidden', next ? '1' : '0'); } catch { /* Best-effort operation; failure is non-fatal. */ }
       return { ...state, rightPanelHidden: next };
     }
+    case 'CLOSE_DRAWER':
+      return state.drawer ? { ...state, drawer: null } : state;
     case 'SAVE_PRE_INPUT': {
       try { localStorage.setItem('cc-right-hidden', '0'); } catch { /* Best-effort operation; failure is non-fatal. */ }
       return { ...state, preInputQueue: [...state.preInputQueue, action.text], preInputReveal: state.preInputReveal + 1, rightPanelHidden: false };
@@ -678,7 +747,6 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         diffSelection: action.selection,
         rightPanelHidden: state.diffMode === 'overlay' ? false : state.rightPanelHidden,
-        agentPageActive: state.diffMode === 'tab' ? null : state.agentPageActive,
         diffTabActive: state.diffMode === 'tab' ? true : state.diffTabActive,
       };
     case 'CLEAR_DIFF':
@@ -690,21 +758,10 @@ function reducer(state: AppState, action: Action): AppState {
       try { localStorage.setItem('cc-diff-mode', action.mode); } catch { /* Best-effort operation; failure is non-fatal. */ }
       // Entering tab mode focuses the diff tab; leaving blurs it. Keeps the
       // active-surface tracking in lockstep with the surface the diff is on.
-      return { ...state, diffMode: action.mode, rightPanelHidden: action.mode === 'overlay' ? false : state.rightPanelHidden, diffTabActive: action.mode === 'tab', agentPageActive: action.mode === 'tab' ? null : state.agentPageActive };
+      return { ...state, diffMode: action.mode, rightPanelHidden: action.mode === 'overlay' ? false : state.rightPanelHidden, diffTabActive: action.mode === 'tab' };
     }
     case 'SET_DIFF_TAB_ACTIVE':
-      return { ...state, diffTabActive: action.active, agentPageActive: action.active ? null : state.agentPageActive };
-    case 'OPEN_AGENT_PAGE':
-      return {
-        ...state,
-        agentPages: state.agentPages.includes(action.page) ? state.agentPages : [...state.agentPages, action.page],
-        tabOrder: state.agentPages.includes(action.page) ? state.tabOrder : [...getTabOrder(state), `agent:${action.page}`],
-        agentPageActive: action.page, diffTabActive: false,
-      };
-    case 'CLOSE_AGENT_PAGE': {
-      const agentPages = state.agentPages.filter(page => page !== action.page);
-      return { ...state, agentPages, tabOrder: getTabOrder(state).filter(id => id !== `agent:${action.page}`), agentPageActive: state.agentPageActive === action.page ? agentPages.at(-1) ?? null : state.agentPageActive };
-    }
+      return { ...state, diffTabActive: action.active };
     default:
       return state;
   }
@@ -746,7 +803,7 @@ const VALID_ICON_THEMES: IconTheme[] = [
 function getInitialState(): AppState {
   // Keep theme/shape defaults in sync with index.html's pre-paint script.
   // Saved preferences take priority for returning users.
-  let theme: ThemeColor = 'oat';
+  let theme: ThemeColor = 'obsidian';
   let themeMode: ThemeMode = 'dark';
   let shape: ThemeShape = 'basalt';
   let iconTheme: IconTheme = 'devicon';
@@ -918,6 +975,7 @@ function getInitialState(): AppState {
     titlebarToggleDisplay,
     leftPanelHidden,
     rightPanelHidden,
+    drawer: null,
     preInputQueue: [],
     preInputReveal: 0,
     preInputButton,
@@ -927,9 +985,67 @@ function getInitialState(): AppState {
     usageOpen: false,
     automationsOpen: false,
     toolSettingsOpen: false,
-    agentPages: [],
-    agentPageActive: null,
     tabOrder: [defaultTerminalId],
+  };
+}
+
+// ─── Composer drafts: one draft per tab, typed on either screen ──────────────
+
+/** When this screen last typed in a tab's composer. The other screen's draft waits until typing pauses,
+ *  so neither side overwrites what someone is in the middle of writing. */
+const draftEdits = new Map<string, number>();
+export const DRAFT_QUIET_MS = 1200;
+export const typingDraft = (id: string): boolean => Date.now() - (draftEdits.get(id) ?? 0) < DRAFT_QUIET_MS;
+function noteDraftEdit(action: Action): void {
+  if (action.type === 'SET_GAMBIT_DRAFT' && !action.fromOtherScreen || action.type === 'APPEND_GAMBIT_DRAFT') draftEdits.set(action.id, Date.now());
+}
+
+// ─── Browser: tab changes run on the desktop ─────────────────────────────────
+
+/** Tabs the browser asked the desktop to open: shown here as soon as the desktop lists them. */
+export const openedFromBrowser = new Set<string>();
+
+let browserState: AppState | null = null;
+const current = () => browserState ?? getInitialState();
+
+function browserDispatch(local: React.Dispatch<Action>): React.Dispatch<Action> {
+  const desk = (id: string | undefined) => !!id && !!current().terminals.find(tab => tab.id === id)?.mirror;
+  const send = (action: Action) => { void remoteRequest('ui.dispatch', { action }).catch(error => console.error('[remote tab]', error)); };
+  const draftTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  return action => {
+    // Drafts: shown here at once, sent to the desktop when typing pauses for a moment.
+    if ((action.type === 'SET_GAMBIT_DRAFT' || action.type === 'APPEND_GAMBIT_DRAFT') && desk(action.id)) {
+      noteDraftEdit(action); local(action);
+      const id = action.id;
+      clearTimeout(draftTimers.get(id));
+      draftTimers.set(id, setTimeout(() => {
+        draftTimers.delete(id);
+        const draft = current().terminals.find(tab => tab.id === id)?.gambitDraft ?? '';
+        send({ type: 'SET_GAMBIT_DRAFT', id, draft, fromOtherScreen: true });
+      }, 250));
+      return;
+    }
+    // Settings are the desktop's: change them there, and here at once so the click feels immediate.
+    if (SETTINGS_ACTIONS.has(action.type)) { send(action); local(action); return; }
+    switch (action.type) {
+      case 'LAUNCH_TERMINAL_TOOL': openedFromBrowser.add(action.id); send(action); return;
+      case 'ADD_TERMINAL': if (action.session.tool) { openedFromBrowser.add(action.session.id); send(action); return; } break;
+      case 'SET_TERMINAL_TOOL':
+        if (action.tool && !desk(action.id)) {
+          // The blank launch page picked a tool: the desktop opens it in the folder chosen here.
+          openedFromBrowser.add(action.id);
+          send({ ...action, cwd: current().terminals.find(tab => tab.id === action.id)?.folderPath ?? undefined } as Action);
+          return;
+        }
+        if (desk(action.id)) { send(action); return; }
+        break;
+      case 'RESTART_TERMINAL': if (desk(action.id)) { openedFromBrowser.add(action.newId); send(action); return; } break;
+      case 'REMOVE_TERMINAL': if (desk(action.id)) { send(action); local(action); return; } break;
+      case 'CLOSE_TERMINAL_GROUP': case 'SET_TERMINAL_HIDDEN': case 'SET_TERMINAL_WORKTREE': case 'SET_TAB_TITLE':
+        if (desk(action.id)) { send(action); return; }
+        break;
+    }
+    local(action);
   };
 }
 
@@ -951,9 +1067,11 @@ const AppContext = createContext<{
 } | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, getInitialState);
+  const [state, localDispatch] = useReducer(reducer, undefined, getInitialState);
   const stateRef = useRef(state);
-  useLayoutEffect(() => { stateRef.current = state; }, [state]);
+  // In the browser, opening, closing and changing tabs is asked of the desktop.
+  const [dispatch] = useState(() => REMOTE ? browserDispatch(localDispatch) : (action: Action) => { noteDraftEdit(action); localDispatch(action); });
+  useLayoutEffect(() => { stateRef.current = state; if (REMOTE) browserState = state; }, [state]);
   // The combined-context value has to be recomputed whenever state changes,
   // so keeping the split contexts lets hot components subscribe only to the
   // half they care about.

@@ -28,11 +28,15 @@
 }
 
 /* As a page it covers the whole workspace under the titlebar, sidebars and tabs included; the titlebar offers Back. */
-.settings-page { position: absolute; inset: 0; z-index: 50; display: flex; min-width: 0; min-height: 0; background: var(--bg-panel); }
+.settings-page { position: absolute; inset: 0; z-index: 50; display: flex; min-width: 0; min-height: 0; background: var(--bg-panel); animation: settings-page-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.settings-page--closing { animation: settings-page-out 0.12s cubic-bezier(0.4, 0, 1, 1) forwards; pointer-events: none; }
+@keyframes settings-page-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes settings-page-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.97); } }
+/* Near-zero rather than none so animationend still fires and the page unmounts. */
+@media (prefers-reduced-motion: reduce) { .settings-page, .settings-page--closing { animation-duration: 0.01ms; } }
 .settings-modal.settings-modal--page { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; animation: none; background: transparent; }
 .settings-modal--page .settings-rail { flex-basis: 200px; padding: 20px 12px; }
 .settings-modal--page .settings-body { width: min(760px, 100%); margin: 0 auto; }
-.settings-body--agent { padding: 0; }
 
 /* Space between two groups merged into one section (appearance + wallpaper, general + sound). */
 .settings-group-gap { height: 1px; margin: 24px 0 8px; background: var(--border, rgba(255, 255, 255, 0.06)); }
@@ -52,15 +56,6 @@
   padding: 16px 10px;
   background: color-mix(in srgb, var(--bg-app, #161618) 55%, transparent);
   border-right: 1px solid var(--border, rgba(255, 255, 255, 0.06));
-}
-
-.settings-rail-title {
-  font-size: var(--type-label);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-3, rgba(255, 255, 255, 0.4));
-  padding: 4px 12px 12px;
 }
 
 .settings-rail-item {
@@ -335,11 +330,8 @@
 
 /* ── Wallpaper ─────────────────────────────────────────────────────────── */
 .settings-wallpaper-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.settings-sound-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.settings-sound-file { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .settings-sound-name { overflow: hidden; min-width: 0; font-size: var(--type-label); color: var(--text-1); text-overflow: ellipsis; white-space: nowrap; }
 .settings-sound-remove { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 22px; height: 22px; padding: 0; border: 0; border-radius: var(--shape-radius-btn, 6px); background: transparent; color: var(--text-3); cursor: pointer; }
-.settings-sound-switch .settings-key-card { flex: 1; }
 .settings-sound-failed { margin-top: 8px; font-size: var(--type-label); color: #e06666; }
 .settings-btn {
   padding: 8px 16px;
@@ -355,7 +347,6 @@
 .settings-btn:hover { border-color: transparent; background: color-mix(in srgb, var(--text-1, #fff) 11%, transparent); }
 .settings-btn-danger { color: #e06666; }
 .settings-btn-danger:hover { border-color: transparent; background: color-mix(in srgb, #e06666 18%, transparent); }
-
 
 /* ── Terminal text-colour chips ────────────────────────────────────────── */
 .settings-term-chip {
@@ -383,11 +374,7 @@
    overflowing, so two rows of two reads cleanly. min-width:0 lets the cards
    shrink to the column — the shared .settings-key-card keeps min-width:160px
    for the 2-up send row above. */
-.settings-key-row--keys {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-}
-.settings-key-row--keys .settings-key-card { min-width: 0; }
+
 .settings-key-card {
   display: flex;
   flex-direction: column;
@@ -407,7 +394,6 @@
   background: color-mix(in srgb, var(--accent, #c4956a) 26%, transparent);
 }
 .settings-key-combo { display: flex; align-items: center; gap: 5px; color: var(--text-2, rgba(255, 255, 255, 0.7)); }
-.settings-key-plus { color: var(--text-3, rgba(255, 255, 255, 0.4)); font-size: var(--type-label); }
 .settings-key-card kbd {
   display: inline-flex;
   align-items: center;
@@ -603,9 +589,12 @@
 .settings-sound-current .settings-sound-remove svg { width: 10px; height: 10px; }
 .settings-sound-link { flex-shrink: 0; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
 .settings-sound-link:hover { text-decoration: underline; }
-.settings-sound-play { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; color: var(--text-1); background: var(--bg-hover); cursor: pointer; }
-.settings-sound-play:hover { color: var(--accent); background: var(--bg-active); }
-.settings-sound-play svg { width: 14px; height: 14px; margin-left: 2px; }
+/* Preview sits with the sound it plays: a quiet icon beside its name, not a second control next to the switch. */
+.settings-sound-play { display: grid; place-items: center; flex-shrink: 0; width: 22px; height: 22px; margin: 0 -2px 0 -4px; padding: 0; border: 0; border-radius: 50%; color: var(--text-2); background: transparent; cursor: pointer; }
+.settings-sound-play:hover { color: var(--text-1); background: var(--bg-hover); }
+.settings-sound-play:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.settings-sound-play svg { width: 12px; height: 12px; }
+.settings-sound-change { padding: 4px 12px; margin-right: 4px; }
 /* A row whose choice carries a note under it, both right-aligned. */
 .settings-choice-row { align-items: flex-start; }
 .settings-choice-row .settings-sound-title { padding-top: 5px; }
@@ -616,10 +605,12 @@
 .settings-voice-channels[aria-disabled="true"] button:disabled { opacity: 1; }
 .settings-voice-channels > .settings-sound-row { padding-inline: 0; }
 .settings-voice-channels .settings-sound-failed { padding: 0 0 12px; }
-.settings-voice-scan { position: relative; flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-hover); color: var(--text-1); white-space: nowrap; }
+/* Row buttons (pair, remove, scan…): the settings button look, sized for a list row. */
+.settings-voice-scan { position: relative; flex-shrink: 0; padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm, 8px); background: var(--bg-hover); color: var(--text-1); font-family: inherit; font-size: var(--type-label); font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color .14s ease, border-color .14s ease; }
+.settings-voice-scan:hover:not(:disabled) { border-color: transparent; background: color-mix(in srgb, var(--text-1, #fff) 11%, transparent); }
 .settings-voice-scan[aria-busy="true"] .settings-voice-scan-label { visibility: hidden; }
 .settings-voice-scan-progress { position: absolute; inset: 0; display: grid; place-items: center; }
-.settings-voice-scan:disabled { opacity: 0.5; }
+.settings-voice-scan:disabled { opacity: 0.5; cursor: default; }
 .settings-voice-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 10px; padding: 4px 0 16px; }
 .settings-voice-source-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; min-height: 84px; padding: 12px; border: 1px solid var(--border); border-radius: var(--shape-radius-btn, 8px); color: var(--text-1); background: transparent; font: inherit; text-align: left; }
 .settings-voice-source-card[aria-pressed="false"]:hover:not(:disabled) { background: var(--bg-hover); }
@@ -637,3 +628,52 @@
 /* Voice input: the microphone menu sits at the right like other choices; the check reuses the composer's mic button and waveform. */
 .settings-voice-device { width: min(260px, 50%); }
 .settings-voice-wave-room { display: flex; justify-content: flex-end; flex: 0 0 120px; height: 16px; }
+
+/* Mobile: pairing QR code and paired phones. */
+.settings-mobile-pairing { display: flex; align-items: stretch; gap: 18px; padding: 14px 16px; }
+.settings-mobile-pairing > .settings-voice-scan { align-self: flex-start; }
+.settings-mobile-qr { flex-shrink: 0; width: 132px; height: 132px; padding: 6px; box-sizing: border-box; border-radius: var(--shape-radius-btn, 8px); background: #fff; image-rendering: pixelated; }
+/* Four lines spread over the code's height, first line at its top edge, last at its bottom. */
+.settings-mobile-pairing-text { display: flex; flex: 1; flex-direction: column; align-items: flex-start; justify-content: space-between; min-width: 0; padding: 2px 0; }
+.settings-mobile-pairing-text .settings-sound-title { flex: none; font-size: calc(var(--type-body) + 1px); }
+.settings-mobile-pairing-text .settings-choice-hint { text-align: left; font-size: var(--type-body); }
+/* The one address: shows where to go, copies the full pairing link. */
+.settings-mobile-link-row { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+/* The one address: shows where to go, and copies the full pairing link too. */
+.settings-mobile-link { min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--shape-radius-btn, 8px); color: var(--text-1); background: var(--bg-hover); font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--type-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.settings-mobile-link:hover { border-color: transparent; background: color-mix(in srgb, var(--text-1) 11%, transparent); }
+.settings-mobile-copy { display: inline-grid; }
+.settings-mobile-copy > span { grid-area: 1 / 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: opacity .14s ease; }
+.settings-mobile-copy > span[aria-hidden="true"] { opacity: 0; }
+.settings-mobile-copy svg { width: 13px; height: 13px; }
+.settings-mobile-copy.is-done { color: #4caf7a; }
+.settings-mobile-link-label { flex-shrink: 0; color: var(--text-3); font-size: var(--type-body); }
+.settings-mobile-tip { margin: 10px 2px 0; color: var(--text-3); font-size: var(--type-label); line-height: 1.5; }
+.settings-mobile-devices { margin-top: 0; }
+.settings-mobile-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); opacity: 0.5; }
+.settings-mobile-dot.is-connected { background: #4caf7a; opacity: 1; }
+.settings-mobile-empty { padding: 0 0 12px; text-align: left; }
+@media (max-width: 640px) { .settings-mobile-pairing { flex-wrap: wrap; } }
+
+.settings-mobile-firewall .settings-sound-title { color: #e0a060; }
+
+/* Phones: Back and the sections become one swipeable row on top, the page gets the full width,
+   and a row whose control does not fit beside its label puts the control underneath. */
+:root[data-width="xs"] .settings-modal { flex-direction: column; }
+:root[data-width="xs"] .settings-modal--page .settings-rail {
+  flex: 0 0 auto; flex-direction: row; align-items: center; gap: 4px;
+  padding: 8px 12px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  border-right: 0; border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+:root[data-width="xs"] .settings-rail::-webkit-scrollbar { display: none; }
+:root[data-width="xs"] .settings-rail-back { margin: 0 4px 0 0; }
+:root[data-width="xs"] .settings-rail-item { flex-shrink: 0; min-height: 40px; padding: 8px 12px; white-space: nowrap; }
+:root[data-width="xs"] .settings-rail-version { display: none; }
+:root[data-width="xs"] .settings-header { display: none; }
+:root[data-width="xs"] .settings-body { padding: 12px 12px calc(24px + env(safe-area-inset-bottom, 0px)); }
+:root[data-width="xs"] .settings-sound-row { flex-wrap: wrap; row-gap: 10px; padding: 12px 14px; }
+:root[data-width="xs"] .settings-sound-title { flex: 1 1 60%; white-space: normal; }
+/* A segmented choice wider than the screen scrolls sideways instead of running off the edge. */
+:root[data-width="xs"] .segmented-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+:root[data-width="xs"] .segmented-tabs::-webkit-scrollbar { display: none; }
+:root[data-width="xs"] .segmented-tabs > * { flex-shrink: 0; }

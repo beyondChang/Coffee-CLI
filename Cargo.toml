@@ -1,6 +1,6 @@
 [package]
 name = "coffee-cli"
-version = "3.9.6"
+version = "4.0.3"
 edition = "2021"
 description = "Lightweight Multi-layer AI CLI Terminal"
 license = "AGPL-3.0-or-later"
@@ -23,7 +23,7 @@ tempfile = "3"
 # Tier Terminal — PTY (portable-pty, WezTerm's cross-platform PTY library)
 portable-pty = "0.9"
 # Local Agent and message-channel tasks run on Tauri's async runtime.
-tokio = { version = "1", features = ["rt", "sync", "time", "macros", "process"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "macros", "process", "net"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy", "http2", "stream", "multipart"] }
 uuid = { version = "1", features = ["v4"] }
 
@@ -81,7 +81,7 @@ serde_yaml_ng = "0.10"
 # DeepSeek Harness stores Session logs as concatenated zstd frames.
 zstd = "0.13"
 # Voice input: microphone capture and the vendors' streaming speech-to-text sockets.
-cpal = "0.16"
+cpal = "0.17"
 tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 # Speech adapters shared with EchoBird: native wire formats and account envelopes.
 bytes = "1"
@@ -100,6 +100,10 @@ flate2 = "1"
 crc32fast = "1"
 pbkdf2 = "0.12"
 sha1 = "0.10"
+# Mobile companion: Noise IKpsk2 handshake and transport encryption.
+snow = "0.9"
+# Mobile pairing: list network interfaces to find the Wi-Fi/Ethernet address.
+if-addrs = "0.15"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 
 [profile.release]
@@ -164,6 +168,8 @@ windows = { version = "0.58", features = [
 # NSVisualEffectView vibrancy. Both driven by set_frosted_backdrop.
 [target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
 window-vibrancy = "0.6"
+# Closing the main window can keep Coffee CLI running in the notification area (Windows) or the menu bar (macOS); see src/app_close.rs.
+tauri = { version = "2", features = ["tray-icon"] }
 
 # `libc::kill(pid, 0)` for process-liveness probe in cli::mcp_status.
 [target.'cfg(unix)'.dependencies]

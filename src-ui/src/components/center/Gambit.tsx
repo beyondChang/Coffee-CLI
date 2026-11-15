@@ -14,6 +14,7 @@
 // Claude Code) will read the file; agents that don't just see the raw path.
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { usePhone } from '../../lib/viewport';
 import { isWorktreePending } from '../../lib/worktree-pending';
 import { createPortal } from 'react-dom';
 import { clipboardRead, clipboardWrite } from '../../lib/clipboard';
@@ -33,7 +34,9 @@ import { VoiceInputButton, VoiceUsageSlot } from './VoiceInputButton';
 import { useUsageQuota } from '../../lib/usage-quota';
 import { gambitAttachments, removeGambitAttachment } from '../../lib/gambit-attachments';
 import './Gambit.css';
+import { OrchestrationPicker } from './OrchestrationPicker';
 import { fileToBase64 } from '../../lib/answer-image-paste';
+import { pickFiles } from '../../lib/folder-picker';
 
 interface GambitProps {
   sessionId: string;
@@ -124,7 +127,7 @@ const DOCK_MIN_HEIGHT = 120;
 const DOCK_MAX_HEIGHT_RATIO = 0.7; // never let the dock eat more than 70% of viewport height
 /** "Save to pre-input": flips up from face down when there is text, and flips back down when the text is sent or cleared. */
 const PRE_INPUT_FLIP_OUT_MS = 450;
-function PreInputSave({ shown, label, onSave }: { shown: boolean; label: string; onSave: () => void }) {
+function PreInputSave({ shown, label, clearLabel, onSave, onClear }: { shown: boolean; label: string; clearLabel: string; onSave: () => void; onClear: () => void }) {
   const [leaving, setLeaving] = useState(false);
   // Adjusted during render (not in an effect): the moment the text goes, it starts leaving; text back cancels that.
   const [prevShown, setPrevShown] = useState(shown);
@@ -135,11 +138,24 @@ function PreInputSave({ shown, label, onSave }: { shown: boolean; label: string;
     return () => window.clearTimeout(timer);
   }, [leaving]);
   if (!shown && !leaving) return null;
-  return <span className="gambit-pre-input-ground"><button type="button" className={`gambit-pre-input-save${shown ? '' : ' is-leaving'}`} tabIndex={shown ? undefined : -1} aria-hidden={shown ? undefined : true} onMouseDown={e => e.preventDefault()} onClick={shown ? onSave : undefined}><span className="gambit-pre-input-face">{label}</span></button></span>;
+  const leave = shown ? '' : ' is-leaving';
+  return <span className="gambit-pre-input-ground">
+    <button type="button" className={`gambit-pre-input-save${leave}`} tabIndex={shown ? undefined : -1} aria-hidden={shown ? undefined : true} onMouseDown={e => e.preventDefault()} onClick={shown ? onSave : undefined}><span className="gambit-pre-input-face">{label}</span></button>
+    {/* Empties the draft in one click; it flips in step with Save. */}
+    <button type="button" className={`gambit-pre-input-save gambit-pre-input-clear${leave}`} tabIndex={shown ? undefined : -1} aria-hidden={shown ? undefined : true} aria-label={clearLabel} onMouseDown={e => e.preventDefault()} onClick={shown ? onClear : undefined}>
+      <span className="gambit-pre-input-face"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /></svg></span>
+    </button>
+  </span>;
 }
 
 const DOCK_AUTO_HEIGHT_RATIO = 0.5; // a long draft stops lifting the dock here and scrolls instead
 const LS_DOCK_H = 'cc-gambit-dock-h';
+/** The strip a phone keeps clear at the bottom (the iPhone home indicator); 0 where there is none. The
+ *  composer sits above it, and everything that makes room for the composer makes room for it too. */
+const SAFE_BOTTOM = 'env(safe-area-inset-bottom, 0px)';
+
+/** A phone or tablet: focusing a field there raises the on-screen keyboard. */
+const isTouchScreen = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
 
 function GambitImpl({
   sessionId,
@@ -239,20 +255,29 @@ function GambitImpl({
   // renders. Null when no resize is in progress.
   const dockResizeRef = useRef<{ startY: number; origH: number; lastH?: number; handle?: HTMLElement } | null>(null);
 
+  // A phone has no keyboard shortcuts to advertise; it gets the short placeholder.
+  const phone = usePhone();
+
+  // Ready to type on open — except on a touch screen, where focusing the draft raises the on-screen
+  // keyboard over the conversation before anyone asked to type.
   useEffect(() => {
-    textareaRef.current?.focus();
+    if (!isTouchScreen()) textareaRef.current?.focus();
   }, []);
 
   // A mouse click on a footer control or its menu leaves the caret in the draft, so Enter still sends instead of
-  // pressing that control again. Only the mouse: tabbing to a control still focuses it.
+  // pressing that control again. Only the mouse: tabbing to a control still focuses it, and a finger only picks
+  // an option — it keeps whatever focus there was, so the on-screen keyboard neither appears nor closes.
   useEffect(() => {
+    let finger = false;
+    const pointer = (e: PointerEvent) => { finger = e.pointerType !== 'mouse'; };
     const keepCaret = (e: MouseEvent) => {
       if (!(e.target as Element).closest?.('button')?.closest('.gambit-footer, .claude-control-menu')) return;
       e.preventDefault();
-      if (!document.querySelector('.claude-control-menu')) textareaRef.current?.focus();
+      if (!finger && !document.querySelector('.claude-control-menu')) textareaRef.current?.focus();
     };
+    document.addEventListener('pointerdown', pointer, true);
     document.addEventListener('mousedown', keepCaret, true);
-    return () => document.removeEventListener('mousedown', keepCaret, true);
+    return () => { document.removeEventListener('pointerdown', pointer, true); document.removeEventListener('mousedown', keepCaret, true); };
   }, []);
 
   // Floating scrollbar for the input box. A long draft's scroll owner is
@@ -277,7 +302,7 @@ function GambitImpl({
     const root = document.documentElement;
     const body = document.body;
     body.classList.add('gambit-docked');
-    root.style.setProperty('--gambit-dock-h', `${effectiveH}px`);
+    root.style.setProperty('--gambit-dock-h', `calc(${effectiveH}px + ${SAFE_BOTTOM})`);
     return () => {
       body.classList.remove('gambit-docked');
       root.style.removeProperty('--gambit-dock-h');
@@ -317,7 +342,7 @@ function GambitImpl({
       const el = rootRef.current;
       if (el) el.style.height = `${next}px`;
       // Update CSS var live so xterm refits during drag, not just on release.
-      document.documentElement.style.setProperty('--gambit-dock-h', `${next}px`);
+      document.documentElement.style.setProperty('--gambit-dock-h', `calc(${next}px + ${SAFE_BOTTOM})`);
     };
     const onUp = () => {
       if (dockResizeRef.current?.lastH !== undefined) {
@@ -388,9 +413,8 @@ function GambitImpl({
   useEffect(() => registerFileDropTarget({ priority: 200, rect: () => rootRef.current?.getBoundingClientRect() ?? null, insert: insertPaths }), [insertPaths]);
   // Picked files insert exactly like dropped ones: at the caret, quoted only when needed.
   const attachFiles = async () => {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const picked = await open({ multiple: true, directory: false });
-    if (picked) insertPaths(Array.isArray(picked) ? picked : [picked]);
+    const picked = await pickFiles();
+    if (picked) insertPaths(picked);
   };
 
   // Click a thumbnail → open a full-size preview overlay AND select the
@@ -400,7 +424,7 @@ function GambitImpl({
   const removeAttachment = (path: string) => {
     onDraftChange(removeGambitAttachment(latestDraftRef.current, path));
     if (previewPath === path) setPreviewPath(null);
-    requestAnimationFrame(() => textareaRef.current?.focus());
+    if (!isTouchScreen()) requestAnimationFrame(() => textareaRef.current?.focus());
   };
   const openThumbPreview = (path: string) => {
     setPreviewPath(path);
@@ -785,14 +809,14 @@ function GambitImpl({
     transform: 'none',
     left: leftPanelHidden ? 8 : 'calc(var(--w-left) + 8px)',
     right: rightPanelHidden ? 8 : 'calc(var(--w-right) + 8px)',
-    bottom: 8,
+    bottom: `calc(8px + ${SAFE_BOTTOM})`,
     top: 'auto',
     width: 'auto',
     height: effectiveH,
   };
 
   const capabilitiesStatus = (orchestration || computer || browser) && <div className="gambit-capabilities" role="status">
-    {orchestration && <span className="gambit-capability is-orchestration">{t('tools.tab.orchestration')}</span>}
+    {orchestration && <OrchestrationPicker sessionId={sessionId} />}
     {computer && <span className="gambit-capability is-computer">{t('control.computer_label')}</span>}
     {browser && <span className="gambit-capability is-browser">{t('control.browser_label')}</span>}
   </div>;
@@ -812,7 +836,7 @@ function GambitImpl({
       <div className="gambit-dock-resize" onMouseDown={onDockResizeStart} />
 
       {/* Save the draft for later: it goes to the right panel's pre-input tab, which opens to show it. */}
-      <PreInputSave shown={appState.preInputButton && !!draft.trim()} label={t('gambit.save_pre_input')} onSave={() => { appDispatch({ type: 'SAVE_PRE_INPUT', text: draft.trim() }); onDraftChange(''); }} />
+      <PreInputSave shown={appState.preInputButton && !!draft.trim()} label={t('gambit.save_pre_input')} clearLabel={t('gambit.clear_draft')} onSave={() => { appDispatch({ type: 'SAVE_PRE_INPUT', text: draft.trim() }); onDraftChange(''); }} onClear={() => onDraftChange('')} />
 
       {attachments.length > 0 && <div className="gambit-attachments">
         {attachments.map(({ path, image }) => <div className="gambit-attachment" key={path}>
@@ -845,7 +869,7 @@ function GambitImpl({
           ref={textareaRef}
           className="gambit-textarea"
           value={draft}
-          placeholder={suggestion ? undefined : t('gambit.placeholder', { send: sendCombo, newline: newlineCombo })}
+          placeholder={suggestion ? undefined : phone ? t('gambit.placeholder_short') : t('gambit.placeholder', { send: sendCombo, newline: newlineCombo })}
           onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={onKeyDown}
           onCompositionEnd={() => { compositionEndRef.current = performance.now(); }}

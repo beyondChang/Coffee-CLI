@@ -20,11 +20,6 @@ pub struct AppState {
     pub pending_launch: Mutex<Option<crate::launch::LaunchRequest>>,
 }
 
-#[tauri::command]
-fn agent_bridge_ready(app: tauri::AppHandle) {
-    crate::channels::start_saved(app);
-}
-
 
 #[tauri::command]
 fn window_minimize(window: tauri::Window) {
@@ -41,8 +36,8 @@ fn window_maximize(window: tauri::Window) {
 fn window_close(window: tauri::Window, app: tauri::AppHandle) {
     let label = window.label().to_string();
     if label == "main" {
-        // Main window: close entire application (including all detached windows)
-        app.exit(0);
+        // Main window: the frontend decides between asking, keeping Coffee CLI running and quitting.
+        crate::app_close::request(&app);
     } else {
         // Detached window: just close this one
         let _ = window.close();
@@ -1067,7 +1062,6 @@ fn tier_terminal_start_blocking(
         theme_mode,
         locale,
         extra_env,
-        launch_config,
     ).map_err(|e| format!("Failed to spawn PTY: {}", e))?;
 
     if let Some(token) = native_token {
@@ -1194,8 +1188,21 @@ async fn tier_terminal_resize(
     cols: u16,
     rows: u16,
     state: State<'_, AppState>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
-    resize_terminal_session(state.terminal_session.clone(), session_id, cols, rows).await
+    resize_terminal_session(state.terminal_session.clone(), session_id.clone(), cols, rows).await?;
+    // Browsers mirroring this terminal draw at the desktop's size.
+    let _ = app.emit("tier-terminal-size", serde_json::json!({"id": session_id, "cols": cols, "rows": rows}));
+    Ok(())
+}
+
+/// The PTY's current grid, for a browser that starts mirroring this terminal.
+pub(crate) fn terminal_size(app: &tauri::AppHandle, session_id: &str) -> Option<(u16, u16)> {
+    let state = app.state::<AppState>();
+    let master = state.terminal_session.lock().ok()?.get(session_id)?._master.clone();
+    let guard = master.lock().ok()?;
+    let size = guard.as_ref()?.get_size().ok()?;
+    Some((size.cols, size.rows))
 }
 
 async fn resize_terminal_session(sessions: terminal::SharedSession, session_id: String, cols: u16, rows: u16) -> Result<(), String> {
@@ -1296,7 +1303,7 @@ fn get_terminal_session_token(
     Ok(token)
 }
 
-mod history;
+pub(crate) mod history;
 #[allow(unused_imports)]
 use history::*;
 pub(crate) use history::{is_system_injected, strip_codex_desktop_file_preamble};
@@ -1402,6 +1409,8 @@ async fn check_network_port(host: String, port: u16) -> Result<bool, String> {
 
     Ok(reachable)
 }
+
+pub(crate) fn computer_name_value() -> String { computer_name().unwrap_or_default() }
 
 #[tauri::command]
 fn computer_name() -> Result<String, String> {
@@ -1509,8 +1518,9 @@ fn program_on_path(name: &str) -> bool {
 }
 
 /// Download the installer for this platform into the user's Downloads
-/// folder, then: Windows launches it and exits so it can overwrite our
-/// files; macOS opens the DMG (Finder mounts it and shows the drag-to-
+/// folder, then: Windows installs it silently (`/S`), the NSIS template
+/// relaunches Coffee CLI (`/R`), and a failed silent run opens the visible
+/// wizard instead; we exit so the installer can overwrite our files; macOS opens the DMG (Finder mounts it and shows the drag-to-
 /// Applications window); Linux opens the Downloads folder so the user can
 /// double-click the package. Mac and Linux keep running.
 fn run_self_update(app: &tauri::AppHandle) -> Result<(), String> {
@@ -1562,7 +1572,16 @@ fn run_self_update(app: &tauri::AppHandle) -> Result<(), String> {
 
     emit_self_update(app, "launching", 100);
     #[cfg(target_os = "windows")]
-    let launch = std::process::Command::new(&out_path).spawn();
+    let launch = {
+        use std::os::windows::process::CommandExt;
+        installer_command_line(&out_path).and_then(|args| {
+            std::process::Command::new("cmd")
+                .raw_arg(args)
+                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .spawn()
+                .map_err(|e| e.to_string())
+        })
+    };
     #[cfg(target_os = "macos")]
     let launch = std::process::Command::new("open").arg(&out_path).spawn();
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -1573,13 +1592,44 @@ fn run_self_update(app: &tauri::AppHandle) -> Result<(), String> {
     }
 
     if cfg!(target_os = "windows") {
-        // Let the wizard come up before we tear the app down.
+        // Let the installer start before we exit so it can replace our files.
         std::thread::sleep(std::time::Duration::from_millis(800));
         app.exit(0);
     } else {
         emit_self_update(app, "downloaded", 100);
     }
     Ok(())
+}
+
+/// `cmd` arguments that install silently (`/S`, relaunch via `/R`) and open
+/// the visible wizard when the silent run fails, so a failed update never
+/// leaves the user without the app or an explanation.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+fn installer_command_line(path: &std::path::Path) -> Result<String, String> {
+    let path = path.to_string_lossy();
+    // cmd cannot escape these inside a quoted path.
+    if path.contains(['"', '%', '\n', '\r']) {
+        return Err("installer path cannot be launched safely".into());
+    }
+    Ok(format!("/d /c start \"\" /wait \"{path}\" /S /R || start \"\" \"{path}\""))
+}
+
+#[cfg(test)]
+mod self_update_tests {
+    use super::installer_command_line;
+    use std::path::Path;
+
+    #[test]
+    fn installs_silently_and_falls_back_to_the_wizard() {
+        let path = Path::new(r"C:\Users\A B\Downloads\Coffee.CLI_4.0.2_x64-setup.exe");
+        assert_eq!(
+            installer_command_line(path).unwrap(),
+            r#"/d /c start "" /wait "C:\Users\A B\Downloads\Coffee.CLI_4.0.2_x64-setup.exe" /S /R || start "" "C:\Users\A B\Downloads\Coffee.CLI_4.0.2_x64-setup.exe""#
+        );
+        for unsafe_path in [r#"C:\a"b\setup.exe"#, r"C:\%TEMP%\setup.exe"] {
+            assert!(installer_command_line(Path::new(unsafe_path)).is_err());
+        }
+    }
 }
 
 /// Stream one opened source to `out_path`, reporting progress, then check it
@@ -1718,7 +1768,6 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
         .plugin(tauri_plugin_window_state::Builder::new()
             .with_state_flags(tauri_plugin_window_state::StateFlags::SIZE | tauri_plugin_window_state::StateFlags::POSITION | tauri_plugin_window_state::StateFlags::MAXIMIZED)
             .build())
-        .manage(crate::channels::ChannelRuntime::default())
         .manage(crate::claude_session::ClaudeSessions::default())
         .manage(crate::codex_session::CodexSessions::default())
         .manage(crate::dsh_session::DshSessions::default())
@@ -1730,7 +1779,12 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             pending_launch: Mutex::new(pending_launch),
         })
         .invoke_handler(tauri::generate_handler![
+            crate::app_close::app_close_ack,
+            crate::app_close::app_quit,
+            crate::app_close::app_keep_running,
+            crate::app_close::app_tray_menu,
             crate::session_directory::check_project_directories,
+            crate::session_directory::resolve_project_directory,
             crate::claude_session::claude_session_start,
             crate::claude_session::claude_session_history,
             crate::claude_session::claude_session_preview,
@@ -1757,29 +1811,6 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::pi_session::pi_session_respond,
             crate::pi_session::pi_session_close,
             crate::fonts::list_system_fonts,
-            agent_bridge_ready,
-            crate::agent::agent_get_model,
-            crate::agent_modes::agent_get_work_modes,
-            crate::agent_modes::agent_set_work_mode,
-            crate::agent_sentinel::agent_sentinel_report,
-            crate::agent::agent_save_model,
-            crate::agent::agent_get_english_delegation,
-            crate::agent::agent_set_english_delegation,
-            crate::agent::agent_get_conversation,
-            crate::agent::agent_list_conversations,
-            crate::agent::agent_new_conversation,
-            crate::agent::agent_send_message,
-            crate::agent::agent_cancel,
-            crate::agent::agent_resolve_tool,
-            crate::agent::agent_tool_is_pending,
-            crate::agent::agent_validate_directory,
-            crate::agent::agent_create_directory,
-            crate::agent_workspace::agent_workspace_tool,
-            crate::channels::channel_get_settings,
-            crate::channels::channel_connect_telegram,
-            crate::channels::channel_disconnect,
-            crate::channels::channel_weixin_start,
-            crate::channels::channel_weixin_poll,
             pick_folder,
             window_minimize,
             crate::notify_sound::play_notify_sound,
@@ -1857,6 +1888,7 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::tool_control::set_tool_control,
             crate::orchestration::orchestration_get,
             crate::orchestration::orchestration_set_agent,
+            crate::orchestration::orchestration_set_pick,
             crate::orchestration::orchestration_set_mode,
             crate::worker_worktree::worktree_available,
             crate::worker_worktree::worktree_create,
@@ -1871,6 +1903,17 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::orchestration::orchestration_detach_worker,
             crate::orchestration::orchestration_pending,
             crate::orchestration::orchestration_resolve,
+            crate::folder_picker::folder_picker_places,
+            crate::mobile_rpc::mobile_rpc_status,
+            crate::mobile_rpc::mobile_rpc_set_enabled,
+            crate::mobile_rpc::mobile_rpc_begin_pairing,
+            crate::mobile_rpc::mobile_rpc_cancel_pairing,
+            crate::mobile_rpc::mobile_rpc_sessions_changed,
+            crate::mobile_rpc::mobile_rpc_firewall_status,
+            crate::mobile_rpc::mobile_rpc_firewall_allow,
+            crate::mobile_rpc::mobile_rpc_revoke_device,
+            crate::mobile_rpc::mobile_rpc_resolve,
+            crate::mobile_rpc::mobile_rpc_mirror,
             crate::git::git_changes,
             crate::git_project_status::git_project_status,
             crate::git::git_show_file,
@@ -1879,6 +1922,10 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             crate::git::git_commit_files,
         ])
         .setup(|app| {
+            crate::mobile_rpc::init(app.handle());
+            // macOS keeps a menu bar icon from launch (open, running tabs, quit).
+            #[cfg(target_os = "macos")]
+            crate::app_close::install_menu_bar(app.handle());
             // Presentation and npm-bin maintenance never modifies status hooks.
             crate::hook_installer::maintain_all();
 
@@ -1956,25 +2003,16 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Issue #87: on macOS a reflexive Cmd+W / red traffic-light
-            // click should hide the main window to the Dock instead of
-            // quitting the app (standard Mac convention - Safari, VS Code,
-            // etc. all keep running). The app stays alive; clicking the
-            // Dock icon restores it via the Reopen event in `.run()` below.
-            // Cmd+Q still terminates normally because NSApplication
-            // terminate does not dispatch CloseRequested, so this prevent is
-            // never reached on a real quit. Only the main window hides -
-            // detached windows close normally.
-            #[cfg(target_os = "macos")]
+            // Closing the main window - the close button, Alt+F4, the taskbar,
+            // or on macOS the red traffic light and Cmd+W - goes through the
+            // user's choice (ask / keep running / quit, see app_close.rs).
+            // Cmd+Q still quits at once: NSApplication terminate does not
+            // dispatch CloseRequested. Detached windows close normally.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "main" {
                     api.prevent_close();
-                    let _ = window.hide();
+                    crate::app_close::request(window.app_handle());
                 }
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                let _ = (window, event);
             }
         })
         .build(tauri::generate_context!())
@@ -1995,19 +2033,13 @@ pub fn start_ui(pending_launch: Option<crate::launch::LaunchRequest>) -> anyhow:
             //      child is bound to a kill-on-close job so even a hard
             //      crash / force-quit takes them with us.
             // ── macOS: restore the hidden main window on Dock click ──────
-            // Pairs with the CloseRequested handler in `.on_window_event`:
-            // Cmd+W hides the main window rather than quitting, so on
-            // applicationShouldHandleReopen (Dock icon click) we must bring
-            // it back ourselves - macOS does not auto-unhide a hidden window
-            // on reopen. Issue #87.
+            // Pairs with keeping Coffee CLI running (app_close.rs): the main
+            // window is hidden, so on applicationShouldHandleReopen (Dock icon
+            // click) we must bring it back ourselves - macOS does not
+            // auto-unhide a hidden window on reopen. Issue #87.
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = &event {
-                use tauri::Manager;
-                if let Some(w) = app_handle.get_webview_window("main") {
-                    let _ = w.show();
-                    let _ = w.unminimize();
-                    let _ = w.set_focus();
-                }
+                crate::app_close::show_main(app_handle);
             }
 
             if matches!(event, tauri::RunEvent::ExitRequested { .. }) {

@@ -1,5 +1,7 @@
 // main.tsx — Entry point
 
+// Must stay the first import: in remote mode it provides the Tauri bridge before `isTauri` is read.
+import { REMOTE } from './remote/bridge';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { AppProvider } from './store/app-state';
@@ -9,24 +11,37 @@ import { loadToolInfo } from './lib/tool-info';
 import { onWindowBackground, onWindowForeground } from './lib/window-focus-filter';
 import { IS_MACOS, IS_WINDOWS } from './lib/platform';
 import { initializeUiScale } from './lib/ui-scale';
+import { initViewport, IS_WEB } from './lib/viewport';
+import { shareDesktopStorage } from './lib/storage-mirror';
 
 // macOS uses native window decorations + traffic lights (titleBarStyle:
 // "Overlay" in tauri.macos.conf.json). Tag <html> before first paint so the
 // titlebar renders without our custom min/max/close and the #root corner clip
 // is dropped — the OS owns the corners there. Win/Linux keep the frameless
 // shell with custom controls on the right.
-if (IS_MACOS) document.documentElement.classList.add('is-macos');
+// Window chrome classes apply only inside the desktop window, not in a browser or on a phone.
+if (IS_MACOS && !IS_WEB) document.documentElement.classList.add('is-macos');
 // Windows: marks the platform where Frost's native Acrylic path is used (the
 // window goes opaque + DWM rounds the corners, so the CSS clip must drop —
 // gated to this class so Linux keeps its transparent + CSS-clip rounded look).
-if (IS_WINDOWS) document.documentElement.classList.add('is-windows');
+if (IS_WINDOWS && !IS_WEB) document.documentElement.classList.add('is-windows');
+// Width class on <html data-width> before the first paint; layout rules select on it.
+initViewport();
+// Browsers connected to this desktop see its saved records; start noticing changes before anything writes.
+shareDesktopStorage();
 
 // Block React mount on the registry IPC so every component reads
 // canonical display names on first render (no 'claude' → 'Claude
 // Code' label flash). The window is `visible: false` until
 // show_main_window fires below, so the ~10ms wait is invisible.
-const uiScaleReady = initializeUiScale();
-void Promise.all([loadToolInfo(), uiScaleReady]).finally(() => {
+const uiScaleReady = REMOTE ? Promise.resolve() : initializeUiScale();
+if (REMOTE) {
+  // The desktop UI on a phone or another browser: its own shell, none of the window plumbing below.
+  document.documentElement.classList.add('is-remote');
+  void import('./remote/RemoteApp').then(({ RemoteApp }) => ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode><AppProvider><RemoteApp /></AppProvider></React.StrictMode>
+  ));
+} else void Promise.all([loadToolInfo(), uiScaleReady]).finally(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <AppProvider>
@@ -54,6 +69,8 @@ if (typeof document !== 'undefined' && document.fonts) {
   document.fonts.load('700 14px Inter');
 }
 
+// Window plumbing exists only in the desktop app, not in remote mode.
+if (!REMOTE) {
 // Window starts with `visible: false` (see tauri.conf.json) to hide the
 // Windows-default chrome flash. Reveal it only after the first paint so
 // the first frame the user sees is the final themed UI.
@@ -89,6 +106,7 @@ onWindowBackground(() => {
 onWindowForeground(() => {
   commands.setBackgroundMode(false).catch(() => {});
 });
+}
 
 // Suppress the WebView's built-in context menu (Back / Reload / Save As / Print / Inspect…).
 // Our own React components handle onContextMenu directly and render

@@ -1,12 +1,16 @@
 import { Fragment, useState, useEffect, useLayoutEffect, useRef, useMemo, useSyncExternalStore } from 'react';
 import { AutomationsPage } from './AutomationsPage';
 import { addProjectFolder, getProjectFolders, removeProjectFolder, subscribeProjectFolders } from '../../lib/project-folders';
+import { REMOTE } from '../../remote/bridge';
+import { onSharedStorage } from '../../lib/storage-mirror';
+import { pickFolder } from '../../lib/folder-picker';
 import { createPortal } from 'react-dom';
+import { CompactTabMenu, type CompactTab } from './CompactTabMenu';
+import { useCompact } from '../../lib/viewport';
 import { InlineSvgIcon } from '../InlineSvgIcon';
 import { focusTerminal } from '../../lib/focus-registry';
 import { onWindowForeground } from '../../lib/window-focus-filter';
 import { TierTerminal } from './TierTerminal';
-import { AgentPages } from '../agent/AgentPages';
 import { ClaudeConversation } from './ClaudeConversation';
 import { CodexConversation } from './CodexConversation';
 import { OpenCodeConversation } from './OpenCodeConversation';
@@ -28,6 +32,16 @@ import { getTabOrder, supportsAgentStatus, useAppState, type ClaudeMode, type To
 import { isFrostShape } from '../../lib/personalization';
 import { isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation } from '../../lib/chat-tools';
 
+/** Each tool's last project folder; a damaged entry is dropped rather than allowed to break the launch page. */
+function readLastFolders(): Record<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem('coffee:last-folder-by-tool') || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== ''))
+      : {};
+  } catch { return {}; }
+}
+
 // Dropdown shown when a tool card is clicked: the globally
 // recent project folders (any tool that used one) + "Open folder…" last.
 // Clicking a recent launches THIS card's tool in that folder, anchored
@@ -39,7 +53,8 @@ function RecentFolderMenu({ x, y, recent, openLabel, onPick, onRemove, onOpenNew
   recent: string[];
   openLabel: string;
   onPick: (folder: string) => void;
-  onRemove: (folder: string) => void;
+  /** Absent in a browser: the list is the desktop's. */
+  onRemove?: (folder: string) => void;
   onOpenNew: () => void;
   onClose: () => void;
 }) {
@@ -90,14 +105,14 @@ function RecentFolderMenu({ x, y, recent, openLabel, onPick, onRemove, onOpenNew
             {FolderGlyph}
             <span className="folder-menu-name">{name}</span>
             {parent && <span className="folder-menu-path">{parent}</span>}
-            <span
+            {onRemove && <span
               className="folder-menu-del close-button"
               role="button"
               aria-label={`Remove ${name}`}
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(f); }}
             >
               {XGlyph}
-            </span>
+            </span>}
           </button>
         );
       })}
@@ -208,7 +223,7 @@ const bgIcon = (dataUrl: string, size = '1em', extra: React.CSSProperties = {}) 
 // so it never flashes. Outer rect rounded (rx=18) to match the iOS-style
 // rounded square of the official PNG asset; previous opencode.svg lacked this.
 const OPENCODE_SVG  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="100%" height="100%"><rect width="96" height="96" rx="18" ry="18" fill="#131010"/><rect x="24" y="18" width="48" height="60" fill="#FFFFFF"/><rect x="36" y="30" width="24" height="36" fill="#5A5858"/><rect x="36" y="30" width="24" height="12" fill="#131010"/></svg>';
-const QWEN_SVG      = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%"><defs><linearGradient id="qwen-fill" x1="0%" x2="100%" y1="0%" y2="0%"><stop offset="0%" stop-color="#6336E7" stop-opacity=".84"/><stop offset="100%" stop-color="#6F69F7" stop-opacity=".84"/></linearGradient></defs><path d="M12.604 1.34c.393.69.784 1.382 1.174 2.075a.18.18 0 00.157.091h5.552c.174 0 .322.11.446.327l1.454 2.57c.19.337.24.478.024.837-.26.43-.513.864-.76 1.3l-.367.658c-.106.196-.223.28-.04.512l2.652 4.637c.172.301.111.494-.043.77-.437.785-.882 1.564-1.335 2.34-.159.272-.352.375-.68.37-.777-.016-1.552-.01-2.327.016a.099.099 0 00-.081.05 575.097 575.097 0 01-2.705 4.74c-.169.293-.38.363-.725.364-.997.003-2.002.004-3.017.002a.537.537 0 01-.465-.271l-1.335-2.323a.09.09 0 00-.083-.049H4.982c-.285.03-.553-.001-.805-.092l-1.603-2.77a.543.543 0 01-.002-.54l1.207-2.12a.198.198 0 000-.197 550.951 550.951 0 01-1.875-3.272l-.79-1.395c-.16-.31-.173-.496.095-.965.465-.813.927-1.625 1.387-2.436.132-.234.304-.334.584-.335a338.3 338.3 0 012.589-.001.124.124 0 00.107-.063l2.806-4.895a.488.488 0 01.422-.246c.524-.001 1.053 0 1.583-.006L11.704 1c.341-.003.724.032.9.34zm-3.432.403a.06.06 0 00-.052.03L6.254 6.788a.157.157 0 01-.135.078H3.253c-.056 0-.07.025-.041.074l5.81 10.156c.025.042.013.062-.034.063l-2.795.015a.218.218 0 00-.2.116l-1.32 2.31c-.044.078-.021.118.068.118l5.716.008c.046 0 .08.02.104.061l1.403 2.454c.046.081.092.082.139 0l5.006-8.76.783-1.382a.055.055 0 01.096 0l1.424 2.53a.122.122 0 00.107.062l2.763-.02a.04.04 0 00.035-.02.041.041 0 000-.04l-2.9-5.086a.108.108 0 010-.113l.293-.507 1.12-1.977c.024-.041.012-.062-.035-.062H9.2c-.059 0-.073-.026-.043-.077l1.434-2.505a.107.107 0 000-.114L9.225 1.774a.06.06 0 00-.053-.031zm6.29 8.02c.046 0 .058.02.034.06l-.832 1.465-2.613 4.585a.056.056 0 01-.05.029.058.058 0 01-.05-.029L8.498 9.841c-.02-.034-.01-.052.028-.054l.216-.012 6.722-.012z" fill="url(#qwen-fill)" fill-rule="nonzero"/></svg>';
+const QWEN_SVG      = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="17.5 27.7 135.6 135.6" width="100%" height="100%"><path fill="#082DFF" d="M130.06,43.66h-33.37c0-1.42-.37-2.84-1.1-4.11l-4.47-7.74c-1.47-2.54-4.18-4.11-7.12-4.11h-8.93c-2.94,0-5.65,1.57-7.12,4.11l-13.68,23.69c-1.47,2.54-1.47,5.67,0,8.22l4.47,7.74c1.47,2.54,4.18,4.11,7.12,4.11h64.19c2.94,0,5.65-1.57,7.12-4.11l4.47-7.74c1.47-2.54,1.47-5.67,0-8.22l-4.47-7.74c-1.47-2.54-4.18-4.11-7.12-4.11Z"/><path fill="#082DFF" d="M19.75,83.66l16.68,28.9c-1.23.71-2.27,1.74-3.01,3.01l-4.47,7.74c-1.47,2.54-1.47,5.67,0,8.22l4.47,7.74c1.47,2.54,4.18,4.11,7.12,4.11h27.35c2.94,0,5.65-1.57,7.12-4.11l4.47-7.74c1.47-2.54,1.47-5.67,0-8.22l-32.1-55.59c-1.47-2.54-4.18-4.11-7.12-4.11h-8.93c-2.94,0-5.65,1.57-7.12,4.11l-4.47,7.74c-1.47,2.54-1.47,5.67,0,8.22Z"/><path fill="#082DFF" d="M109.55,159.19l16.68-28.9c1.23.71,2.64,1.1,4.11,1.1h8.93c2.94,0,5.65-1.57,7.12-4.11l4.47-7.74c1.47-2.54,1.47-5.67,0-8.22l-13.68-23.69c-1.47-2.54-4.18-4.11-7.12-4.11h-8.93c-2.94,0-5.65,1.57-7.12,4.11l-32.1,55.59c-1.47,2.54-1.47,5.67,0,8.22l4.47,7.74c1.47,2.54,4.18,4.11,7.12,4.11h8.93c2.94,0,5.65-1.57,7.12-4.11Z"/></svg>';
 // OpenClaw brand (lobster mascot) — ported from Web-Home/agents/icons/openclaw.svg.
 // Markup lives in src/icons-inline/openclaw.svg and is imported ?raw above so
 // HistoryBoard can reuse the same bytes. InlineSvgIcon scopes definition IDs
@@ -372,10 +387,10 @@ export function CenterPanel() {
   // whether it (not a terminal tab) is the focused surface.
   const diffTabVisible = state.diffMode === 'tab' && state.diffSelection !== null;
   const diffTabActive = state.diffTabActive;
-  const agentPageActive = state.agentPageActive;
   const usageOpen = state.usageOpen;
   const utilityPageOpen = usageOpen || state.toolSettingsOpen || state.settingsOpen || state.automationsOpen;
-  const contentActive = !utilityPageOpen && !diffTabActive && !agentPageActive;
+  const contentActive = !utilityPageOpen && !diffTabActive;
+  const compact = useCompact();
   const splitIds = splitSessionIds(state.sessionSplit);
   const splitVisible = contentActive && splitIds.length > 1 && splitIds.includes(activeTerminalId ?? '');
   const splitRects = splitVisible ? sessionSplitRects(state.sessionSplit!).leaves : [];
@@ -623,15 +638,19 @@ export function CenterPanel() {
   const recentFolders = useSyncExternalStore(subscribeProjectFolders, getProjectFolders, getProjectFolders);
   const [folderMenu, setFolderMenu] = useState<{ x: number; y: number; tool: ToolType } | null>(null);
   // Each tool's last project folder: clicking its card opens straight there.
-  const [lastFolders, setLastFolders] = useState<Record<string, string>>(() => {
-    try {
-      const parsed: unknown = JSON.parse(localStorage.getItem('coffee:last-folder-by-tool') || '{}');
-      // A damaged entry is dropped rather than allowed to break the launch page.
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== ''))
-        : {};
-    } catch { return {}; }
-  });
+  const [lastFolders, setLastFolders] = useState<Record<string, string>>(readLastFolders);
+  // Chosen on the other side (the desktop, or a browser following it): read again, so the next save keeps it.
+  useEffect(() => {
+    const mode = (tool: string): ClaudeMode => { try { return localStorage.getItem(`coffee:${tool}-launch-mode`) === 'terminal' ? 'terminal' : 'conversation'; } catch { return 'conversation'; } };
+    const stops = [
+      onSharedStorage('coffee:last-folder-by-tool', () => setLastFolders(readLastFolders())),
+      onSharedStorage('coffee:claude-launch-mode', () => setClaudeLaunchMode(mode('claude'))),
+      onSharedStorage('coffee:codex-launch-mode', () => setCodexLaunchMode(mode('codex'))),
+      onSharedStorage('coffee:opencode-launch-mode', () => setOpencodeLaunchMode(mode('opencode'))),
+      onSharedStorage('coffee:pi-launch-mode', () => setPiLaunchMode(mode('pi'))),
+    ];
+    return () => stops.forEach(stop => stop());
+  }, []);
   const [homeDir, setHomeDir] = useState<string | null>(null);
   useEffect(() => {
     if (!isTauri) return;
@@ -1001,11 +1020,7 @@ export function CenterPanel() {
       tabDragSuppressClickRef.current = false;
       return;
     }
-    if (tabId === 'agent:agent' || tabId === 'agent:config') {
-      dispatch({ type: 'OPEN_AGENT_PAGE', page: tabId === 'agent:agent' ? 'agent' : 'config' });
-    } else {
-      dispatch({ type: 'SET_ACTIVE_TERMINAL', id: tabId });
-    }
+    dispatch({ type: 'SET_ACTIVE_TERMINAL', id: tabId });
   };
 
   const getTabDragStyle = (tabId: string, visibleIndex: number): React.CSSProperties | undefined => {
@@ -1045,15 +1060,9 @@ export function CenterPanel() {
 
   const handlePickFolder = async (toolKey: ToolType) => {
     if (!toolKey) return;
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({ directory: true });
-      if (selected && typeof selected === 'string') {
-        selectTool(toolKey, undefined, selected);
-      }
-    } catch (err) {
-      console.error('[CenterPanel] Folder picker failed:', err);
-    }
+    // Coffee CLI's own picker: the same window in the desktop app, a browser or a phone.
+    const selected = await pickFolder();
+    if (selected) selectTool(toolKey, undefined, selected);
   };
 
   const openToolFolderMenu = (tool: ToolType, anchor: HTMLElement) => {
@@ -1213,6 +1222,13 @@ export function CenterPanel() {
     //      broken-image icon over a black backdrop. Users perceived this
     //      as "切到 Glass 后左上角出现裂开图标 + 整个区域变黑".
     if (!hasBg || !bgPath) { setBgUrl(''); return; }
+    // In the browser the file is on the desktop's disk; it comes over the connection instead.
+    if (REMOTE) {
+      let current = true;
+      void import('../../remote/wallpaper').then(({ remoteWallpaperUrl }) => remoteWallpaperUrl(bgPath))
+        .then(url => { if (current) setBgUrl(url); }, () => { if (current) setBgUrl(''); });
+      return () => { current = false; };
+    }
     import('@tauri-apps/api/core').then(({ convertFileSrc }) => {
       setBgUrl(convertFileSrc(bgPath));
     }).catch(() => {
@@ -1223,32 +1239,18 @@ export function CenterPanel() {
   return (
     <>
       {tabSlot && createPortal(
-      <div ref={tabsHeaderRef} className="chrome-tabs-header" data-count={terminals.filter(s => s.tool !== null && (!s.isHidden || s.id === activeTerminalId)).length + state.agentPages.length}>
+      <div ref={tabsHeaderRef} className="chrome-tabs-header" data-count={terminals.filter(s => s.tool !== null && (!s.isHidden || s.id === activeTerminalId)).length}>
         {(() => {
           const sessions = new Map(terminals.map(session => [session.id, session]));
           const visibleTabs = getTabOrder(state).filter(id => {
             const session = sessions.get(id);
-            return !session || session.tool !== null && (!session.isHidden || id === activeTerminalId);
+            return !!session && session.tool !== null && (!session.isHidden || id === activeTerminalId);
           });
-          return visibleTabs.map((tabId, visibleIndex) => {
+          // Narrow: only the current tab stays in the strip; the menu beside it lists them all.
+          const compactTabs: CompactTab[] = [];
+          const rendered = visibleTabs.map((tabId, visibleIndex) => {
           const isDragging = tabDrag?.tabId === tabId;
           const dragStyle = getTabDragStyle(tabId, visibleIndex);
-          if (tabId === 'agent:agent' || tabId === 'agent:config') {
-            const page = tabId === 'agent:agent' ? 'agent' : 'config';
-            return (
-              <div key={tabId} data-tab-id={tabId}
-                className={`chrome-tab ${agentPageActive === page && !utilityPageOpen ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
-                style={dragStyle} onClick={() => onTabClickGuarded(tabId)}
-                onPointerDown={event => onTabPointerDown(event, tabId)}>
-                <span className="tab-title">{page === 'agent' ? 'Coffee Agent' : t('agent.page.settings')}</span>
-                <div className="tab-actions tab-actions--close-only">
-                  <button type="button" className="tab-close-btn close-button" aria-label={t(page === 'agent' ? 'agent.page.close_agent' : 'agent.page.close_settings')} onClick={event => { event.stopPropagation(); dispatch({ type: 'CLOSE_AGENT_PAGE', page }); }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 6-12 12M6 6l12 12" /></svg>
-                  </button>
-                </div>
-              </div>
-            );
-          }
           const session = sessions.get(tabId)!;
 
           // A terminal tab is "active" only when it's the focused surface —
@@ -1265,6 +1267,7 @@ export function CenterPanel() {
           const title = task?.title || (session.tool === 'muse' ? baseTitle : session.pinnedTitle || session.toolTitle?.trim() || baseTitle);
           const showAgentStatus = supportsAgentStatus(session.tool)
             && (['claude', 'codex', 'kimicode', 'omp', 'dsh'].includes(session.tool ?? '') || session.agentStatus !== undefined);
+          compactTabs.push({ id: session.id, icon, title, active: session.id === activeTerminalId, status: showAgentStatus ? (session.agentStatus === 'wait_input' ? 'waiting' : session.agentStatus ?? 'idle') : undefined });
           return (
             <div
               key={session.id}
@@ -1309,6 +1312,12 @@ export function CenterPanel() {
             </div>
           );
         });
+          if (!compact) return rendered;
+          const current = visibleTabs.indexOf(activeTerminalId ?? '');
+          return <>
+            {current >= 0 && rendered[current]}
+            {visibleTabs.length > 1 && <CompactTabMenu tabs={compactTabs} onPick={onTabClickGuarded} onClose={handleCloseTab} />}
+          </>;
         })()}
 
         {/* Diff tab — a peer of the terminal tabs in the strip, but not a
@@ -1413,6 +1422,7 @@ export function CenterPanel() {
                       bgType={bgType}
                       termColorScheme={state.termColorScheme}
                       termFont={state.termFont}
+                      mirror={t.mirror}
                     />
                   </ErrorBoundary>
                 </div>
@@ -1445,12 +1455,6 @@ export function CenterPanel() {
             />
           </div>
         )}
-
-        {state.agentPages.map(page => (
-          <div key={page} className="terminal-wrapper" style={{ display: agentPageActive === page && !utilityPageOpen ? 'flex' : 'none', width: '100%', height: '100%' }}>
-            <AgentPages page={page} />
-          </div>
-        ))}
 
         {usageOpen && <UsageDashboard />}
         {state.automationsOpen && <AutomationsPage />}
@@ -1773,7 +1777,7 @@ export function CenterPanel() {
           recent={recentFolders}
           openLabel={t('launchpad.open_folder') || 'Open folder…'}
           onPick={(f) => { selectTool(folderMenu.tool, undefined, f); setFolderMenu(null); }}
-          onRemove={(f) => removeRecentFolder(f)}
+          onRemove={REMOTE ? undefined : (f) => removeRecentFolder(f)}
           onOpenNew={() => { const tk = folderMenu.tool; setFolderMenu(null); handlePickFolder(tk); }}
           onClose={() => setFolderMenu(null)}
         />

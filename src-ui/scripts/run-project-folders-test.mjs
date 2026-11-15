@@ -9,7 +9,11 @@ const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.Scri
 let stored = JSON.stringify(['D:/Coffee-CLI', '/projects/App', 7, '']);
 const localStorage = { getItem: key => key === 'coffee:recent-folders' ? stored : null, setItem: (key, value) => { assert.equal(key, 'coffee:recent-folders'); stored = value; } };
 const exports = {};
-vm.runInNewContext(compiled, { exports, localStorage, JSON });
+// The storage mirror tells the list when the other side changed a key.
+const handlers = {};
+const storageMirror = { onSharedStorage: (key, reload) => { (handlers[key] ??= []).push(reload); return () => {}; } };
+const changed = key => (handlers[key] ?? []).forEach(reload => reload());
+vm.runInNewContext(compiled, { exports, localStorage, JSON, require: () => storageMirror });
 const folders = () => Array.from(exports.getProjectFolders());
 
 assert.deepEqual(folders(), ['D:/Coffee-CLI', '/projects/App'], 'only folder paths load from storage');
@@ -28,4 +32,19 @@ stop();
 for (let i = 0; i < 10; i++) exports.addProjectFolder(`/p/${i}`);
 assert.equal(folders().length, 8, 'the launchpad keeps its eight recent folders');
 assert.equal(notified, 3, 'an unsubscribed view hears nothing');
-console.log('OK: launchpad folders are shared, deduplicated, saved and limited');
+
+// In a browser, storage holds the desktop's copy (storage-mirror): when the desktop's list arrives the
+// launchpad reloads, Windows and POSIX paths unchanged.
+let webStored = '[]';
+const web = {};
+for (const key of Object.keys(handlers)) delete handlers[key];
+vm.runInNewContext(compiled, { exports: web, localStorage: { getItem: () => webStored, setItem: (_, value) => { webStored = value; } }, JSON, require: () => storageMirror });
+assert.deepEqual(Array.from(web.getProjectFolders()), []);
+webStored = JSON.stringify(['C:\\work\\app', '/Users/me/site', '', 3]);
+assert.deepEqual(Object.keys(handlers), ['coffee:recent-folders'], 'only its own record reloads the list');
+changed('coffee:recent-folders');
+assert.deepEqual(Array.from(web.getProjectFolders()), ['C:\\work\\app', '/Users/me/site']);
+// Adding one writes it, which the mirror carries to the desktop.
+web.addProjectFolder('/Users/me/other');
+assert.deepEqual(JSON.parse(webStored), ['/Users/me/other', 'C:\\work\\app', '/Users/me/site']);
+console.log('OK: launchpad folders are shared, deduplicated, saved and limited; a browser follows the desktop copy');

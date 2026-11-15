@@ -1,0 +1,67 @@
+// Web 端 shell: pair once, then the full desktop UI, connected to the desktop.
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
+import '../styles/global.css';
+import './RemoteApp.css';
+import { loadToolInfo } from '../lib/tool-info';
+import { followDesktopStorage } from '../lib/storage-mirror';
+import { connectRemote, forgetRemote, installWebFileDrop, onRemoteStatus, pairRemote, remoteComputerName, remoteStatus, takePairingLinkFromAddress } from './bridge';
+import { routeFileDrop } from '../lib/file-drop';
+import { parsePairingLink, RpcError } from './protocol';
+
+const App = lazy(() => import('../App').then(m => ({ default: m.App })));
+const useStatus = () => useSyncExternalStore(onRemoteStatus, remoteStatus);
+// Read before anything renders, so the link leaves the address bar at once.
+const linkFromAddress = takePairingLinkFromAddress();
+// Files dropped from this device are uploaded, then reach the same drop targets (composer, terminal) as desktop drops.
+installWebFileDrop(routeFileDrop);
+
+export function RemoteApp() {
+  const status = useStatus();
+  const [ready, setReady] = useState(false);
+  useEffect(() => { void connectRemote(); }, []);
+  // Tool names and the desktop's saved records (recent folders, launch modes…) arrive before the UI's
+  // first render, so it opens showing what the desktop shows. A slow desktop does not hold it back long.
+  useEffect(() => {
+    if (status !== 'connected' || ready) return;
+    const storage = Promise.race([followDesktopStorage(), new Promise(resolve => setTimeout(resolve, 4000))]);
+    void Promise.all([loadToolInfo().catch(() => {}), storage]).finally(() => setReady(true));
+  }, [status, ready]);
+
+  if (status === 'unpaired') return <RemotePair initialLink={linkFromAddress ?? ''} />;
+  if (!ready) return <div className="remote-pair remote-pair-status"><p>{status === 'revoked' ? '这台设备已在电脑上被移除。' : '正在连接电脑…'}</p>{status === 'revoked' && <button type="button" onClick={forgetRemote}>重新配对</button>}</div>;
+  return <>
+    {/* Covers the whole page, so it never sits on the title bar; the desktop UI comes back once connected. */}
+    {status !== 'connected' && <div className="remote-banner" role="alertdialog" aria-live="polite">
+      <div className="remote-banner-card">
+        {status === 'revoked'
+          ? <><p>这台设备已在电脑上被移除。</p><button type="button" onClick={forgetRemote}>重新配对</button></>
+          : <><span className="remote-banner-spinner" aria-hidden="true" /><p>与 {remoteComputerName() || '电脑'} 的连接已断开</p><p className="remote-banner-sub">正在重连…</p></>}
+      </div>
+    </div>}
+    <Suspense fallback={null}><App /></Suspense>
+  </>;
+}
+
+function RemotePair({ initialLink }: { initialLink: string }) {
+  const [link, setLink] = useState(initialLink);
+  const [name, setName] = useState(() => /iPad/.test(navigator.userAgent) ? 'iPad' : /iPhone/.test(navigator.userAgent) ? 'iPhone' : /Android/.test(navigator.userAgent) ? 'Android' : /Mac/.test(navigator.platform) ? 'Mac 浏览器' : '浏览器');
+  const [waiting, setWaiting] = useState(false);
+  const [error, setError] = useState('');
+  const submit = async () => {
+    setError('');
+    let parsed;
+    try { parsed = parsePairingLink(link); } catch { setError('这不是 Coffee CLI 的配对链接。'); return; }
+    setWaiting(true);
+    try { await pairRemote(parsed, name.trim() || '浏览器'); }
+    catch (e) { setError(e instanceof RpcError && e.code === 'unauthorized' ? '电脑拒绝了连接：配对码可能已过期或被拒绝，请在电脑上重新生成。' : '连不上电脑。请确认在同一个网络，且 Coffee CLI 已打开。'); }
+    finally { setWaiting(false); }
+  };
+  return <div className="remote-pair">
+    <h1>连接到 Coffee CLI</h1>
+    <p>{initialLink ? '确认这台设备的名称，点“连接”，然后在电脑上点“允许”。' : '在电脑上打开 Coffee CLI → 设置 → 设备连接，点“配对”，打开或粘贴配对链接。'}</p>
+    <label>这台设备的名称<input value={name} maxLength={64} onChange={e => setName(e.target.value)} /></label>
+    {!initialLink && <label>配对链接<input value={link} placeholder="coffeecli://pair?…" autoCapitalize="none" autoCorrect="off" onChange={e => setLink(e.target.value)} /></label>}
+    <button type="button" disabled={waiting || !link.trim()} onClick={() => void submit()}>{waiting ? '请在电脑上点“允许”…' : '连接'}</button>
+    {error && <p className="remote-error" role="alert">{error}</p>}
+  </div>;
+}

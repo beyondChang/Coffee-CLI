@@ -1,3 +1,4 @@
+import { onSharedStorage } from './storage-mirror';
 // Hidden sessions - localStorage-backed "soft delete" marker table.
 //
 // Session data belongs to each CLI tool (Claude / Codex / OpenCode / MiMo …);
@@ -40,6 +41,9 @@ function emit(): void {
   for (const l of listeners) l();
 }
 
+// Hidden on the other side (desktop or a browser following it).
+onSharedStorage(STORAGE_KEY, () => { hidden = load(); emit(); });
+
 function key(tool: string, id: string): string {
   return `${tool}:${id}`;
 }
@@ -54,16 +58,6 @@ export function hideSession(tool: string, id: string): void {
   emit();
 }
 
-export function unhideSession(tool: string, id: string): void {
-  const k = key(tool, id);
-  if (!hidden.has(k)) return;
-  const next = new Set(hidden);
-  next.delete(k);
-  hidden = next;
-  persist();
-  emit();
-}
-
 /** useSyncExternalStore subscribe. */
 export function subscribeHidden(listener: () => void): () => void {
   listeners.add(listener);
@@ -71,7 +65,7 @@ export function subscribeHidden(listener: () => void): () => void {
 }
 
 /** useSyncExternalStore getSnapshot. Returns a stable Set reference that only
- *  swaps when a hide/unhide lands (immutable update), so React doesn't loop. */
+ *  swaps when a hide lands (immutable update), so React doesn't loop. */
 export function getHiddenSnapshot(): Set<string> {
   return hidden;
 }
