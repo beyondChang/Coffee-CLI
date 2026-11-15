@@ -1937,13 +1937,13 @@ mod tests {
     #[test]
     fn work_modes_expose_only_enabled_capabilities_and_never_enter_model_credentials() {
         let mut config = ModelConfig::default();
-        assert_eq!(configured_tools(config.work_modes).len(), 20);
+        assert_eq!(configured_tools(config.work_modes).len(), 21);
         assert!(!system_prompt(&config).contains("Project manager is enabled"));
         config.work_modes.project_manager = true;
-        assert_eq!(configured_tools(config.work_modes).len(), 28);
+        assert_eq!(configured_tools(config.work_modes).len(), 29);
         assert!(system_prompt(&config).contains("fresh bounded project/Git evidence"));
         config.work_modes.expert_config = true;
-        assert_eq!(configured_tools(config.work_modes).len(), 34);
+        assert_eq!(configured_tools(config.work_modes).len(), 35);
         assert!(system_prompt(&config).contains("configured does not mean loaded"));
         assert!(system_prompt(&config).contains("automaticInvocation=false"));
         assert!(serde_json::to_value(&config).unwrap().get("workModes").is_none());
@@ -2464,7 +2464,7 @@ mod tests {
         let request = server.join().unwrap();
         assert_eq!(request["messages"][0]["content"], SYSTEM_PROMPT);
         assert_eq!(request["stream"], false);
-        assert_eq!(request["tools"].as_array().unwrap().len(), 20);
+        assert_eq!(request["tools"].as_array().unwrap().len(), 21);
         for name in ["memory_list", "memory_save", "memory_forget", "conversation_search", "tool_output_read"] {
             assert!(request["tools"].as_array().unwrap().iter()
                 .any(|tool| tool["function"]["name"] == name));
