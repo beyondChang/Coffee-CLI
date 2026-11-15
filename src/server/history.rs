@@ -397,6 +397,7 @@ pub(super) fn parse_agent_jsonl(
         turn_count: Some(turn_count),
         git_context: git_context.finish(),
         worktree_cwd: None,
+        continuation_tokens: Vec::new(),
     })
 }
 
@@ -522,6 +523,7 @@ pub(super) fn parse_codebuddy_session_jsonl(file_path: &std::path::Path) -> Opti
         turn_count: Some(turn_count),
         git_context: None,
         worktree_cwd: None,
+        continuation_tokens: Vec::new(),
     })
 }
 
@@ -673,7 +675,118 @@ pub(super) fn parse_pi_session_jsonl(file_path: &std::path::Path, tool: &str) ->
         turn_count: Some(turn_count),
         git_context: None,
         worktree_cwd: None,
+        continuation_tokens: Vec::new(),
     })
+}
+
+/// Read an OMP/Pi continuation header without parsing the whole transcript.
+///
+/// When the CLI continues a conversation (handoff, `automatic-retry`, process
+/// restart) it writes a NEW jsonl that copies the parent's messages and points
+/// back with `continuationOf`. `parentSession` is deliberately NOT a marker:
+/// user-initiated forks can set it too. Only `continuationOf` means "this file
+/// is a continuation of an existing conversation, not a new one".
+pub(super) fn pi_continuation_of(path: &std::path::Path) -> Option<(String, String)> {
+    use std::io::BufRead;
+    let file = std::fs::File::open(path).ok()?;
+    let mut reader = std::io::BufReader::with_capacity(SESSION_READ_BUF, file);
+    let mut line = String::new();
+    // The header is always among the first rows (OMP precedes it with a
+    // fixed-width title slot). Cap the scan so a corrupt multi-MB file can't
+    // turn a history refresh into a full-file read.
+    for _ in 0..8 {
+        line.clear();
+        if reader.read_line(&mut line).ok()? == 0 { break; }
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+        if value.get("type").and_then(|v| v.as_str()) != Some("session") { continue; }
+        let child = value.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+        let parent = value.get("continuationOf").and_then(|v| v.as_str()).unwrap_or_default();
+        if child.is_empty() || parent.is_empty() || child == parent { return None; }
+        return Some((child.to_string(), parent.to_string()));
+    }
+    None
+}
+
+/// Walk a continuation chain up to its root, stopping when the parent is not
+/// part of this scan. A bounded walk keeps malformed/cyclic headers harmless.
+fn pi_chain_root(
+    token: &str,
+    parents: &std::collections::HashMap<String, String>,
+    index: &std::collections::HashMap<String, usize>,
+) -> String {
+    let mut root = token.to_string();
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..32 {
+        let Some(parent) = parents.get(&root) else { break };
+        if !seen.insert(parent.clone()) || !index.contains_key(parent) { break; }
+        root = parent.clone();
+    }
+    root
+}
+
+/// Fold OMP/Pi continuation chains into one history card.
+///
+/// The CLI writes a fresh jsonl per continuation, so a naive file walk shows a
+/// duplicate top-level card with the parent's title every time the agent
+/// continues itself. The root card keeps its native token (that is what the
+/// running tab reports and what `--resume` expects) but takes the chain tail's
+/// transcript path, title, turn count and activity time. Folded tokens are
+/// exposed to the UI so a tab holding any of them still matches one card.
+///
+/// A chain whose root is absent from `sessions` (parent deleted, or pushed out
+/// of the recent-file window) is left alone — never hide a conversation just
+/// because its parent is missing.
+pub(super) fn fold_pi_continuations(
+    sessions: &mut Vec<SavedSession>,
+    parents: &std::collections::HashMap<String, String>,
+) {
+    if parents.is_empty() { return; }
+    let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (i, session) in sessions.iter().enumerate() {
+        if (session.tool == "omp" || session.tool == "pi") && session.session_token.is_some() {
+            index.insert(session.session_token.clone().unwrap_or_default(), i);
+        }
+    }
+    let mut chains: std::collections::HashMap<String, Vec<usize>> = std::collections::HashMap::new();
+    for (i, session) in sessions.iter().enumerate() {
+        if session.tool != "omp" && session.tool != "pi" { continue; }
+        let Some(token) = session.session_token.as_deref() else { continue };
+        let root = pi_chain_root(token, parents, &index);
+        if root == token { continue; }
+        // A continuation in another project is a separate card, and must not
+        // drag its siblings out of the fold when picking the chain tail.
+        if index.get(&root).is_some_and(|&i| sessions[i].cwd != session.cwd) { continue; }
+        chains.entry(root).or_default().push(i);
+    }
+    if chains.is_empty() { return; }
+
+    let mut remove = std::collections::HashSet::new();
+    for (root_token, members) in chains {
+        let Some(&root_idx) = index.get(&root_token) else { continue };
+        let Some(&tail_idx) = members.iter().max_by_key(|&&i| saved_session_epoch_ms(&sessions[i].saved_at)) else { continue };
+        let tail_path = sessions[tail_idx].file_path.clone();
+        let tail_name = sessions[tail_idx].name.clone();
+        let tail_turns = sessions[tail_idx].turn_count;
+        let tail_saved = sessions[tail_idx].saved_at.clone();
+        let mut folded = Vec::with_capacity(members.len());
+        for &i in &members {
+            if let Some(token) = sessions[i].session_token.clone() { folded.push(token); }
+            remove.insert(i);
+        }
+        let root = &mut sessions[root_idx];
+        if !tail_name.is_empty() { root.name = tail_name; }
+        if tail_path.is_some() { root.file_path = tail_path; }
+        if tail_turns.is_some() { root.turn_count = tail_turns; }
+        if saved_session_epoch_ms(&tail_saved) > saved_session_epoch_ms(&root.saved_at) {
+            root.saved_at = tail_saved;
+        }
+        root.continuation_tokens.extend(folded);
+        root.continuation_tokens.sort();
+        root.continuation_tokens.dedup();
+    }
+    if remove.is_empty() { return; }
+    let mut i = 0;
+    sessions.retain(|_| { let keep = !remove.contains(&i); i += 1; keep });
 }
 
 /// Strip Codex Desktop's synthetic "Files mentioned by the user"
@@ -852,6 +965,7 @@ pub(super) fn parse_codex_session_jsonl(file_path: &std::path::Path) -> Option<S
         turn_count: Some(turn_count),
         git_context: git_context.finish(),
         worktree_cwd: None,
+        continuation_tokens: Vec::new(),
     })
 }
 
@@ -1024,6 +1138,7 @@ pub(super) fn parse_qwen_session_jsonl(file_path: &std::path::Path) -> Option<Sa
         turn_count: Some(turn_count),
         git_context: None,
         worktree_cwd: None,
+        continuation_tokens: Vec::new(),
     })
 }
 
@@ -2143,6 +2258,7 @@ pub(super) fn find_kimi_sessions(home: &std::path::Path, result: &mut Vec<SavedS
             turn_count: None,
             git_context: None,
             worktree_cwd: None,
+            continuation_tokens: Vec::new(),
         });
     }
 }
@@ -2315,6 +2431,7 @@ pub(super) fn find_grok_sessions(home: &std::path::Path, result: &mut Vec<SavedS
             turn_count: None,
             git_context: None,
             worktree_cwd: None,
+            continuation_tokens: Vec::new(),
         });
     }
 }
@@ -2509,6 +2626,7 @@ pub(super) fn parse_hermes_json(file_path: &std::path::Path) -> Option<SavedSess
         turn_count: Some(turn_count),
         git_context: None,
         worktree_cwd: None,
+        continuation_tokens: Vec::new(),
     })
 }
 
@@ -2557,6 +2675,7 @@ pub(super) fn parse_opencode_session(file_path: &std::path::Path, message_dir: &
         turn_count: Some(turn_count),
         git_context: None,
         worktree_cwd: None,
+        continuation_tokens: Vec::new(),
     })
 }
 
@@ -2666,6 +2785,7 @@ pub(super) fn find_drizzle_sessions_sqlite(
             turn_count: Some(turn_count),
             git_context: None,
             worktree_cwd: None,
+            continuation_tokens: Vec::new(),
         })
     });
 
@@ -2825,6 +2945,7 @@ pub(super) fn find_hermes_sessions_sqlite(db_path: &std::path::Path, result: &mu
             turn_count: Some(turn_count),
             git_context: None,
             worktree_cwd: None,
+            continuation_tokens: Vec::new(),
         })
     });
     if let Ok(iter) = iter {
@@ -2922,6 +3043,7 @@ pub(super) fn find_antigravity_sessions(db_path: &std::path::Path, result: &mut 
             turn_count: None,
             git_context: None,
             worktree_cwd: None,
+            continuation_tokens: Vec::new(),
         });
     }
 }
@@ -3267,8 +3389,18 @@ pub(super) fn load_native_history_blocking() -> Result<Vec<SavedSession>, String
 
     let mut keep_paths: std::collections::HashSet<std::path::PathBuf> =
         std::collections::HashSet::with_capacity(file_candidates.len());
+    // OMP/Pi write a new jsonl for every automatic continuation. Collect the
+    // child → parent tokens while the candidates are in hand, then fold the
+    // chain after all parsers have populated `result`.
+    let mut pi_continuations: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     for (_, path, tool) in &file_candidates {
         keep_paths.insert(path.clone());
+        if (*tool == "omp" || *tool == "pi") && path.extension().is_some_and(|ext| ext == "jsonl") {
+            if let Some((child, parent)) = pi_continuation_of(path) {
+                pi_continuations.insert(child, parent);
+            }
+        }
         let parsed = parse_session_cached(
             cache,
             path,
@@ -3367,6 +3499,7 @@ pub(super) fn load_native_history_blocking() -> Result<Vec<SavedSession>, String
             turn_count: entry.turns,
             git_context: None,
             worktree_cwd: None,
+            continuation_tokens: Vec::new(),
         });
     }
 
@@ -3382,6 +3515,12 @@ pub(super) fn load_native_history_blocking() -> Result<Vec<SavedSession>, String
             s.cwd = project_root_from_cwd(&s.cwd);
         }
     }
+
+    // A continuation transcript is not a new conversation. Fold it into its
+    // root card so the list doesn't grow a duplicate every time the CLI
+    // continues itself; the root keeps its resume token while the card shows
+    // the newest transcript, title and activity time.
+    fold_pi_continuations(&mut result, &pi_continuations);
 
     // Numeric sorting is required: lexicographic comparison misorders values
     // when a legacy source emits epoch seconds rather than milliseconds.

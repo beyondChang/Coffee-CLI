@@ -139,6 +139,10 @@ export interface SavedSession {
   git_context?: SessionGitContext | null;
   /** Set when the conversation ran in a Coffee worktree that still exists; it resumes there. */
   worktree_cwd?: string;
+  /** Native tokens of OMP/Pi continuations folded into this one card.
+   * A running tab can report any token in the chain, so matching must cover
+   * them all instead of just `session_token`. */
+  continuation_tokens?: string[];
 }
 
 export interface ChatSessionRead {

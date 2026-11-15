@@ -45,6 +45,8 @@ function readPersistedHistory(): SavedSession[] | null {
       && (s.created_at === undefined || s.created_at === null || typeof s.created_at === 'string')
       && (s.file_path === undefined || s.file_path === null || typeof s.file_path === 'string')
       && (s.turn_count === undefined || s.turn_count === null || typeof s.turn_count === 'number')
+      && (s.continuation_tokens === undefined || Array.isArray(s.continuation_tokens)
+        && s.continuation_tokens.every((token: unknown) => typeof token === 'string'))
       && (s.git_context == null || (typeof s.git_context === 'object'
         && (s.git_context.branch === null || typeof s.git_context.branch === 'string')
         && Array.isArray(s.git_context.pull_requests) && s.git_context.pull_requests.every((url: unknown) => typeof url === 'string')))
@@ -71,7 +73,16 @@ function sessionsSignature(list: SavedSession[]): string {
   return JSON.stringify(list.map(s => [
     s.id, s.name, s.tool, s.cwd, s.session_token, s.saved_at,
     s.created_at, s.file_path, s.turn_count, s.git_context,
+    s.worktree_cwd, s.continuation_tokens,
   ]));
+}
+
+/** A history card can represent a chain of OMP/Pi continuation transcripts.
+ * The root token stays stable for `--resume`, but the CLI may report a later
+ * token in a running tab; folding only works if both identities match. */
+export function sessionMatchesResumeToken(saved: SavedSession, token: string | null | undefined): boolean {
+  if (!token) return false;
+  return saved.session_token === token || saved.continuation_tokens?.includes(token) === true;
 }
 let lastSig = persistedSessions === null ? '' : sessionsSignature(persistedSessions);
 

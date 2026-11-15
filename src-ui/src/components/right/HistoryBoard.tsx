@@ -16,6 +16,7 @@ import {
   subscribeHistory,
   getHistorySnapshot,
   sortByMtime,
+  sessionMatchesResumeToken,
 } from '../../lib/history-cache';
 import { subscribeHidden, getHiddenSnapshot, hideSession } from '../../lib/hidden-sessions';
 import { subscribePinned, getPinnedSnapshot } from '../../lib/pinned-sessions';
@@ -346,11 +347,14 @@ export function HistoryBoard() {
     { id: 'mock-2', name: 'build a snake game', tool: 'claude', cwd: '~/projects/snake', session_token: 'tk2', saved_at: new Date(nowMs - 3600000).toISOString() },
     { id: 'mock-3', name: 'refactor components', tool: 'qwen', cwd: '~/projects/coffee', session_token: 'tk3', saved_at: new Date(nowMs - 86400000 * 2).toISOString() },
   ], [cachedSessions, nowMs]);
-  const liveSessions = useMemo(() => state.terminals.filter(session => session.tool && !nativeSessions.some(saved => saved.tool === session.tool && saved.session_token && saved.session_token === session.resumeToken)), [state.terminals, nativeSessions]);
+  // An OMP/Pi continuation is folded into its root card, but the running tab
+  // may still report a later token in that chain. Match the whole chain, not
+  // just session_token, or the tab shows up as a second, identical card.
+  const liveSessions = useMemo(() => state.terminals.filter(session => session.tool && !nativeSessions.some(saved => saved.tool === session.tool && sessionMatchesResumeToken(saved, session.resumeToken))), [state.terminals, nativeSessions]);
   const baseSessions: SavedSession[] = useMemo(() => {
     const sorted = sortByMtime([...nativeSessions.map(saved => {
     // The disk cache refreshes lazily, so an open session's recent activity outranks its stale file mtime.
-    const open = saved.session_token ? state.terminals.find(tab => tab.tool === saved.tool && tab.resumeToken === saved.session_token) : undefined;
+    const open = saved.session_token ? state.terminals.find(tab => tab.tool === saved.tool && sessionMatchesResumeToken(saved, tab.resumeToken)) : undefined;
     if (!open?.activeAt) return saved;
     const numeric = Number(saved.saved_at);
     const mtime = Date.parse(saved.saved_at) || (numeric < 1e11 ? numeric * 1000 : numeric) || 0;
@@ -365,7 +369,7 @@ export function HistoryBoard() {
     // Sessions that are running right now float to the top, in tab order. Ranking them by
     // mtime/activeAt made concurrent sessions swap places on every status flip.
     const tabIndex = (session: SavedSession) => state.terminals.findIndex(tab => session.id === `live:${tab.id}`
-      || (!!session.session_token && tab.tool === session.tool && tab.resumeToken === session.session_token));
+      || (tab.tool === session.tool && sessionMatchesResumeToken(session, tab.resumeToken)));
     const busy = (session: SavedSession) => {
       const tab = state.terminals[tabIndex(session)];
       return tab?.agentStatus === 'working' || tab?.agentStatus === 'wait_input';
@@ -376,9 +380,9 @@ export function HistoryBoard() {
 
   const availableSessions = useMemo(() => {
     const list = baseSessions.filter(session => !hidden.has(`${session.tool ?? ''}:${session.id}`)
-      && !orchestration.tasks.some(task => !task.detached && (`live:${task.sessionId}` === session.id || task.tool === session.tool && session.session_token && (task.nativeId === session.session_token || state.terminals.some(tab => tab.id === task.sessionId && tab.resumeToken === session.session_token))))
-      && !state.terminals.some(tab => tab.parentId && (`live:${tab.id}` === session.id || tab.tool === session.tool && session.session_token && tab.resumeToken === session.session_token))).map(session => {
-        const task = orchestration.tasks.find(task => task.detached && (`live:${task.sessionId}` === session.id || task.tool === session.tool && session.session_token && (task.nativeId === session.session_token || state.terminals.some(tab => tab.id === task.sessionId && tab.resumeToken === session.session_token))));
+      && !orchestration.tasks.some(task => !task.detached && (`live:${task.sessionId}` === session.id || task.tool === session.tool && ((!!session.session_token && task.nativeId === session.session_token) || state.terminals.some(tab => tab.id === task.sessionId && sessionMatchesResumeToken(session, tab.resumeToken)))))
+      && !state.terminals.some(tab => tab.parentId && (`live:${tab.id}` === session.id || tab.tool === session.tool && sessionMatchesResumeToken(session, tab.resumeToken)))).map(session => {
+        const task = orchestration.tasks.find(task => task.detached && (`live:${task.sessionId}` === session.id || task.tool === session.tool && ((!!session.session_token && task.nativeId === session.session_token) || state.terminals.some(tab => tab.id === task.sessionId && sessionMatchesResumeToken(session, tab.resumeToken)))));
         return task ? { ...session, name: task.title } : session;
       });
     if (!pinned.size) return list;
@@ -420,7 +424,7 @@ export function HistoryBoard() {
     for (const tab of state.terminals) {
       // A folder title Pi set before its titles were filtered (`π - <folder>`) does not count as a name.
       if (tab.tool !== 'pi' || !tab.resumeToken || (tab.toolTitle?.trim() && !tab.toolTitle.startsWith('π - ')) || tab.pinnedTitle?.trim()) continue;
-      const saved = nativeSessions.find(session => session.tool === 'pi' && session.session_token === tab.resumeToken);
+      const saved = nativeSessions.find(session => session.tool === 'pi' && sessionMatchesResumeToken(session, tab.resumeToken));
       const name = saved && (renamed[`pi:${saved.id}`] ?? saved.name)?.trim();
       if (name) dispatch({ type: 'SET_TAB_TITLE', id: tab.id, title: name });
     }
@@ -514,7 +518,7 @@ export function HistoryBoard() {
     if (!saved.session_token) return;
     // Fresh CLI tabs may already own this conversation without a resumeToken
     // in UI state. Read only authoritative native IDs, never guess by cwd.
-    if (isTauri && !state.terminals.some(session => session.tool === saved.tool && session.resumeToken === saved.session_token)) {
+    if (isTauri && !state.terminals.some(session => session.tool === saved.tool && sessionMatchesResumeToken(saved, session.resumeToken))) {
       try {
         await Promise.all(state.terminals.filter(session => session.tool === saved.tool && !session.resumeToken).map(async session => {
           const token = await commands.getTerminalSessionToken(session.id);
@@ -542,7 +546,7 @@ export function HistoryBoard() {
     setAgentError('');
     setPreview(null);
     const closing = state.terminals.filter(tab => tab.tool === saved.tool &&
-      (`live:${tab.id}` === saved.id || !!saved.session_token && tab.resumeToken === saved.session_token));
+      (`live:${tab.id}` === saved.id || tab.tool === saved.tool && sessionMatchesResumeToken(saved, tab.resumeToken)));
     if (!closing.length && isTauri && saved.session_token) {
       try {
         const candidates = state.terminals.filter(tab => tab.tool === saved.tool && !tab.resumeToken);
@@ -643,11 +647,14 @@ export function HistoryBoard() {
         const sessionKey = `${session.tool ?? ''}:${session.id}`;
         const displayName = renamed[sessionKey] ?? session.name;
         const isRenaming = renamingKey === sessionKey;
-        const owner = state.terminals.find(tab => `live:${tab.id}` === session.id || tab.tool === session.tool && session.session_token && tab.resumeToken === session.session_token);
+        const owner = state.terminals.find(tab => `live:${tab.id}` === session.id || tab.tool === session.tool && sessionMatchesResumeToken(session, tab.resumeToken));
         const workers = orchestration.tasks.filter(task => !task.hidden && !task.detached && (task.parentId === owner?.id || task.parentTool === session.tool && task.parentNativeId && task.parentNativeId === session.session_token)).slice(-6);
-        const isWorking = owner?.agentStatus === 'working' || Boolean(session.session_token && workingSessions.has(`${session.tool}:${session.session_token}`));
-        const needsAttention = owner?.agentStatus === 'wait_input' || Boolean(session.session_token && waitingSessions.has(`${session.tool}:${session.session_token}`));
-        const isUnread = !isWorking && !needsAttention && Boolean(session.session_token && unreadReplies.has(sessionReplyKey(session.tool, session.session_token)));
+        // A folded chain can be "working" under any of its native tokens, not
+        // only the root token kept on the card.
+        const statusTokens = [session.session_token, ...(session.continuation_tokens ?? [])].filter((token): token is string => Boolean(token));
+        const isWorking = owner?.agentStatus === 'working' || statusTokens.some(token => workingSessions.has(`${session.tool}:${token}`));
+        const needsAttention = owner?.agentStatus === 'wait_input' || statusTokens.some(token => waitingSessions.has(`${session.tool}:${token}`));
+        const isUnread = !isWorking && !needsAttention && statusTokens.some(token => unreadReplies.has(sessionReplyKey(session.tool, token)));
         const isActive = owner?.id === state.activeTerminalId && !state.agentPageActive && !state.fileTabActive || session.tool === 'coffee-agent' && session.id === activeAgentConversation && state.agentPageActive === 'agent';
         const gitStatus = gitStatuses.get(gitStatusKey(sessionGitTarget(session)));
         return (
@@ -958,7 +965,7 @@ export function HistoryBoard() {
       onOpenWorker={contextWorker && contextParent ? () => void openWorker(contextWorker, contextParent) : undefined}
       onDetachWorker={canDetachWorker && contextWorker && contextParent ? () => void detachWorker(contextWorker, contextParent) : undefined}
       onOpenSplit={state.terminals.some(tab => tab.id === state.activeTerminalId && tab.tool) && (ctxMenu.session.session_token || liveSessions.some(tab => `live:${tab.id}` === ctxMenu.session.id)) ? saved => { void handleViewHistory(saved, { targetId: state.activeTerminalId!, edge: 'right' }); } : undefined}
-      splitFull={splitSessionIds(state.sessionSplit).includes(state.activeTerminalId ?? '') && splitSessionIds(state.sessionSplit).length >= 4 && !state.terminals.some(tab => splitSessionIds(state.sessionSplit).includes(tab.id) && (`live:${tab.id}` === ctxMenu.session.id || tab.tool === ctxMenu.session.tool && tab.resumeToken === ctxMenu.session.session_token))} />}
+      splitFull={splitSessionIds(state.sessionSplit).includes(state.activeTerminalId ?? '') && splitSessionIds(state.sessionSplit).length >= 4 && !state.terminals.some(tab => splitSessionIds(state.sessionSplit).includes(tab.id) && (`live:${tab.id}` === ctxMenu.session.id || tab.tool === ctxMenu.session.tool && sessionMatchesResumeToken(ctxMenu.session, tab.resumeToken)))} />}
     {splitDrag.overlay}
     {ctxMenuEl}
     {removeWorkerTarget && <RemoveWorkerDialog title={removeWorkerTarget.task.title} error={removeWorkerTarget.error} onRemove={() => removeWorker(removeWorkerTarget.task)} onClose={() => setRemoveWorkerTarget(null)} />}

@@ -1278,6 +1278,12 @@ struct SavedSession {
     /// A conversation held in a Coffee worktree that still exists resumes there rather than in the project.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     worktree_cwd: Option<String>,
+    /// Native tokens folded into this card. OMP writes an automatic
+    /// continuation as a separate jsonl (`continuationOf`) that copies the
+    /// parent transcript; the history list shows one card for the whole chain,
+    /// but a running tab may still report any token in that chain.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    continuation_tokens: Vec<String>,
 }
 
 /// Poll `probe` once a second for this PTY's native id and report it. With
@@ -2991,6 +2997,7 @@ mod tests {
             turn_count: None,
             git_context: None,
             worktree_cwd: None,
+            continuation_tokens: Vec::new(),
         };
         let mut sessions = vec![row("codex", "t1"), row("codex", "unnamed"), row("claude", "t1")];
         apply_codex_thread_names(&home.join(".codex/sessions"), &mut sessions);

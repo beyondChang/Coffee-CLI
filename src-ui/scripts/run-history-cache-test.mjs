@@ -184,6 +184,7 @@ for (const saved of ['{bad json', '{}', 'null', '[null]', '[{}]', JSON.stringify
     file_path: '/moved/one.jsonl', created_at: '1788600000000',
     session_token: 'replacement', tool: 'claude', name: 'a\x01b',
     cwd: '/another', turn_count: 2, git_context: { branch: 'main', pull_requests: ['https://github.com/example/repo/pull/42'] },
+    continuation_tokens: ['folded-tail'],
   })) {
     const before = api.getHistorySnapshot();
     current = { ...current, [field]: value };
@@ -212,3 +213,28 @@ for (const saved of ['{bad json', '{}', 'null', '[null]', '[{}]', JSON.stringify
 }
 
 console.log('OK: history persisted snapshots, refresh replay, backend TTL bypass, full-field comparison, and failure recovery');
+
+// Regression for "会话自己多出来": an OMP/Pi continuation is folded into its
+// root card, but the running tab may report a token from later in the chain.
+// Strict `session_token === resumeToken` matching renders a duplicate card.
+{
+  const api = runInNewContext(ts.transpileModule(`${source};
+    ({ sessionMatchesResumeToken, sessionsSignature });`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText, { isTauri: false, console: { error() {} }, setTimeout, clearTimeout });
+  const card = { session_token: 'root-token', continuation_tokens: ['tail-token'] };
+  assert.equal(api.sessionMatchesResumeToken(card, 'root-token'), true, 'root token still identifies the card');
+  assert.equal(api.sessionMatchesResumeToken(card, 'tail-token'), true, 'folded continuation token identifies the same card');
+  assert.equal(api.sessionMatchesResumeToken(card, 'unrelated'), false);
+  assert.equal(api.sessionMatchesResumeToken(card, null), false);
+  assert.equal(api.sessionMatchesResumeToken(card, ''), false);
+  assert.equal(api.sessionMatchesResumeToken({ session_token: 'root-token' }, 'tail-token'), false,
+    'cards without a folded chain keep strict identity');
+  const base = [{ id: 'omp_native_root', tool: 'omp', cwd: '/proj', ...card }];
+  assert.notEqual(
+    api.sessionsSignature(base),
+    api.sessionsSignature([{ ...base[0], continuation_tokens: ['tail-token', 'newest-token'] }]),
+    'a new folded token invalidates the cached snapshot',
+  );
+  console.log('OK: folded continuation tokens match live tabs and bust the history cache signature');
+}

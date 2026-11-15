@@ -591,3 +591,101 @@ fn history_review_observes_appended_claude_metadata() {
     assert_matches_cold(&mut cache, &path, "claude", "later session id and timestamp");
     let _ = std::fs::remove_file(path);
 }
+
+/// Build a realistic OMP/Pi transcript: a title slot, a session header and
+/// one user + one assistant row (OMP requires at least one message to surface).
+fn pi_transcript(path: &std::path::Path, id: &str, title: &str, continuation: Option<&str>, cwd: &str) {
+    let mut header = serde_json::json!({"type":"session","id":id,"cwd":cwd,"timestamp":"2026-11-15T02:05:02.174Z"});
+    if let Some(parent) = continuation {
+        header["parentSession"] = serde_json::json!(parent);
+        header["continuationOf"] = serde_json::json!(parent);
+    }
+    let lines = vec![
+        serde_json::json!({"type":"title","title":title,"source":"auto"}).to_string(),
+        header.to_string(),
+        r#"{"type":"message","message":{"role":"user","content":"hello"}}"#.to_string(),
+        r#"{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"hi"}]}}"#.to_string(),
+    ];
+    let borrowed: Vec<&str> = lines.iter().map(String::as_str).collect();
+    write_jsonl(path, &borrowed);
+}
+
+fn pi_parents(paths: &[&std::path::Path]) -> std::collections::HashMap<String, String> {
+    let mut parents = std::collections::HashMap::new();
+    for path in paths {
+        if let Some((child, parent)) = pi_continuation_of(path) { parents.insert(child, parent); }
+    }
+    parents
+}
+
+/// Regression for "会话自己多出来": OMP writes a new jsonl on every automatic
+/// continuation, copying the parent transcript and title. One file used to
+/// mean one extra card in the sidebar, with the same name as the running
+/// conversation.
+#[test]
+fn pi_continuation_chain_folds_into_one_history_card() {
+    let dir = std::env::temp_dir().join(format!("coffee-cli-pi-chain-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let root = dir.join("root.jsonl");
+    let tail = dir.join("tail.jsonl");
+    let newest = dir.join("newest.jsonl");
+    pi_transcript(&root, "root-token", "🧠 MEMORY: Investigate", None, "D:\\project");
+    pi_transcript(&tail, "tail-token", "🧠 MEMORY: 排查", Some("root-token"), "D:\\project");
+    pi_transcript(&newest, "newest-token", "🧠 MEMORY: 已修复", Some("tail-token"), "D:\\project");
+
+    let mut sessions: Vec<SavedSession> = [&root, &tail, &newest]
+        .iter().map(|path| cold_parse(path, "omp").unwrap()).collect();
+    // Deterministic activity times; file mtimes can be identical on Windows.
+    for (i, session) in sessions.iter_mut().enumerate() { session.saved_at = (100 + i * 100).to_string(); }
+    assert_eq!(sessions.len(), 3, "reproduces the duplicate cards before folding");
+    assert_eq!(pi_continuation_of(&root), None, "a root session is not a continuation");
+
+    let parents = pi_parents(&[&root, &tail, &newest]);
+    fold_pi_continuations(&mut sessions, &parents);
+
+    assert_eq!(sessions.len(), 1, "the whole chain must be a single card");
+    let card = &sessions[0];
+    assert_eq!(card.session_token.as_deref(), Some("root-token"), "resume keeps the root token the running tab reports");
+    assert_eq!(card.continuation_tokens, vec!["newest-token", "tail-token"], "folded tokens reach the UI for live-tab matching");
+    assert_eq!(card.name, "🧠 MEMORY: 已修复", "card shows the newest transcript title");
+    let newest_path = newest.to_string_lossy().into_owned();
+    assert_eq!(card.file_path.as_deref(), Some(newest_path.as_str()), "history reads the newest transcript");
+    assert_eq!(card.saved_at, "300", "card activity follows the newest transcript");
+    assert_eq!(card.turn_count, Some(1));
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn pi_continuation_keeps_orphans_forks_and_other_projects_visible() {
+    let dir = std::env::temp_dir().join(format!("coffee-cli-pi-orphan-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let root = dir.join("root.jsonl");
+    let child = dir.join("child.jsonl");
+    let orphan = dir.join("orphan.jsonl");
+    let fork = dir.join("fork.jsonl");
+    let other = dir.join("other.jsonl");
+    pi_transcript(&root, "root-token", "root", None, "D:\\project");
+    pi_transcript(&child, "child-token", "child", Some("root-token"), "D:\\project");
+    // Its parent is not part of this scan (deleted / outside the recent window).
+    pi_transcript(&orphan, "orphan-token", "orphan", Some("missing-parent"), "D:\\project");
+    // `parentSession` alone can be a user-initiated fork: never fold it.
+    write_jsonl(&fork, &[
+        &serde_json::json!({"type":"session","id":"fork-token","cwd":"D:\\project","parentSession":"root-token"}).to_string(),
+        r#"{"type":"message","message":{"role":"user","content":"hello"}}"#,
+    ]);
+    // A continuation from another project must not merge into `root`.
+    pi_transcript(&other, "other-token", "other", Some("root-token"), "D:\\elsewhere");
+
+    let paths: Vec<&std::path::Path> = vec![&root, &child, &orphan, &fork, &other];
+    let mut sessions: Vec<SavedSession> = paths.iter().map(|path| cold_parse(path, "omp").unwrap()).collect();
+    assert_eq!(sessions.len(), 5);
+    fold_pi_continuations(&mut sessions, &pi_parents(&paths));
+    let tokens: Vec<&str> = sessions.iter().filter_map(|s| s.session_token.as_deref()).collect();
+    assert_eq!(tokens, vec!["root-token", "orphan-token", "fork-token", "other-token"],
+        "only the same-project continuation chain is folded");
+    assert_eq!(sessions[0].continuation_tokens, vec!["child-token"]);
+    assert_eq!(sessions[0].session_token.as_deref(), Some("root-token"));
+    let _ = std::fs::remove_dir_all(dir);
+}
