@@ -33,6 +33,23 @@ fn read_at(path: &Path) -> Result<ToolMemoryDocument, String> {
     Ok(ToolMemoryDocument { path: Some(dunce::simplified(&resolved).to_string_lossy().into_owned()), content: Some(content) })
 }
 
+/// Oh My Pi's active agent directory, the one holding the user-level context
+/// files. A named profile (`OMP_PROFILE`, or the legacy `PI_PROFILE`) owns its
+/// own tree under `<config>/profiles/<name>/agent` and ignores
+/// `PI_CODING_AGENT_DIR`; without a profile that variable relocates the whole
+/// agent directory, and `PI_CONFIG_DIR` renames the `~/.omp` root itself.
+/// The file is `AGENTS.md`: `RULES.md` beside it is a separate always-apply
+/// rule OMP loads in addition to the context file, not instead of it.
+fn omp_agent_dir(home: &Path, env: &impl Fn(&str) -> Option<std::ffi::OsString>) -> PathBuf {
+    let value = |name: &str| env(name).filter(|text| !text.is_empty()).map(|text| text.to_string_lossy().into_owned());
+    let root = home.join(value("PI_CONFIG_DIR").unwrap_or_else(|| ".omp".into()));
+    let profile = value("OMP_PROFILE").or_else(|| value("PI_PROFILE"));
+    match profile.as_deref().map(str::trim) {
+        Some(name) if !name.is_empty() && name != "default" => root.join("profiles").join(name).join("agent"),
+        _ => value("PI_CODING_AGENT_DIR").map(PathBuf::from).unwrap_or_else(|| root.join("agent")),
+    }
+}
+
 fn load_from(tool: &str, home: &Path, env: impl Fn(&str) -> Option<std::ffi::OsString>) -> Result<ToolMemoryDocument, String> {
     let root = |name: &str, fallback: PathBuf| env(name).filter(|value| !value.is_empty()).map(PathBuf::from).unwrap_or(fallback);
     let (directory, filename) = match tool {
@@ -41,6 +58,7 @@ fn load_from(tool: &str, home: &Path, env: impl Fn(&str) -> Option<std::ffi::OsS
         "copilot" => (home.join(".copilot"), "copilot-instructions.md"),
         "opencode" => (root("XDG_CONFIG_HOME", home.join(".config")).join("opencode"), "AGENTS.md"),
         "pi" => (root("PI_CODING_AGENT_DIR", home.join(".pi/agent")), "AGENTS.md"),
+        "omp" => (omp_agent_dir(home, &env), "AGENTS.md"),
         "hermes" => (crate::tools::hermes::hermes_home(), "SOUL.md"),
         "dsh" => (root("DSH_HOME", home.join(".dsh")), "AGENTS.md"),
         _ => return Ok(ToolMemoryDocument { path: None, content: None }),
@@ -127,7 +145,7 @@ mod tests {
     #[test]
     fn paths_respect_overrides_and_reads_do_not_create_files() {
         let f = Fixture::new();
-        for (tool, relative) in [("claude", ".claude/CLAUDE.md"), ("codex", ".codex/AGENTS.md"), ("copilot", ".copilot/copilot-instructions.md"), ("opencode", ".config/opencode/AGENTS.md"), ("pi", ".pi/agent/AGENTS.md")] {
+        for (tool, relative) in [("claude", ".claude/CLAUDE.md"), ("codex", ".codex/AGENTS.md"), ("copilot", ".copilot/copilot-instructions.md"), ("opencode", ".config/opencode/AGENTS.md"), ("pi", ".pi/agent/AGENTS.md"), ("omp", ".omp/agent/AGENTS.md")] {
             let document = f.load(tool);
             assert_eq!(PathBuf::from(document.path.unwrap()), f.0.join(relative));
             assert!(document.content.is_none());
@@ -138,6 +156,32 @@ mod tests {
         assert!(f.load("unknown").path.is_none());
         assert!(f.load("../../other").path.is_none());
         assert!(!f.0.exists());
+    }
+
+    #[test]
+    fn omp_locates_the_active_agent_directory_and_never_writes_unread() {
+        let f = Fixture::new();
+        let with = |pairs: &[(&str, PathBuf)]| {
+            let owned: Vec<(String, std::ffi::OsString)> = pairs.iter().map(|(key, value)| (key.to_string(), value.clone().into_os_string())).collect();
+            load_from("omp", &f.0, move |name| owned.iter().find(|(key, _)| key == name).map(|(_, value)| value.clone())).unwrap()
+        };
+        // A missing file still reports its location, so the editor can create it.
+        assert_eq!(PathBuf::from(with(&[]).path.unwrap()), f.0.join(".omp/agent/AGENTS.md"));
+        // PI_CONFIG_DIR renames the ~/.omp root; PI_CODING_AGENT_DIR relocates the agent dir inside it.
+        assert_eq!(PathBuf::from(with(&[("PI_CONFIG_DIR", "cfg".into())]).path.unwrap()), f.0.join("cfg/agent/AGENTS.md"));
+        let relocated = f.0.join("elsewhere");
+        assert_eq!(PathBuf::from(with(&[("PI_CODING_AGENT_DIR", relocated.clone())]).path.unwrap()), relocated.join("AGENTS.md"));
+        // A named profile wins over PI_CODING_AGENT_DIR and uses its own agent tree.
+        let profile = with(&[("OMP_PROFILE", "work".into()), ("PI_CODING_AGENT_DIR", relocated)]);
+        assert_eq!(PathBuf::from(profile.path.unwrap()), f.0.join(".omp/profiles/work/agent/AGENTS.md"));
+        assert_eq!(PathBuf::from(with(&[("PI_PROFILE", "work".into())]).path.unwrap()), f.0.join(".omp/profiles/work/agent/AGENTS.md"));
+        // The literal "default" profile is the unprofiled layout.
+        assert_eq!(PathBuf::from(with(&[("OMP_PROFILE", "default".into())]).path.unwrap()), f.0.join(".omp/agent/AGENTS.md"));
+        // RULES.md is a separate sticky rule and must not be edited as the memory document.
+        fs::create_dir_all(f.0.join(".omp/agent")).unwrap();
+        fs::write(f.0.join(".omp/agent/RULES.md"), "sticky").unwrap();
+        assert_eq!(with(&[]).content, None);
+        assert!(!f.0.join(".omp/agent/AGENTS.md").exists(), "reading a missing memory file creates nothing");
     }
 
     #[test]
