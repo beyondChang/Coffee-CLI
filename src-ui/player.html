@@ -13,7 +13,7 @@
       (function() {
         var theme = 'oat';
         var mode = 'dark';
-        var shape = 'basalt';
+        var shape = 'panel';
         try { theme = localStorage.getItem('cc-theme') || 'oat'; } catch(e) {}
         var retired = {
           cappuccino: 'obsidian', crimson: 'slate', sunset: 'dark',
@@ -29,7 +29,7 @@
         if (mode === 'system') {
           mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
-        try { shape = localStorage.getItem('cc-shape') || 'basalt'; } catch(e) {}
+        try { shape = localStorage.getItem('cc-shape') || 'panel'; } catch(e) {}
         document.documentElement.setAttribute('data-theme', theme);
         document.documentElement.setAttribute('data-mode', mode);
         if (shape === 'frost') {

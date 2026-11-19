@@ -24,7 +24,7 @@
       (function() {
         var theme = 'obsidian';
         var mode = 'dark';
-        var shape = 'basalt';
+        var shape = 'panel';
         try { theme = localStorage.getItem('cc-theme') || 'obsidian'; } catch(e) {}
         // Palettes retired in v3.5.4 (the redundant mid row) — mirror of
         // RETIRED_THEMES in src/store/app-state.tsx. A retired code has no
@@ -47,7 +47,7 @@
         if (mode === 'system') {
           mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
-        try { shape = localStorage.getItem('cc-shape') || 'basalt'; } catch(e) {}
+        try { shape = localStorage.getItem('cc-shape') || 'panel'; } catch(e) {}
         document.documentElement.setAttribute('data-theme', theme);
         document.documentElement.setAttribute('data-mode', mode);
         // Frost renders as glass chrome + a data-frost backdrop variant

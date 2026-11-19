@@ -721,7 +721,7 @@ function getInitialState(): AppState {
   // Saved preferences take priority for returning users.
   let theme: ThemeColor = 'obsidian';
   let themeMode: ThemeMode = 'dark';
-  let shape: ThemeShape = 'basalt';
+  let shape: ThemeShape = 'panel';
   let iconTheme: IconTheme = 'devicon';
   let lang = 'zh-CN';
   let folderPath: string | null = null;

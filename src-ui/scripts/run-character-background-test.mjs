@@ -304,7 +304,7 @@ await test('saved Basalt selection gets Carbon chrome and its own backdrop befor
   assert.equal(attributes['data-background'], 'basalt');
 });
 
-await test('first launch defaults to Graphite, dark mode and Basalt before React starts', async () => {
+await test('first launch defaults to Graphite, dark mode and Panel before React starts', async () => {
   const html = await readFile(`${root}/index.html`, 'utf8');
   const attributes = {};
   runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], {
@@ -314,12 +314,14 @@ await test('first launch defaults to Graphite, dark mode and Basalt before React
   });
   assert.equal(attributes['data-theme'], 'obsidian');
   assert.equal(attributes['data-mode'], 'dark');
-  assert.equal(attributes['data-shape'], 'carbon');
-  assert.equal(attributes['data-background'], 'basalt');
+  // Panel is an ordinary shape: it sets data-shape directly and carries no
+  // picture backdrop, so no data-background attribute appears.
+  assert.equal(attributes['data-shape'], 'panel');
+  assert.equal(attributes['data-background'], undefined);
   const state = await readFile(`${root}/src/store/app-state.tsx`, 'utf8');
   assert.match(state, /let theme: ThemeColor = 'obsidian';/);
   assert.match(state, /let themeMode: ThemeMode = 'dark';/);
-  assert.match(state, /let shape: ThemeShape = 'basalt';/);
+  assert.match(state, /let shape: ThemeShape = 'panel';/);
 });
 
 console.log(`OK: ${passed} character background regression checks`);
