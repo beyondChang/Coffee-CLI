@@ -12,6 +12,7 @@ import { MarkdownContent } from '../center/MarkdownContent';
 import { Gambit } from '../center/Gambit';
 import { ConversationNavigation, MessageCopyButton, type ConversationNavigationItem } from '../center/ConversationControls';
 import { AgentAppsSection } from '../common/AgentAppsSection';
+import { AutomationsPage } from '../center/AutomationsPage';
 import '../center/ConversationView.css';
 import '../common/SettingsModal.css';
 import './AgentPages.css';
@@ -661,7 +662,8 @@ export function AgentSettings() {
  *  Reuses AgentAppsSection, the same self-contained view the settings modal used. */
 export function AgentPages({ page }: { page: AgentPage }) {
   return page === 'apps' ? <div className="apps-page"><AgentAppsSection /></div>
-    : page === 'agent' ? <AgentChatPage /> : null;
+    : page === 'automations' ? <AutomationsPage />
+      : page === 'agent' ? <AgentChatPage /> : null;
 }
 
 export function ChannelConnectionSummary({ update }: { update?: ReactNode } = {}) {

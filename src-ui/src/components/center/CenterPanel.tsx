@@ -1,5 +1,4 @@
 import { useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
-import { AutomationsPage } from './AutomationsPage';
 import { addProjectFolder, getProjectFolders, removeProjectFolder, subscribeProjectFolders } from '../../lib/project-folders';
 import { createPortal } from 'react-dom';
 import { InlineSvgIcon } from '../InlineSvgIcon';
@@ -380,8 +379,8 @@ export function CenterPanel() {
   const usageOpen = state.usageOpen;
   // Settings and tool settings are floating dialogs: the active session and
   // the launchpad stay mounted behind their backdrop, so they must not blank
-  // the centre column the way the usage / automations pages do.
-  const utilityPageOpen = usageOpen || state.automationsOpen;
+  // the centre column the way the usage page does.
+  const utilityPageOpen = usageOpen;
   const contentActive = !utilityPageOpen && !fileTabActive && !agentPageActive;
   const splitIds = splitSessionIds(state.sessionSplit);
   const splitVisible = contentActive && splitIds.length > 1 && splitIds.includes(activeTerminalId ?? '');
@@ -1003,8 +1002,8 @@ export function CenterPanel() {
       tabDragSuppressClickRef.current = false;
       return;
     }
-    if (tabId === 'agent:agent' || tabId === 'agent:config' || tabId === 'agent:apps') {
-      dispatch({ type: 'OPEN_AGENT_PAGE', page: tabId === 'agent:agent' ? 'agent' : tabId === 'agent:apps' ? 'apps' : 'config' });
+    if (tabId === 'agent:agent' || tabId === 'agent:config' || tabId === 'agent:apps' || tabId === 'agent:automations') {
+      dispatch({ type: 'OPEN_AGENT_PAGE', page: tabId === 'agent:agent' ? 'agent' : tabId === 'agent:apps' ? 'apps' : tabId === 'agent:automations' ? 'automations' : 'config' });
     } else {
       dispatch({ type: 'SET_ACTIVE_TERMINAL', id: tabId });
     }
@@ -1235,9 +1234,10 @@ export function CenterPanel() {
           return visibleTabs.map((tabId, visibleIndex) => {
           const isDragging = tabDrag?.tabId === tabId;
           const dragStyle = getTabDragStyle(tabId, visibleIndex);
-          if (tabId === 'agent:agent' || tabId === 'agent:config' || tabId === 'agent:apps') {
-            const page = tabId === 'agent:agent' ? 'agent' : tabId === 'agent:apps' ? 'apps' : 'config';
-            const tabTitle = page === 'agent' ? t('agent.sidebar.super_assistant') : page === 'apps' ? t('tools.title') : t('agent.page.settings');
+          if (tabId === 'agent:agent' || tabId === 'agent:config' || tabId === 'agent:apps' || tabId === 'agent:automations') {
+            const page = tabId === 'agent:agent' ? 'agent' : tabId === 'agent:apps' ? 'apps' : tabId === 'agent:automations' ? 'automations' : 'config';
+            const tabTitle = page === 'agent' ? t('agent.sidebar.super_assistant') : page === 'apps' ? t('tools.title') : page === 'automations' ? t('automation.title') : t('agent.page.settings');
+            const closeLabel = page === 'agent' ? t('agent.page.close_agent') : page === 'automations' ? `${t('settings.close')} ${t('automation.title')}` : t('agent.page.close_settings');
             return (
               <div key={tabId} data-tab-id={tabId}
                 className={`chrome-tab ${agentPageActive === page && !utilityPageOpen ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
@@ -1245,7 +1245,7 @@ export function CenterPanel() {
                 onPointerDown={event => onTabPointerDown(event, tabId)}>
                 <span className="tab-title">{tabTitle}</span>
                 <div className="tab-actions tab-actions--close-only">
-                  <button type="button" className="tab-close-btn close-button" aria-label={t(page === 'agent' ? 'agent.page.close_agent' : 'agent.page.close_settings')} onClick={event => { event.stopPropagation(); dispatch({ type: 'CLOSE_AGENT_PAGE', page }); }}>
+                  <button type="button" className="tab-close-btn close-button" aria-label={closeLabel} onClick={event => { event.stopPropagation(); dispatch({ type: 'CLOSE_AGENT_PAGE', page }); }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 6-12 12M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -1471,7 +1471,6 @@ export function CenterPanel() {
         ))}
 
         {usageOpen && <UsageDashboard />}
-        {state.automationsOpen && <AutomationsPage />}
         {isLaunchpadMode && activeTerminalId && contentActive && (
           <div className={`launchpad-container${hasBg && bgUrl ? ' launchpad-has-bg' : ''}`} style={{ position: 'relative' }}>
             {hasBg && bgUrl && (

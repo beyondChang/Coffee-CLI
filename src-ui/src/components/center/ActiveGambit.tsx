@@ -153,7 +153,7 @@ export function ActiveGambit() {
   }, [state.gambitOpen]);
 
   if (isLaunchpadActive(state)) return null;
-  if (!gambitOpen || !activeId || state.agentPageActive || state.fileTabActive || state.usageOpen || state.toolSettingsOpen || state.automationsOpen || state.settingsOpen) return null;
+  if (!gambitOpen || !activeId || state.agentPageActive || state.fileTabActive || state.usageOpen || state.toolSettingsOpen || state.settingsOpen) return null;
 
   return (
     <Gambit

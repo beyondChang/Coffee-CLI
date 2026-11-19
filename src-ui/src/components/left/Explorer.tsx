@@ -691,7 +691,7 @@ export function Explorer() {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 14H6l-4 3V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" /><path d="M10 8h10a2 2 0 0 1 2 2v12l-4-3h-8a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /></svg>
         <span>{t('agent.sidebar.super_assistant')}</span>
       </button>
-      <button type="button" className="explorer-new-session explorer-usage" aria-pressed={!!state.automationsOpen} onClick={() => dispatch({ type: 'SET_AUTOMATIONS_OPEN', open: true })}>
+      <button type="button" className="explorer-new-session explorer-usage" aria-label={t('automation.title')} aria-pressed={state.agentPageActive === 'automations'} onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'automations' })}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M5 3 2 6" /><path d="m22 6-3-3" /></svg><span>{t('automation.title')}</span>
       </button>
       {/* Session list content */}

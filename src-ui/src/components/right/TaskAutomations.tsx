@@ -41,7 +41,7 @@ export function TaskAutomations({ canSend, onSend }: { canSend: boolean; onSend:
     </button>
     {!collapsed && automations.map(item => <div key={item.id} className="task-card task-automation-card" data-enabled={item.enabled}>
       <div className="task-automation-row">
-        <button type="button" className="task-automation-name" onClick={() => dispatch({ type: 'SET_AUTOMATIONS_OPEN', open: true })}>
+        <button type="button" className="task-automation-name" onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'automations' })}>
           <span className="task-automation-line">
             <span className="task-automation-title">{item.name}</span>
             {item.enabled && item.nextAt !== undefined && <span className="task-automation-next">{when(item.nextAt)}</span>}
