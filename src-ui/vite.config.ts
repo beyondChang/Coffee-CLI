@@ -66,7 +66,7 @@ export default defineConfig({
     // Tauri probes 127.0.0.1; bare "localhost" can bind IPv6-only (::1) and
     // leave `cargo tauri dev` waiting forever.
     host: '127.0.0.1',
-    port: 5173,
+    port: 5174,
     strictPort: true,
   },
   // Allow Tauri IPC
