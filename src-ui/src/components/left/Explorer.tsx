@@ -677,6 +677,14 @@ export function Explorer() {
         </button>
       </div>
 
+      {/* 应用配置 sits directly under New session. It opens a full tab page in
+          the centre column (no dialog); the four-square glyph matches the old
+          launchpad button and the settings modal's 应用 rail. */}
+      <button type="button" className="explorer-new-session explorer-usage" aria-label={t('tools.title')} aria-pressed={state.agentPageActive === 'apps'} onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'apps' })}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 17.5h7M17.5 14v7" /></svg>
+        <span>{t('tools.title')}</span>
+      </button>
+
       {/* The Super Assistant conversation entry sits directly under New session.
           Its channel status and settings gear remain in the bottom row. */}
       <button type="button" className="explorer-new-session explorer-usage" aria-label={t('agent.sidebar.super_assistant')} aria-pressed={state.agentPageActive === 'agent'} onClick={() => dispatch({ type: 'OPEN_AGENT_PAGE', page: 'agent' })}>

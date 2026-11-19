@@ -177,3 +177,17 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
 .agent-tool-summary li { display: flex; align-items: center; gap: 7px; }
 .agent-tool-summary li.failed { color: var(--danger, #d9534f); }
 .agent-tool-summary code { font-size: var(--type-body); }
+
+/* 应用配置 tab page: full-width host for AgentAppsSection. The section was
+   originally designed for the narrow settings column (two-column grid, flow
+   layout), so here we let it breathe across the whole centre column. */
+.apps-page { flex: 1 1 auto; min-width: 0; height: 100%; overflow: auto; box-sizing: border-box; padding: 26px 32px 40px; }
+.apps-page .settings-apps .tool-settings-modal-header { padding: 0; border-bottom: 0; }
+.apps-page .settings-apps .tool-settings-tabs { margin-bottom: 22px; }
+.apps-page .settings-apps .tool-settings-page,
+.apps-page .settings-apps .tool-settings-page.tool-settings-page--memory { position: static; inset: auto; overflow: visible; padding: 0; }
+.apps-page .settings-apps .tool-settings-inner { max-width: 1100px; }
+.apps-page .settings-apps-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.apps-page .settings-apps .tool-memory { min-height: 420px; }
+@media (max-width: 1000px) { .apps-page .settings-apps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 680px) { .apps-page { padding: 20px 18px 32px; } .apps-page .settings-apps-grid { grid-template-columns: minmax(0, 1fr); } }

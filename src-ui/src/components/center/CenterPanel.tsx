@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { AutomationsPage } from './AutomationsPage';
 import { addProjectFolder, getProjectFolders, removeProjectFolder, subscribeProjectFolders } from '../../lib/project-folders';
 import { createPortal } from 'react-dom';
@@ -13,7 +13,6 @@ import { OpenCodeConversation } from './OpenCodeConversation';
 import { PiConversation } from './PiConversation';
 import { DshConversation } from './DshConversation';
 import { UsageDashboard } from './UsageDashboard';
-import { ToolSettingsPage } from './ToolSettingsPage';
 import { receiveOrchestration, useOrchestration, workerState } from '../../lib/orchestration';
 import { CloseSessionGroupDialog } from './CloseSessionGroupDialog';
 import '../../styles/orchestration.css';
@@ -28,7 +27,7 @@ import { FileTabContextMenu, type FileTabMenuState } from './FileTabContextMenu'
 import { getTabOrder, supportsAgentStatus, useAppState, type ClaudeMode, type ToolType } from '../../store/app-state';
 import { isFrostShape } from '../../lib/personalization';
 import { isClaudeConversation, isCodexConversation, isDshConversation, isOpenCodeConversation, isPiConversation } from '../../lib/chat-tools';
-import { readPinnedItems, savePinnedItems, subscribePinnedItems, togglePinnedItem } from '../../lib/pinned-tools';
+import { readPinnedItems, subscribePinnedItems } from '../../lib/pinned-tools';
 
 // Dropdown shown when a tool card is clicked: the globally
 // recent project folders (any tool that used one) + "Open folder…" last.
@@ -383,9 +382,6 @@ export function CenterPanel() {
   // the launchpad stay mounted behind their backdrop, so they must not blank
   // the centre column the way the usage / automations pages do.
   const utilityPageOpen = usageOpen || state.automationsOpen;
-  const toolSettingsOpen = state.toolSettingsOpen;
-  const toolSettingsDialogRef = useRef<HTMLDivElement>(null);
-  const closeToolSettings = () => dispatch({ type: 'SET_TOOL_SETTINGS_OPEN', open: false });
   const contentActive = !utilityPageOpen && !fileTabActive && !agentPageActive;
   const splitIds = splitSessionIds(state.sessionSplit);
   const splitVisible = contentActive && splitIds.length > 1 && splitIds.includes(activeTerminalId ?? '');
@@ -396,30 +392,24 @@ export function CenterPanel() {
   // Per-tool launch override modal (gear icon → opens settings for that tool).
   const [configModalTool, setConfigModalTool] = useState<{ key: string; label: string } | null>(null);
 
-  // The tool settings dialog floats above the workspace, so the panes behind
-  // it keep their own Escape handlers. Focus the dialog (which makes those
-  // panes treat Escape as a dialog event), capture the key first, and close
-  // a per-tool config overlay before the outer dialog.
+  // The per-tool config overlay (gear icon on a launchpad card) still floats
+  // above the workspace. Let Escape dismiss it before any pane behind reacts.
   useEffect(() => {
-    if (!toolSettingsOpen) return;
-    const previous = document.activeElement as HTMLElement | null;
-    toolSettingsDialogRef.current?.focus();
+    if (!configModalTool) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
       event.stopPropagation();
-      if (configModalTool) setConfigModalTool(null);
-      else closeToolSettings();
+      setConfigModalTool(null);
     };
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); previous?.focus?.(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toolSettingsOpen, configModalTool]);
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [configModalTool]);
   const [closingGroup, setClosingGroup] = useState<{ id: string; error?: string } | null>(null);
   const [fileMenu, setFileMenu] = useState<FileTabMenuState | null>(null);
   const [pinnedItems, setPinnedItems] = useState<string[]>(() => {
-    // Hard cap must match MAX_PINS constant below. Inlined as a literal
-    // because MAX_PINS is declared after this initializer runs.
+    // Hard cap of pinned launchpad tools (6, shared with AgentAppsSection's
+    // PINNED_ITEMS_LIMIT). Inlined here because it is used by the initializer.
     const CAP = 6;
     try {
       const stored = localStorage.getItem('coffee_pinned_items');
@@ -442,7 +432,7 @@ export function CenterPanel() {
         try { localStorage.setItem('coffee_pinned_items', JSON.stringify(arr)); } catch { /* Best-effort operation; failure is non-fatal. */ }
         return arr;
       }
-      // First launch: pre-pin 6 useful defaults so desktop shows a full MAX_PINS
+      // First launch: pre-pin 6 useful defaults so desktop shows a full
       // grid out of the box (5 AI CLIs + the terminal).
       // Returning users' pin choices are respected (stored !== null path above).
       const defaults = [
@@ -458,8 +448,6 @@ export function CenterPanel() {
       return defaults;
     } catch { return []; }
   });
-
-  const MAX_PINS = 6;
 
   // Agent list is fully local (baked into BUILTIN_AI_CLI_FALLBACK below) — no
   // loading / cache state here. The remote catalog fetch at
@@ -530,16 +518,6 @@ export function CenterPanel() {
 
     return [...aiCliEntries, { key: 'terminal' as ToolType, label: t('tool.terminal'), icon: <TerminalIcon />, type: 'ai-cli' as const, requiresCwd: true }];
   })();
-
-  const togglePin = (id: string) => {
-    setPinnedItems(prev => {
-      const next = togglePinnedItem(prev, id, MAX_PINS);
-      // Save + announce only on a real change, so the settings modal's 应用
-      // section re-reads instead of holding a stale grid.
-      if (next !== prev) savePinnedItems(next);
-      return next;
-    });
-  };
 
   // The settings modal edits the same pins; adopt whatever it saved so the
   // launchpad behind it is already up to date when the dialog closes.
@@ -747,7 +725,7 @@ export function CenterPanel() {
   const isLaunchpadMode = activeSession && activeSession.tool === null;
   // Mirrored into a ref so the window-foreground rescan (which has [] deps and
   // can't see the latest value otherwise) can skip work while in a terminal tab.
-  const toolAvailabilityVisible = (isLaunchpadMode && !utilityPageOpen) || state.toolSettingsOpen;
+  const toolAvailabilityVisible = isLaunchpadMode && !utilityPageOpen;
   const toolAvailabilityVisibleRef = useRef(toolAvailabilityVisible);
   useEffect(() => { toolAvailabilityVisibleRef.current = toolAvailabilityVisible; }, [toolAvailabilityVisible]);
 
@@ -1025,8 +1003,8 @@ export function CenterPanel() {
       tabDragSuppressClickRef.current = false;
       return;
     }
-    if (tabId === 'agent:agent' || tabId === 'agent:config') {
-      dispatch({ type: 'OPEN_AGENT_PAGE', page: tabId === 'agent:agent' ? 'agent' : 'config' });
+    if (tabId === 'agent:agent' || tabId === 'agent:config' || tabId === 'agent:apps') {
+      dispatch({ type: 'OPEN_AGENT_PAGE', page: tabId === 'agent:agent' ? 'agent' : tabId === 'agent:apps' ? 'apps' : 'config' });
     } else {
       dispatch({ type: 'SET_ACTIVE_TERMINAL', id: tabId });
     }
@@ -1257,14 +1235,15 @@ export function CenterPanel() {
           return visibleTabs.map((tabId, visibleIndex) => {
           const isDragging = tabDrag?.tabId === tabId;
           const dragStyle = getTabDragStyle(tabId, visibleIndex);
-          if (tabId === 'agent:agent' || tabId === 'agent:config') {
-            const page = tabId === 'agent:agent' ? 'agent' : 'config';
+          if (tabId === 'agent:agent' || tabId === 'agent:config' || tabId === 'agent:apps') {
+            const page = tabId === 'agent:agent' ? 'agent' : tabId === 'agent:apps' ? 'apps' : 'config';
+            const tabTitle = page === 'agent' ? t('agent.sidebar.super_assistant') : page === 'apps' ? t('tools.title') : t('agent.page.settings');
             return (
               <div key={tabId} data-tab-id={tabId}
                 className={`chrome-tab ${agentPageActive === page && !utilityPageOpen ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
                 style={dragStyle} onClick={() => onTabClickGuarded(tabId)}
                 onPointerDown={event => onTabPointerDown(event, tabId)}>
-                <span className="tab-title">{page === 'agent' ? t('agent.sidebar.super_assistant') : t('agent.page.settings')}</span>
+                <span className="tab-title">{tabTitle}</span>
                 <div className="tab-actions tab-actions--close-only">
                   <button type="button" className="tab-close-btn close-button" aria-label={t(page === 'agent' ? 'agent.page.close_agent' : 'agent.page.close_settings')} onClick={event => { event.stopPropagation(); dispatch({ type: 'CLOSE_AGENT_PAGE', page }); }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 6-12 12M6 6l12 12" /></svg>
@@ -1493,56 +1472,6 @@ export function CenterPanel() {
 
         {usageOpen && <UsageDashboard />}
         {state.automationsOpen && <AutomationsPage />}
-        {toolSettingsOpen && createPortal(
-          <div className="tool-settings-overlay" onMouseDown={event => { if (event.target === event.currentTarget) closeToolSettings(); }}>
-            <div className="tool-settings-modal" role="dialog" aria-modal="true" aria-label={t('tools.title')} tabIndex={-1} ref={toolSettingsDialogRef}>
-              <ToolSettingsPage active={toolSettingsOpen}
-                title={<span className="tool-settings-modal-title">{t('tools.title')}</span>}
-                actions={<button type="button" className="tool-settings-modal-close" aria-label={t('settings.close')} onClick={closeToolSettings}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                </button>}
-                tools={AGENT_CATALOG.filter(item => pinnedItems.includes(`agent:${item.key}`)).map(item => ({ value: item.key as string, label: item.label, icon: item.icon, installed: item.key === 'terminal' || toolsInstalled[item.key ?? ''] !== false }))} count={pinnedItems.length} limit={MAX_PINS}>
-          {[true, false].map(enabled => {
-            const items = AGENT_CATALOG.filter(item => item.type === 'ai-cli' && pinnedItems.includes(`agent:${item.key}`) === enabled);
-            return items.length > 0 ? <Fragment key={String(enabled)}>
-              {!enabled && pinnedItems.length > 0 && <hr className="library-divider" />}
-              <div className="library-grid" data-enabled={enabled}>
-                {items.map(item => {
-                  const pinId = `agent:${item.key}`;
-                  const isPinned = pinnedItems.includes(pinId);
-                  const hasGear = CONFIGURABLE_AGENT_TOOLS.has(item.key);
-                  return (
-                    <div
-                      key={item.key}
-                      className={`library-item ${isPinned ? 'is-pinned' : ''}`}
-                      onClick={() => togglePin(pinId)}
-                    >
-                      <div className="library-item-icon">{item.icon}</div>
-                      <span className="library-item-name">{item.label}</span>
-                      {hasGear && (
-                        <span
-                          className="library-gear-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfigModalTool({ key: item.key as string, label: item.label });
-                          }}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                          </svg>
-                        </span>
-                      )}
-                      <div className={`library-toggle${isPinned ? ' on' : ''}`}><div className="library-toggle-knob" /></div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Fragment> : null;
-          })}
-              </ToolSettingsPage>
-            </div>
-          </div>, document.body)}
         {isLaunchpadMode && activeTerminalId && contentActive && (
           <div className={`launchpad-container${hasBg && bgUrl ? ' launchpad-has-bg' : ''}`} style={{ position: 'relative' }}>
             {hasBg && bgUrl && (
@@ -1610,14 +1539,6 @@ export function CenterPanel() {
                         </div>
                       );
                     })()}
-
-                    {/* Bottom-right action: opens the tool settings dialog. */}
-                    <div className="launchpad-config-row">
-                      <button type="button" className="launchpad-config-btn" onClick={() => dispatch({ type: 'SET_TOOL_SETTINGS_OPEN', open: true })}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 17.5h7M17.5 14v7" /></svg>
-                        <span>{t('tools.title')}</span>
-                      </button>
-                    </div>
 
 
                     {/* ─── Remote Terminal Connection Form ─── */}

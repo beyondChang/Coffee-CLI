@@ -11,6 +11,7 @@ import { useTextContextMenu } from '../../lib/use-text-context-menu';
 import { MarkdownContent } from '../center/MarkdownContent';
 import { Gambit } from '../center/Gambit';
 import { ConversationNavigation, MessageCopyButton, type ConversationNavigationItem } from '../center/ConversationControls';
+import { AgentAppsSection } from '../common/AgentAppsSection';
 import '../center/ConversationView.css';
 import '../common/SettingsModal.css';
 import './AgentPages.css';
@@ -656,9 +657,11 @@ export function AgentSettings() {
   return <><div className="agent-settings-scroll"><div className="agent-settings-content"><AgentModelSection kind="text" helpButton={helpButton} />{/* [voice input disabled] <AgentModelSection kind="voice" /> */}<AgentWorkModesSection /><AgentChannelsSection /></div></div>{helpOpen && agentSettingsShown(state.settingsOpen, state.settingsSection) && <AgentHelpModal onClose={() => setHelpOpen(false)} />}</>;
 }
 
-/** A Super Assistant tab: the conversation. Its configuration moved into the settings page. */
+/** The 应用配置 tab: pinned tools + the memory/orchestration/skills/control panels.
+ *  Reuses AgentAppsSection, the same self-contained view the settings modal used. */
 export function AgentPages({ page }: { page: AgentPage }) {
-  return page === 'agent' ? <AgentChatPage /> : null;
+  return page === 'apps' ? <div className="apps-page"><AgentAppsSection /></div>
+    : page === 'agent' ? <AgentChatPage /> : null;
 }
 
 export function ChannelConnectionSummary({ update }: { update?: ReactNode } = {}) {

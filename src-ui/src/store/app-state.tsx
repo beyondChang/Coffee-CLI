@@ -167,7 +167,7 @@ export interface TerminalSession {
 
 // ─── State Shape ─────────────────────────────────────────────────────────────
 
-export type AgentPage = 'agent' | 'config';
+export type AgentPage = 'agent' | 'config' | 'apps';
 
 export interface AppState {
   // UI
