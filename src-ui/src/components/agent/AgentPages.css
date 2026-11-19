@@ -182,7 +182,7 @@ body.gambit-docked .agent-page-agent { padding-bottom: calc(var(--gambit-dock-h,
    originally designed for the narrow settings column (two-column grid, flow
    layout), so here we let it breathe across the whole centre column. */
 .apps-page { flex: 1 1 auto; min-width: 0; height: 100%; overflow: auto; box-sizing: border-box; padding: 26px 32px 40px; }
-.apps-page .settings-apps .tool-settings-modal-header { padding: 0; border-bottom: 0; }
+.apps-page .settings-apps .tool-settings-modal-header { padding: 0; border-bottom: 0; justify-content: center; }
 .apps-page .settings-apps .tool-settings-tabs { margin-bottom: 22px; }
 .apps-page .settings-apps .tool-settings-page,
 .apps-page .settings-apps .tool-settings-page.tool-settings-page--memory { position: static; inset: auto; overflow: visible; padding: 0; }
